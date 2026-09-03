@@ -1,0 +1,39 @@
+{
+  "name": "frameforge-local",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,server -c cyan,yellow \"vite --host 127.0.0.1\" \"node --watch server/server.mjs\"",
+    "build": "tsc -b && vite build",
+    "start": "node server/server.mjs",
+    "check": "tsc -b --pretty false",
+    "test:server": "node --test tests/server/*.test.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.6",
+    "@fontsource/manrope": "^5.2.6",
+    "@fontsource/syne": "^5.2.6",
+    "@google/model-viewer": "^4.3.1",
+    "@xyflow/react": "^12.9.3",
+    "archiver": "^8.0.0",
+    "express": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "multer": "^2.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "@types/three": "^0.185.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5"
+  }
+}
