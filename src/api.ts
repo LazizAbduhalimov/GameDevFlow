@@ -1,4 +1,4 @@
-import type { AssetRecord, CodexStatus, FrameforgeProject, GenerationJob, ProviderId, ProviderStatus, TripoModelEvent } from './types';
+import type { AssetRecord, CodexStatus, FrameforgeProject, GenerationJob, ProjectSummary, ProviderId, ProviderStatus, SmartSeparationGroup, SmartSeparationItem, SmartSeparationProgress, SmartSeparationSource, TripoModelEvent } from './types';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public code?: string) {
@@ -69,24 +69,60 @@ export async function enhanceImagePrompt(
   });
 }
 
+export async function analyzeSmartSeparation(
+  sourceUrls: string[],
+  options: { projectId: string; userHint?: string; onProgress?: (progress: SmartSeparationProgress) => void },
+): Promise<{ analysisId: string; sources: SmartSeparationSource[]; items: SmartSeparationItem[]; groups: SmartSeparationGroup[]; warnings: string[] }> {
+  const requestId = crypto.randomUUID();
+  let stopped = false;
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  const poll = async () => {
+    try {
+      const progress = await request<SmartSeparationProgress>(`/api/smart-separation/progress/${requestId}`);
+      if (!stopped) options.onProgress?.(progress);
+    } catch { /* The POST may not have registered its progress record yet. */ }
+    if (!stopped) pollTimer = setTimeout(() => void poll(), 700);
+  };
+  const analysisRequest = request<{
+    analysisId: string;
+    sources: SmartSeparationSource[];
+    items: SmartSeparationItem[];
+    groups: SmartSeparationGroup[];
+    warnings: string[];
+  }>('/api/smart-separation/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId, sourceUrls, projectId: options.projectId, userHint: options.userHint || '' }),
+  });
+  pollTimer = setTimeout(() => void poll(), 250);
+  try {
+    return await analysisRequest;
+  } finally {
+    stopped = true;
+    if (pollTimer) clearTimeout(pollTimer);
+  }
+}
+
 export async function getProviders(): Promise<ProviderStatus[]> {
   const payload = await request<ProviderStatus[] | { providers: ProviderStatus[] }>('/api/providers');
   return Array.isArray(payload) ? payload : payload.providers;
 }
 
-export async function uploadImage(file: File): Promise<{ id: string; name: string; url: string }> {
+export async function uploadImage(file: File, projectId: string): Promise<AssetRecord> {
   const body = new FormData();
   body.append('image', file);
+  body.append('projectId', projectId);
   return request('/api/assets', { method: 'POST', body });
 }
 
 export async function saveDerivedAsset(
   blob: Blob,
-  options: { name: string; parentAssetIds?: string[]; assetRole?: string; manifest?: Record<string, unknown> },
+  options: { name: string; projectId: string; parentAssetIds?: string[]; assetRole?: string; manifest?: Record<string, unknown> },
 ): Promise<AssetRecord> {
   const body = new FormData();
   body.append('image', blob, options.name);
   body.append('name', options.name);
+  body.append('projectId', options.projectId);
   body.append('parentAssetIds', JSON.stringify(options.parentAssetIds || []));
   body.append('assetRole', options.assetRole || 'derived');
   if (options.manifest) {
@@ -96,8 +132,9 @@ export async function saveDerivedAsset(
   return request('/api/assets/derived', { method: 'POST', body });
 }
 
-export async function getAssets(options: { includeTrashed?: boolean; onlyTrashed?: boolean } = {}): Promise<AssetRecord[]> {
+export async function getAssets(options: { projectId?: string; includeTrashed?: boolean; onlyTrashed?: boolean } = {}): Promise<AssetRecord[]> {
   const query = new URLSearchParams();
+  if (options.projectId) query.set('projectId', options.projectId);
   if (options.includeTrashed) query.set('includeTrashed', 'true');
   if (options.onlyTrashed) query.set('onlyTrashed', 'true');
   const payload = await request<AssetRecord[] | { assets: AssetRecord[] }>(`/api/assets${query.size ? `?${query}` : ''}`);
@@ -151,12 +188,36 @@ export function saveLocalBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
-export async function getProject(): Promise<FrameforgeProject> {
-  return request('/api/project');
+export async function getProjects(): Promise<ProjectSummary[]> {
+  return request('/api/projects');
 }
 
-export async function saveProject(project: Omit<FrameforgeProject, 'updatedAt' | 'createdAt'>): Promise<FrameforgeProject> {
-  return request('/api/project', {
+export async function createProject(name: string): Promise<FrameforgeProject> {
+  return request('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function duplicateProject(projectId: string, name?: string): Promise<FrameforgeProject> {
+  return request(`/api/projects/${encodeURIComponent(projectId)}/duplicate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteProject(projectId: string): Promise<ProjectSummary> {
+  return request(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
+}
+
+export async function getProject(projectId = 'default'): Promise<FrameforgeProject> {
+  return request(`/api/projects/${encodeURIComponent(projectId)}`);
+}
+
+export async function saveProject(projectId: string, project: Omit<FrameforgeProject, 'updatedAt' | 'createdAt'>): Promise<FrameforgeProject> {
+  return request(`/api/projects/${encodeURIComponent(projectId)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(project),
@@ -166,7 +227,7 @@ export async function saveProject(project: Omit<FrameforgeProject, 'updatedAt' |
 export async function startGeneration(
   source: string | string[],
   prompt: string,
-  options: { provider?: ProviderId; outputName?: string; view?: string } = {},
+  options: { provider?: ProviderId; outputName?: string; view?: string; projectId?: string } = {},
 ): Promise<{ jobId: string }> {
   const sourceUrls = Array.isArray(source) ? source : [source];
   return request('/api/generate', {
@@ -179,7 +240,7 @@ export async function startGeneration(
 export async function startGenerationBatch(
   sourceUrl: string,
   views: Array<{ key: string; prompt: string; outputName: string }>,
-  options: { provider?: ProviderId; concurrency?: 1 | 2 | 3 | 4 } = {},
+  options: { provider?: ProviderId; concurrency?: 1 | 2 | 3 | 4; projectId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; viewKey: string; status: string }> }> {
   return request('/api/batches', {
     method: 'POST',
@@ -191,12 +252,12 @@ export async function startGenerationBatch(
 export async function startSlotBatch(
   sourceUrls: string[],
   slots: Array<{ key: string; prompt: string; outputName: string }>,
-  options: { provider?: ProviderId; kind?: string; concurrency?: 1 | 2 | 3 | 4 } = {},
+  options: { provider?: ProviderId; kind?: string; concurrency?: 1 | 2 | 3 | 4; projectId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; slotKey: string; slotIndex: number; status: string }> }> {
   return request('/api/batches', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sourceUrl: sourceUrls[0], sourceUrls, slots, kind: options.kind || 'variants', provider: options.provider, concurrency: options.concurrency }),
+    body: JSON.stringify({ sourceUrl: sourceUrls[0], sourceUrls, slots, kind: options.kind || 'variants', provider: options.provider, concurrency: options.concurrency, projectId: options.projectId }),
   });
 }
 
@@ -204,8 +265,9 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJob> {
   return request(`/api/jobs/${jobId}`);
 }
 
-export async function getJobs(): Promise<GenerationJob[]> {
-  const payload = await request<GenerationJob[] | { jobs: GenerationJob[] }>('/api/jobs');
+export async function getJobs(projectId?: string): Promise<GenerationJob[]> {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const payload = await request<GenerationJob[] | { jobs: GenerationJob[] }>(`/api/jobs${query}`);
   return Array.isArray(payload) ? payload : payload.jobs;
 }
 

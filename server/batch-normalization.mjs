@@ -1,12 +1,15 @@
 const LEGACY_VIEW_LIMIT = 4;
 const DEFAULT_SLOT_LIMIT = 6;
-const BATCH_KINDS = new Set(['variants', 'icon-set', 'character-parts']);
+const SMART_SEPARATION_SLOT_LIMIT = 128;
+export const MAX_REFERENCE_IMAGES = 16;
+const BATCH_KINDS = new Set(['variants', 'icon-set', 'character-parts', 'smart-separation']);
 
 export function normalizeBatchRequest(body = {}) {
   const sourceUrl = stringValue(body.sourceUrl, 4_096);
   const sourceUrls = Array.isArray(body.sourceUrls)
-    ? [...new Set(body.sourceUrls.slice(0, 4).map((value) => stringValue(value, 4_096)).filter(Boolean))]
+    ? [...new Set(body.sourceUrls.map((value) => stringValue(value, 4_096)).filter(Boolean))]
     : sourceUrl ? [sourceUrl] : [];
+  if (sourceUrls.length > MAX_REFERENCE_IMAGES) throw batchError('BATCH_REFERENCE_COUNT', `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.`);
   if (!sourceUrls.length && sourceUrl) sourceUrls.push(sourceUrl);
   const provider = stringValue(body.provider, 64) || 'codex';
   const concurrency = normalizeConcurrency(body.concurrency);
@@ -23,7 +26,7 @@ export function normalizeBatchRequest(body = {}) {
   }
 
   const batchKind = stringValue(body.kind, 32) || 'variants';
-  if (!BATCH_KINDS.has(batchKind)) throw batchError('UNSUPPORTED_BATCH_KIND', 'Batch kind must be "variants", "icon-set", or "character-parts".');
+  if (!BATCH_KINDS.has(batchKind)) throw batchError('UNSUPPORTED_BATCH_KIND', 'Batch kind must be "variants", "icon-set", "character-parts", or "smart-separation".');
   return {
     sourceUrl,
     sourceUrls,
@@ -58,9 +61,16 @@ function normalizeLegacyViews(views) {
 }
 
 function normalizeSlots(slots, batchKind) {
-  if (!Array.isArray(slots) || !slots.length || slots.length > DEFAULT_SLOT_LIMIT) {
-    const label = batchKind === 'icon-set' ? 'Icon Set' : batchKind === 'character-parts' ? 'Character Parts' : 'Variants';
-    throw batchError('BATCH_SLOT_COUNT', `${label} batches require one to ${DEFAULT_SLOT_LIMIT} slots.`);
+  const slotLimit = batchKind === 'smart-separation' ? SMART_SEPARATION_SLOT_LIMIT : DEFAULT_SLOT_LIMIT;
+  if (!Array.isArray(slots) || !slots.length || slots.length > slotLimit) {
+    const label = batchKind === 'icon-set'
+      ? 'Icon Set'
+      : batchKind === 'character-parts'
+        ? 'Character Parts'
+        : batchKind === 'smart-separation'
+          ? 'Smart Separation'
+          : 'Variants';
+    throw batchError('BATCH_SLOT_COUNT', `${label} batches require one to ${slotLimit} slots.`);
   }
   return slots.map((slot, index) => normalizeSlot(slot, index, batchKind, { slotKey: stringValue(slot?.key ?? slot?.slotKey, 32) || `${batchKind}-${index + 1}`, viewKey: null }));
 }

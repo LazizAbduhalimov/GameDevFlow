@@ -28,6 +28,7 @@ export function serializeEdges(edges: Edge[]): Edge[] {
 }
 
 export function projectPayload(
+  id: string,
   name: string,
   revision: number,
   nodes: Node[],
@@ -36,7 +37,7 @@ export function projectPayload(
 ): Omit<FrameforgeProject, 'updatedAt' | 'createdAt'> {
   return {
     schemaVersion: 1,
-    id: 'default',
+    id,
     name,
     revision,
     nodes: serializeNodes(nodes),

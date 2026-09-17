@@ -15,6 +15,10 @@ export class JobStore {
       if (!file.endsWith('.json')) continue;
       const job = await readJson(path.join(this.jobsDir, file), null);
       if (!job?.id) continue;
+      if (!job.projectId) {
+        job.projectId = 'default';
+        await writeJsonAtomic(path.join(this.jobsDir, file), job);
+      }
       if (job.status === 'running' || job.status === 'queued') {
         job.status = 'interrupted';
         job.progress = 'Interrupted by a Frameforge restart. Retry when ready.';
@@ -25,7 +29,11 @@ export class JobStore {
     }
   }
 
-  list() { return [...this.jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+  list(projectId = null) {
+    return [...this.jobs.values()]
+      .filter((job) => !projectId || job.projectId === projectId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
   get(id) { return this.jobs.get(id) || null; }
 
   async create(job) {

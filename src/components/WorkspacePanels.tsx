@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArchiveRestore,
   Archive,
+  Check,
   CheckSquare2,
   Clock3,
   Download,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { generatedImageDownloadUrl } from '../api';
 import type { AssetRecord, GenerationJob } from '../types';
+import { generationJobTitle, sortGenerationJobs } from '../workspace-display';
 
 type GalleryProps = {
   open: boolean;
@@ -169,7 +171,9 @@ type JobsProps = {
 };
 
 export function JobsDrawer({ open, jobs, onClose, onRefresh, onCancel, onRetry }: JobsProps) {
+  const ordered = useMemo(() => sortGenerationJobs(jobs), [jobs]);
   const active = jobs.filter((job) => job.status === 'queued' || job.status === 'running').length;
+  const queuedAhead = ordered.filter((job) => job.status === 'queued');
   if (!open) return null;
   return (
     <aside className={`workspace-drawer jobs-drawer ${open ? 'open' : ''}`} aria-hidden={!open}>
@@ -179,11 +183,17 @@ export function JobsDrawer({ open, jobs, onClose, onRefresh, onCancel, onRetry }
       </div>
       <div className="jobs-list">
         {jobs.length === 0 && <div className="drawer-empty"><Clock3 size={20} /> Queue is empty</div>}
-        {jobs.map((job) => {
+        {ordered.map((job) => {
           const busy = job.status === 'queued' || job.status === 'running';
+          const preview = job.outputUrl || job.sourceUrl;
+          const title = generationJobTitle(job);
+          const queueIndex = job.status === 'queued' ? queuedAhead.findIndex((item) => item.id === job.id) + 1 : 0;
           return <article className={`job-row status-${job.status}`} key={job.id}>
-            <div className="job-state">{busy ? <LoaderCircle className="spin" size={15} /> : job.status === 'completed' ? <ArchiveRestore size={15} /> : <Clock3 size={15} />}</div>
-            <div><strong>{job.progress || job.status}</strong><small>{job.provider} · {job.id.slice(0, 8)}{job.queuePosition ? ` · #${job.queuePosition}` : ''}</small>{job.error && <p>{job.error}</p>}</div>
+            <div className={`job-state ${busy ? 'is-busy' : ''}`}>
+              {preview ? <img className="job-thumb" src={preview} alt="" /> : null}
+              {(!preview || busy) && (busy ? <LoaderCircle className="spin" size={15} /> : job.status === 'completed' ? <Check size={15} /> : <Clock3 size={15} />)}
+            </div>
+            <div className="job-copy"><strong title={title}>{title}</strong><small>{job.progress || job.status} · {job.provider}{queueIndex ? ` · #${queueIndex}` : ''}</small>{job.error && <p>{job.error}</p>}</div>
             <div className="job-actions">{busy ? <button title="Stop job" onClick={() => onCancel(job)}><Square size={12} /></button> : (job.status === 'failed' || job.status === 'cancelled' || job.status === 'interrupted') && <button title="Retry job" onClick={() => onRetry(job)}><RefreshCw size={12} /></button>}</div>
           </article>;
         })}

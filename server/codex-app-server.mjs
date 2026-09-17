@@ -2,8 +2,9 @@ import { spawn } from 'node:child_process';
 import { copyFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
+import { codexSpawnEnv, resolveCodexCommand } from './codex-command.mjs';
 
-const codexCommand = process.platform === 'win32' ? 'codex.exe' : 'codex';
+const codexCommand = resolveCodexCommand();
 
 export class CodexAppServer extends EventEmitter {
   #child = null;
@@ -28,7 +29,7 @@ export class CodexAppServer extends EventEmitter {
         cwd,
         shell: false,
         windowsHide: true,
-        env: { ...process.env, NO_COLOR: '1' },
+        env: codexSpawnEnv(),
       });
       this.#child = child;
 
@@ -226,6 +227,95 @@ export class CodexAppServer extends EventEmitter {
     });
   }
 
+  async analyzeUiSheet({ cwd, imagePath, sourceIndex = 0, userHint = '', outputSchema }) {
+    const prompt = [
+      `Inspect source image ${sourceIndex + 1} as a UI sheet, reference board, sprite sheet, or collection of game-art elements.`,
+      'Identify every distinct reusable visual element that can be cropped independently.',
+      'Bounds use integer x, y, width, height in a normalized 0..1000 coordinate system. Keep each box tight but include the complete object.',
+      'Do not merge neighboring elements. Ignore decorative page backgrounds, rulers, labels that only describe the sheet, and duplicate thumbnails.',
+      userHint ? `User guidance: ${userHint}` : '',
+    ].filter(Boolean).join('\n');
+    return this.#runStructuredTurn({
+      cwd,
+      serviceName: 'Frameforge Smart Separation',
+      baseInstructions: 'You are a visual UI asset detector. Return only data matching the supplied JSON schema. Do not edit files or generate images.',
+      input: [{ type: 'text', text: prompt }, { type: 'localImage', path: imagePath, detail: 'original' }],
+      outputSchema,
+      timeoutMs: 180_000,
+      emptyMessage: 'Codex finished without UI element data.',
+    });
+  }
+
+  async groupUiItems({ cwd, items, userHint = '', outputSchema }) {
+    const prompt = [
+      'Group these detected visual elements by their practical game/UI purpose.',
+      'Choose the number of semantic groups from the content. Avoid one group per item and avoid broad meaningless buckets.',
+      'Every item ID must appear exactly once. Use short human-readable group names and stable lowercase slugs.',
+      userHint ? `User guidance: ${userHint}` : '',
+      JSON.stringify(items.map(({ id, name, role, description, sourceIndex }) => ({ id, name, role, description, sourceIndex }))),
+    ].filter(Boolean).join('\n\n');
+    return this.#runStructuredTurn({
+      cwd,
+      serviceName: 'Frameforge Smart Grouping',
+      baseInstructions: 'You organize detected game-art and UI elements. Return only data matching the supplied JSON schema.',
+      input: [{ type: 'text', text: prompt }],
+      outputSchema,
+      timeoutMs: 120_000,
+      emptyMessage: 'Codex finished without grouping data.',
+    });
+  }
+
+  async #runStructuredTurn({ cwd, serviceName, baseInstructions, input, outputSchema, timeoutMs, emptyMessage }) {
+    await this.start(cwd);
+    const threadResponse = await this.request('thread/start', {
+      cwd,
+      runtimeWorkspaceRoots: [cwd],
+      approvalPolicy: 'never',
+      sandbox: 'read-only',
+      ephemeral: true,
+      serviceName,
+      baseInstructions,
+    });
+    const threadId = threadResponse.thread.id;
+
+    return new Promise(async (resolve, reject) => {
+      let text = '';
+      let settled = false;
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        this.off('notification', handleNotification);
+        callback(value);
+      };
+      const handleNotification = (message) => {
+        const notificationThreadId = message.params?.threadId;
+        if (notificationThreadId && notificationThreadId !== threadId) return;
+        if (message.method === 'item/agentMessage/delta') text += message.params?.delta || '';
+        if (message.method === 'item/completed' && message.params?.item?.type === 'agentMessage') text = message.params.item.text || text;
+        if (message.method === 'error') finish(reject, new Error(message.params?.message || `${serviceName} failed.`));
+        if (message.method === 'turn/completed') {
+          try {
+            const value = JSON.parse(cleanJsonText(text));
+            finish(resolve, value);
+          } catch {
+            finish(reject, new Error(`${serviceName} returned invalid structured data.`));
+          }
+        }
+      };
+      const timeout = setTimeout(() => finish(reject, new Error(`${serviceName} timed out.`)), timeoutMs);
+      this.on('notification', handleNotification);
+      try {
+        await this.request('turn/start', { threadId, input, outputSchema, effort: 'low', approvalPolicy: 'never' });
+      } catch (error) {
+        finish(reject, error);
+      }
+    }).then((value) => {
+      if (!value || typeof value !== 'object') throw new Error(emptyMessage);
+      return value;
+    });
+  }
+
   #write(message) {
     this.#child?.stdin.write(`${JSON.stringify(message)}\n`);
   }
@@ -266,4 +356,8 @@ function cleanPromptText(value) {
     .replace(/^(?:enhanced prompt|prompt)\s*:\s*/i, '')
     .trim()
     .slice(0, 8_000);
+}
+
+function cleanJsonText(value) {
+  return String(value || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }

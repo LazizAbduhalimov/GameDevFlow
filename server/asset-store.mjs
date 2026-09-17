@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readJson, writeJsonAtomic } from './json-store.mjs';
-import { parseAssetUrl, resolveWithin, slugify } from './path-safety.mjs';
+import { parseAssetUrl, resolveWithin, safeDownloadName, slugify } from './path-safety.mjs';
 import { detectRasterImage } from './image-validation.mjs';
 
 export class AssetStore {
@@ -28,14 +28,28 @@ export class AssetStore {
         asset.sha256 = hash(await readFile(filePath));
         migrated = true;
       }
+      if (!asset.projectId) {
+        asset.projectId = 'default';
+        asset.projectIds = ['default'];
+        migrated = true;
+      } else if (!Array.isArray(asset.projectIds) || !asset.projectIds.length) {
+        asset.projectIds = [asset.projectId];
+        migrated = true;
+      }
     }
     const imported = (await this.#importLegacyFiles(this.assetsDir, 'source')) + (await this.#importLegacyFiles(this.generatedDir, 'generated'));
     if (imported || migrated) await this.#persist();
   }
 
-  list({ includeTrashed = false, onlyTrashed = false } = {}) {
+  list({ projectId = null, includeTrashed = false, onlyTrashed = false, allProjects = false } = {}) {
     return [...this.assets.values()]
-      .filter((asset) => onlyTrashed ? Boolean(asset.deletedAt) : includeTrashed || !asset.deletedAt)
+      .filter((asset) => {
+        const matchesTrash = onlyTrashed ? Boolean(asset.deletedAt) : includeTrashed || !asset.deletedAt;
+        if (!matchesTrash) return false;
+        if (allProjects || !projectId) return true;
+        const targetId = String(projectId);
+        return asset.projectId === targetId || (Array.isArray(asset.projectIds) && asset.projectIds.includes(targetId));
+      })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((asset) => publicAsset(asset));
   }
@@ -61,10 +75,11 @@ export class AssetStore {
     return asset.deletedAt ? this.trashPath(asset) : this.filePath(asset);
   }
 
-  async createUpload({ buffer, name, image }) {
+  async createUpload({ buffer, name, image, projectId = 'default' }) {
     const id = randomUUID();
     const storageName = `${id}${image.extension}`;
-    const asset = createAsset({ id, kind: 'source', storageName, name, image, size: buffer.length, sha256: hash(buffer) });
+    const cleanProjId = cleanProjectId(projectId);
+    const asset = createAsset({ id, kind: 'source', storageName, name, image, size: buffer.length, sha256: hash(buffer), projectId: cleanProjId, projectIds: [cleanProjId] });
     await this.#enqueue(async () => {
       await writeFile(this.filePath(asset), buffer, { flag: 'wx' });
       this.assets.set(asset.id, asset);
@@ -73,20 +88,21 @@ export class AssetStore {
     return publicAsset(asset);
   }
 
-  async createGeneratedFromFile({ temporaryPath, name, prompt, sourceAssetId, sourceAssetIds, provider, jobId }) {
+  async createGeneratedFromFile({ temporaryPath, name, prompt, sourceAssetId, sourceAssetIds, provider, jobId, projectId = 'default' }) {
     const buffer = await readFile(temporaryPath);
     const image = detectRasterImage(buffer);
     if (!image) throw new Error('The provider returned an unsupported or invalid raster image.');
     const id = randomUUID();
-    const displayName = name || `${slugify(prompt, 'generated')}.png`;
+    const displayName = safeDownloadName(name || slugify(prompt, 'generated'), image.extension);
     const storageName = `${slugify(path.parse(displayName).name, 'generated')}-${id}${image.extension}`;
     const size = buffer.length;
+    const cleanProjId = cleanProjectId(projectId);
     const asset = createAsset({ id, kind: 'generated', storageName, name: displayName, image, size, metadata: {
       prompt,
       provider,
       jobId,
       parentAssetIds: Array.isArray(sourceAssetIds) ? [...new Set(sourceAssetIds.filter(Boolean))] : sourceAssetId ? [sourceAssetId] : [],
-    }, sha256: hash(buffer) });
+    }, sha256: hash(buffer), projectId: cleanProjId, projectIds: [cleanProjId] });
     await this.#enqueue(async () => {
       await rename(temporaryPath, this.filePath(asset));
       this.assets.set(asset.id, asset);
@@ -95,7 +111,7 @@ export class AssetStore {
     return publicAsset(asset);
   }
 
-  async createDerived({ buffer, name, metadata }) {
+  async createDerived({ buffer, name, metadata, projectId = 'default' }) {
     const image = detectRasterImage(buffer);
     if (!image) {
       const error = new Error('Derived assets must be valid raster images.');
@@ -103,12 +119,13 @@ export class AssetStore {
       throw error;
     }
     const id = randomUUID();
-    const displayName = name || 'derived-image';
+    const displayName = safeDownloadName(name || 'derived-image', image.extension);
     const storageName = `${slugify(path.parse(displayName).name, 'derived')}-${id}${image.extension}`;
+    const cleanProjId = cleanProjectId(projectId);
     const asset = createAsset({ id, kind: 'generated', storageName, name: displayName, image, size: buffer.length, metadata: {
       ...metadata,
       derived: true,
-    }, sha256: hash(buffer) });
+    }, sha256: hash(buffer), projectId: cleanProjId, projectIds: [cleanProjId] });
     await this.#enqueue(async () => {
       await writeFile(this.filePath(asset), buffer, { flag: 'wx' });
       this.assets.set(asset.id, asset);
@@ -248,7 +265,8 @@ export class AssetStore {
   }
 }
 
-function createAsset({ id, kind, storageName, name, image, size, metadata = {}, sha256 = null }) {
+function createAsset({ id, kind, storageName, name, image, size, metadata = {}, sha256 = null, projectId = 'default', projectIds = ['default'] }) {
+  const cleanId = cleanProjectId(projectId);
   return {
     id,
     name: String(name || storageName).slice(0, 180),
@@ -257,17 +275,22 @@ function createAsset({ id, kind, storageName, name, image, size, metadata = {}, 
     mediaType: image.mediaType,
     size,
     sha256,
+    projectId: cleanId,
+    projectIds: Array.isArray(projectIds) && projectIds.length ? projectIds.map(cleanProjectId) : [cleanId],
     createdAt: new Date().toISOString(),
     metadata,
   };
 }
 
 function publicAsset(asset) {
+  const cleanId = cleanProjectId(asset.projectId);
   return {
     id: asset.id,
     name: asset.name,
     kind: asset.kind,
     url: `/data/${asset.kind === 'generated' ? 'generated' : 'assets'}/${asset.id}`,
+    projectId: cleanId,
+    projectIds: Array.isArray(asset.projectIds) && asset.projectIds.length ? asset.projectIds.map(cleanProjectId) : [cleanId],
     size: asset.size,
     createdAt: asset.createdAt,
     sha256: asset.sha256,
@@ -276,6 +299,13 @@ function publicAsset(asset) {
     restoredAt: asset.restoredAt || null,
     thumbnailUrl: `/api/assets/${asset.id}/preview`,
   };
+}
+
+function cleanProjectId(value) {
+  if (typeof value === 'string' && /^[a-z0-9][a-z0-9-_]{0,63}$/i.test(value.trim())) {
+    return value.trim();
+  }
+  return 'default';
 }
 
 function hash(buffer) {

@@ -7,15 +7,17 @@ import { mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CodexWorkerPool } from './codex-worker-pool.mjs';
+import { codexSpawnEnv, resolveCodexCommand } from './codex-command.mjs';
 import { AssetStore } from './asset-store.mjs';
 import { resolveExportAssets, streamAssetArchive } from './archive-export.mjs';
-import { batchRequestErrorMessage, normalizeBatchRequest } from './batch-normalization.mjs';
+import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest } from './batch-normalization.mjs';
 import { parseDerivedAssetMetadata } from './derived-asset.mjs';
 import { detectRasterImage } from './image-validation.mjs';
 import { JobQueue } from './job-queue.mjs';
 import { JobStore } from './job-store.mjs';
-import { slugify } from './path-safety.mjs';
+import { safeDownloadName, slugify } from './path-safety.mjs';
 import { ProjectStore } from './project-store.mjs';
+import { fallbackGroup, groupingSchema, MAX_SMART_SEPARATION_ITEMS, normalizeDetectedItems, normalizeGroups, uiSheetDetectionSchema } from './smart-separation.mjs';
 import { TripoBrowserBridge } from './tripo-browser-bridge.mjs';
 
 const app = express();
@@ -30,7 +32,7 @@ const trashDir = path.join(dataDir, 'trash');
 const jobsDir = path.join(dataDir, 'jobs');
 const projectsDir = path.join(dataDir, 'projects');
 const modelsDir = path.join(dataDir, 'models');
-const codexCommand = process.platform === 'win32' ? 'codex.exe' : 'codex';
+const codexCommand = resolveCodexCommand();
 const codexWorkerCount = Math.max(1, Math.min(4, Number(process.env.FRAMEFORGE_CODEX_WORKERS || 4)));
 const codexWorkerPool = new CodexWorkerPool({
   size: codexWorkerCount,
@@ -40,11 +42,23 @@ const assetStore = new AssetStore({ dataDir, assetsDir, generatedDir, metadataDi
 const jobStore = new JobStore(jobsDir);
 const projectStore = new ProjectStore(projectsDir);
 const tripoEventClients = new Set();
+const smartSeparationRuns = new Map();
 const tripoBrowserBridge = new TripoBrowserBridge({
   profileDir: path.join(dataDir, 'tripo-browser-profile'),
   modelsDir,
   onEvent: publishTripoEvent,
 });
+
+function setSmartSeparationProgress(requestId, patch) {
+  const previous = smartSeparationRuns.get(requestId) || {};
+  smartSeparationRuns.set(requestId, { ...previous, ...patch, requestId, updatedAt: new Date().toISOString() });
+}
+
+function finishSmartSeparationProgress(requestId, stage, message) {
+  setSmartSeparationProgress(requestId, { stage, message });
+  const cleanup = setTimeout(() => smartSeparationRuns.delete(requestId), 10 * 60 * 1000);
+  cleanup.unref?.();
+}
 
 await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(generatedDir, { recursive: true }), mkdir(modelsDir, { recursive: true }), assetStore.initialize(), jobStore.initialize()]);
 const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concurrency: codexWorkerCount });
@@ -67,11 +81,26 @@ app.get('/api/codex/status', async (_request, response) => {
 });
 
 app.post('/api/codex/connect', (_request, response) => {
+  let settled = false;
+  let timeout;
+  const finish = (status, body) => {
+    if (settled || response.headersSent) return;
+    settled = true;
+    clearTimeout(timeout);
+    response.status(status).json(body);
+  };
   try {
-    const child = spawn(codexCommand, ['login'], { cwd: rootDir, detached: true, shell: false, stdio: 'ignore', windowsHide: true });
-    child.unref();
-    response.status(202).json({ ok: true, message: 'The Codex sign-in flow was opened.' });
-  } catch { response.status(500).json({ message: 'Could not open the Codex sign-in flow.' }); }
+    const child = spawn(codexCommand, ['login'], { cwd: rootDir, detached: true, shell: false, stdio: 'ignore', windowsHide: true, env: codexSpawnEnv() });
+    timeout = setTimeout(() => finish(500, { message: 'Could not open the Codex sign-in flow.' }), 8_000);
+    child.once('error', (error) => {
+      console.error('Could not open Codex sign-in:', error);
+      finish(500, { message: error.code === 'ENOENT' ? 'Codex CLI was not found. Open the ChatGPT desktop app once, then retry Connect ChatGPT.' : 'Could not open the Codex sign-in flow.' });
+    });
+    child.once('spawn', () => {
+      child.unref();
+      finish(202, { ok: true, message: 'The Codex sign-in flow was opened.' });
+    });
+  } catch { finish(500, { message: 'Could not open the Codex sign-in flow.' }); }
 });
 
 app.post('/api/prompts/enhance', async (request, response) => {
@@ -88,6 +117,158 @@ app.post('/api/prompts/enhance', async (request, response) => {
   }
 });
 
+app.get('/api/smart-separation/progress/:requestId', (request, response) => {
+  const progress = smartSeparationRuns.get(request.params.requestId);
+  if (!progress) return response.status(404).json({ message: 'Smart Separation progress is not available.' });
+  response.json(progress);
+});
+
+app.post('/api/smart-separation/analyze', async (request, response) => {
+  const requestedId = typeof request.body?.requestId === 'string' ? request.body.requestId : '';
+  const requestId = /^[a-zA-Z0-9-]{1,100}$/.test(requestedId) ? requestedId : randomUUID();
+  const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+  const sourceUrls = Array.isArray(request.body?.sourceUrls)
+    ? [...new Set(request.body.sourceUrls.filter((url) => typeof url === 'string' && url))]
+    : [];
+  const userHint = typeof request.body?.userHint === 'string' ? request.body.userHint.trim().slice(0, 4_000) : '';
+  if (!sourceUrls.length || sourceUrls.length > MAX_REFERENCE_IMAGES) {
+    return response.status(400).json({ message: `Smart Separation requires 1 to ${MAX_REFERENCE_IMAGES} local source images.` });
+  }
+
+  setSmartSeparationProgress(requestId, {
+    requestId,
+    stage: 'queued',
+    completedSources: 0,
+    totalSources: sourceUrls.length,
+    message: sourceUrls.length === 1 ? 'Preparing source image…' : `Preparing ${sourceUrls.length} source images…`,
+    startedAt: new Date().toISOString(),
+  });
+
+  try {
+    await projectStore.get(projectId);
+    const sources = [];
+    for (let sourceIndex = 0; sourceIndex < sourceUrls.length; sourceIndex += 1) {
+      const sourceUrl = sourceUrls[sourceIndex];
+      const resolved = await assetStore.resolveDataUrl(sourceUrl);
+      const projectIds = resolved?.asset?.projectIds || [resolved?.asset?.projectId].filter(Boolean);
+      if (!resolved?.asset || !resolved.path || !existsSync(resolved.path) || !projectIds.includes(projectId)) {
+        finishSmartSeparationProgress(requestId, 'failed', 'A source image is unavailable in the active project.');
+        return response.status(400).json({ message: 'Every Smart Separation source must belong to the active local project.' });
+      }
+      sources.push({ sourceIndex, sourceUrl, sourceAssetId: resolved.asset.id, path: resolved.path, name: resolved.asset.name });
+    }
+
+    setSmartSeparationProgress(requestId, { stage: 'detecting', message: `Detecting elements in 0 of ${sources.length} sources…` });
+    let completedSources = 0;
+    const detections = await Promise.all(sources.map((source) => codexWorkerPool.run((worker) => worker.analyzeUiSheet({
+      cwd: rootDir,
+      imagePath: source.path,
+      sourceIndex: source.sourceIndex,
+      userHint,
+      outputSchema: uiSheetDetectionSchema,
+    })).then((payload) => {
+      completedSources += 1;
+      setSmartSeparationProgress(requestId, {
+        stage: 'detecting',
+        completedSources,
+        message: `Detected elements in ${completedSources} of ${sources.length} sources.`,
+      });
+      return payload;
+    })));
+    const items = [];
+    detections.forEach((payload, sourceIndex) => {
+      items.push(...normalizeDetectedItems(payload, { ...sources[sourceIndex], itemOffset: items.length }));
+    });
+    if (!items.length) {
+      finishSmartSeparationProgress(requestId, 'failed', 'No reusable elements were detected.');
+      return response.status(422).json({ message: 'No reusable UI elements were detected. Add guidance or choose a clearer source image.' });
+    }
+    if (items.length > MAX_SMART_SEPARATION_ITEMS) items.length = MAX_SMART_SEPARATION_ITEMS;
+
+    let groups;
+    const warnings = [];
+    setSmartSeparationProgress(requestId, { stage: 'grouping', completedSources: sources.length, message: `Organizing ${items.length} detected elements into semantic groups…` });
+    try {
+      const grouped = await codexWorkerPool.run((worker) => worker.groupUiItems({ cwd: rootDir, items, userHint, outputSchema: groupingSchema(items.map((item) => item.id)) }));
+      groups = normalizeGroups(grouped, items);
+    } catch (error) {
+      console.warn('Smart Separation grouping fell back to Unsorted:', error instanceof Error ? error.message : error);
+      groups = fallbackGroup(items);
+      warnings.push('Automatic grouping was unavailable. All detected elements were placed in Unsorted for manual review.');
+    }
+
+    finishSmartSeparationProgress(requestId, 'completed', `${items.length} elements organized into ${groups.length} groups.`);
+    response.json({
+      analysisId: requestId,
+      sources: sources.map(({ sourceIndex, sourceUrl, sourceAssetId, name }) => ({ sourceIndex, sourceUrl, sourceAssetId, name })),
+      items,
+      groups,
+      warnings,
+    });
+  } catch (error) {
+    console.error('Smart Separation analysis failed:', error);
+    const message = error instanceof Error ? error.message : 'Smart Separation analysis failed.';
+    finishSmartSeparationProgress(requestId, 'failed', message);
+    response.status(/timed out/i.test(message) ? 504 : 502).json({ message });
+  }
+});
+
+app.get('/api/projects', async (_request, response, next) => {
+  try { response.json(await projectStore.list()); } catch (error) { next(error); }
+});
+app.post('/api/projects', async (request, response, next) => {
+  try { response.status(201).json(await projectStore.create({ name: request.body?.name })); } catch (error) { next(error); }
+});
+app.get('/api/projects/:projectId', async (request, response, next) => {
+  try { response.json(await projectStore.get(request.params.projectId)); }
+  catch (error) {
+    if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
+    if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+    next(error);
+  }
+});
+app.put('/api/projects/:projectId', async (request, response, next) => {
+  try { response.json(await projectStore.save(request.params.projectId, request.body)); }
+  catch (error) {
+    if (error?.code === 'REVISION_CONFLICT') return response.status(409).json({ message: error.message, project: error.current });
+    if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
+    if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+    next(error);
+  }
+});
+app.post('/api/projects/:projectId/duplicate', async (request, response, next) => {
+  try { response.status(201).json(await projectStore.duplicate(request.params.projectId, request.body?.name)); }
+  catch (error) {
+    if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
+    if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+    next(error);
+  }
+});
+app.delete('/api/projects/:projectId', async (request, response, next) => {
+  try { response.json(await projectStore.delete(request.params.projectId)); }
+  catch (error) {
+    if (error?.code === 'CANNOT_DELETE_DEFAULT_PROJECT' || error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
+    if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+    next(error);
+  }
+});
+app.get('/api/projects/:projectId/export/manifest', async (request, response, next) => {
+  try {
+    const project = await projectStore.get(request.params.projectId);
+    response.setHeader('Content-Disposition', `attachment; filename="frameforge-${slugify(project.name, 'project')}-manifest.json"`);
+    response.json({
+      exportedAt: new Date().toISOString(),
+      project,
+      assets: assetStore.list({ projectId: request.params.projectId, includeTrashed: true }),
+      jobs: jobStore.list(request.params.projectId),
+    });
+  } catch (error) {
+    if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+    next(error);
+  }
+});
+
+// Legacy backward-compatibility routes for the default project
 app.get('/api/project', async (_request, response, next) => { try { response.json(await projectStore.getDefault()); } catch (error) { next(error); } });
 app.put('/api/project', async (request, response, next) => {
   try { response.json(await projectStore.saveDefault(request.body)); }
@@ -96,14 +277,10 @@ app.put('/api/project', async (request, response, next) => {
     next(error);
   }
 });
-app.get('/api/projects/default/export/manifest', async (_request, response, next) => {
-  try {
-    response.setHeader('Content-Disposition', 'attachment; filename="frameforge-project-manifest.json"');
-    response.json({ exportedAt: new Date().toISOString(), project: await projectStore.getDefault(), assets: assetStore.list({ includeTrashed: true }), jobs: jobStore.list() });
-  } catch (error) { next(error); }
-});
 
 app.get('/api/assets', (request, response) => response.json(assetStore.list({
+  projectId: request.query.projectId ? String(request.query.projectId) : undefined,
+  allProjects: request.query.allProjects === 'true',
   includeTrashed: request.query.includeTrashed === 'true',
   onlyTrashed: request.query.onlyTrashed === 'true',
 })));
@@ -112,7 +289,9 @@ app.post('/api/assets', upload.single('image'), async (request, response, next) 
     if (!request.file?.buffer) return response.status(400).json({ message: 'Choose a raster image file.' });
     const image = detectRasterImage(request.file.buffer);
     if (!image) return response.status(415).json({ message: 'Only PNG, JPEG, WEBP, GIF, and BMP raster files are accepted. SVG is not supported.' });
-    response.status(201).json(await assetStore.createUpload({ buffer: request.file.buffer, name: request.file.originalname, image }));
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    await projectStore.get(projectId);
+    response.status(201).json(await assetStore.createUpload({ buffer: request.file.buffer, name: request.file.originalname, image, projectId }));
   } catch (error) { next(error); }
 });
 app.post('/api/assets/derived', upload.single('image'), async (request, response, next) => {
@@ -120,10 +299,15 @@ app.post('/api/assets/derived', upload.single('image'), async (request, response
     if (!request.file?.buffer) return response.status(400).json({ message: 'Choose a raster image file.' });
     if (!detectRasterImage(request.file.buffer)) return response.status(415).json({ message: 'Only PNG, JPEG, WEBP, GIF, and BMP raster files are accepted. SVG is not supported.' });
     const metadata = parseDerivedAssetMetadata(request.body);
-    const missingParents = metadata.parentAssetIds.filter((id) => !assetStore.get(id, { includeTrashed: true }));
-    if (missingParents.length) return response.status(400).json({ message: 'Every parentAssetId must identify an existing local asset.' });
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    await projectStore.get(projectId);
+    const invalidParents = metadata.parentAssetIds.filter((id) => {
+      const parent = assetStore.get(id, { includeTrashed: true });
+      return !parent || !assetBelongsToProject(parent, projectId);
+    });
+    if (invalidParents.length) return response.status(400).json({ message: 'Every parentAssetId must identify an asset from the active project.' });
     const name = typeof request.body?.name === 'string' ? request.body.name.trim().slice(0, 180) : request.file.originalname;
-    response.status(201).json(await assetStore.createDerived({ buffer: request.file.buffer, name, metadata }));
+    response.status(201).json(await assetStore.createDerived({ buffer: request.file.buffer, name, metadata, projectId }));
   } catch (error) {
     if (error?.code === 'DERIVED_METADATA_INVALID') return response.status(400).json({ message: error.message });
     next(error);
@@ -228,7 +412,7 @@ app.get('/api/assets/:assetId/download', async (request, response, next) => {
   try {
     const asset = assetStore.get(request.params.assetId);
     if (!asset || !existsSync(assetStore.filePath(asset))) return response.status(404).json({ message: 'Asset not found.' });
-    response.download(assetStore.filePath(asset), safeDownloadName(asset.name));
+    response.download(assetStore.filePath(asset), safeDownloadName(asset.name, path.extname(asset.storageName)));
   } catch (error) { next(error); }
 });
 
@@ -247,7 +431,7 @@ app.get('/api/files/download', async (request, response, next) => {
   try {
     const resolved = await assetStore.resolveDataUrl(String(request.query.url || ''));
     if (!resolved?.path || !existsSync(resolved.path)) return response.status(404).json({ message: 'Generated image not found.' });
-    response.download(resolved.path, safeDownloadName(resolved.asset?.name || `frameforge-${path.basename(resolved.path)}`));
+    response.download(resolved.path, safeDownloadName(resolved.asset?.name || path.parse(resolved.path).name, path.extname(resolved.asset?.storageName || resolved.path)));
   } catch (error) { next(error); }
 });
 
@@ -275,19 +459,22 @@ app.post('/api/generate', async (request, response, next) => {
   try {
     const prompt = typeof request.body?.prompt === 'string' ? request.body.prompt.trim().slice(0, 8_000) : '';
     const requestedUrls = Array.isArray(request.body?.sourceUrls)
-      ? request.body.sourceUrls.slice(0, 4).filter((url) => typeof url === 'string' && url)
+      ? [...new Set(request.body.sourceUrls.filter((url) => typeof url === 'string' && url))]
       : typeof request.body?.sourceUrl === 'string' && request.body.sourceUrl ? [request.body.sourceUrl] : [];
     const provider = typeof request.body?.provider === 'string' ? request.body.provider : 'codex';
     const outputName = typeof request.body?.outputName === 'string' ? request.body.outputName.trim().slice(0, 180) : '';
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    await projectStore.get(projectId);
+    if (requestedUrls.length > MAX_REFERENCE_IMAGES) return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
     if (!prompt || !requestedUrls.length) return response.status(400).json({ message: 'At least one input image and a prompt are required.' });
     if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
     const sources = [];
     for (const sourceUrl of [...new Set(requestedUrls)]) {
       const source = await assetStore.resolveDataUrl(sourceUrl);
-      if (!source?.path || !existsSync(source.path)) return response.status(400).json({ message: 'An input image is outside the local Frameforge asset library.' });
+      if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, projectId)) return response.status(400).json({ message: 'Every input image must belong to the active local project.' });
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
-    const job = createJob({ prompt, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, outputName });
+    const job = createJob({ prompt, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, outputName, projectId });
     await jobStore.create(job);
     jobQueue.enqueue(job.id);
     response.status(202).json({ jobId: job.id });
@@ -298,18 +485,20 @@ app.post('/api/batches', async (request, response, next) => {
   try {
     const batch = normalizeBatchRequest(request.body);
     const { provider } = batch;
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    await projectStore.get(projectId);
     if (!batch.sourceUrls.length || !batch.slots.length) return response.status(400).json({ message: 'At least one source image and one batch slot are required.' });
     if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
     const sources = [];
     for (const sourceUrl of batch.sourceUrls) {
       const source = await assetStore.resolveDataUrl(sourceUrl);
-      if (!source?.path || !existsSync(source.path)) return response.status(400).json({ message: 'An input image is outside the local Frameforge asset library.' });
+      if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, projectId)) return response.status(400).json({ message: 'Every input image must belong to the active local project.' });
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
     const batchId = randomUUID();
     const jobs = [];
     for (const slot of batch.slots) {
-      jobs.push(createJob({ ...slot, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, batchId, batchConcurrency: batch.concurrency }));
+      jobs.push(createJob({ ...slot, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, batchId, batchConcurrency: batch.concurrency, projectId }));
     }
     for (const job of jobs) await jobStore.create(job);
     for (const job of jobs) jobQueue.enqueue(job.id);
@@ -321,7 +510,7 @@ app.post('/api/batches', async (request, response, next) => {
   }
 });
 
-app.get('/api/jobs', (_request, response) => response.json(jobStore.list()));
+app.get('/api/jobs', (request, response) => response.json(jobStore.list(request.query.projectId ? String(request.query.projectId) : null)));
 app.get('/api/batches/:batchId', (request, response) => {
   const jobs = jobStore.list().filter((job) => job.batchId === request.params.batchId);
   if (!jobs.length) return response.status(404).json({ message: 'Batch not found.' });
@@ -361,6 +550,8 @@ app.delete('/api/files', async (request, response, next) => {
 
 app.use((error, _request, response, _next) => {
   if (error?.code === 'LIMIT_FILE_SIZE') return response.status(413).json({ message: 'Image files must be 20 MB or smaller.' });
+  if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
+  if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
   console.error(error);
   response.status(500).json({ message: 'Unexpected local server error.' });
 });
@@ -385,15 +576,23 @@ async function executeImageJob(job) {
   const sources = [];
   for (const sourceUrl of sourceUrls) {
     const source = await assetStore.resolveDataUrl(sourceUrl);
-    if (!source?.path || !existsSync(source.path)) throw new Error('A selected source asset is no longer available.');
+    if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, job.projectId || 'default')) throw new Error('A selected source asset is no longer available in this project.');
     sources.push(source);
   }
   const temporaryPath = path.join(generatedDir, `.${job.id}.pending.png`);
   await unlink(temporaryPath).catch(() => {});
   const layerConstraint = job.batchKind === 'character-parts'
     ? 'This is a compositing-layer task. Respect the first reference canvas and requested pixel placement. Prefer real PNG alpha transparency; do not simulate transparency with white, gray, or checkerboard backgrounds.'
+    : job.batchKind === 'smart-separation'
+      ? 'This is a Smart Separation regeneration task. Generate exactly one standalone UI asset matching only the requested element; recreate it cleanly instead of cropping or copying surrounding sheet pixels. Render the exact visible text requested by the User instruction verbatim: do not correct, paraphrase, translate, add, or omit text. Match the requested visual style exactly. Return one complete PNG asset with real alpha transparency around it. Do not include an atlas, sprite sheet, collage, neighboring elements, surrounding scene, background, solid matte, transparency checkerboard, labels, guides, mockup, or presentation frame. The canvas must contain only this single isolated asset with transparent padding.'
     : '';
-  const workerPrompt = [sources.length > 1 ? `Generate one image using all ${sources.length} attached reference images.` : 'Generate one edited image from the attached source image.', `User instruction: ${job.prompt}`, layerConstraint, 'Preserve the main subject identity, silhouette, material language, and palette unless the instruction explicitly changes them.', 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
+  const taskIntro = job.batchKind === 'smart-separation'
+    ? 'Use the attached source sheet only as visual reference. Recreate the requested target as a new isolated asset.'
+    : sources.length > 1 ? `Generate one image using all ${sources.length} attached reference images.` : 'Generate one edited image from the attached source image.';
+  const preservationConstraint = job.batchKind === 'smart-separation'
+    ? 'Preserve the requested target, not the source-sheet canvas. Use nearby sheet content only to understand the design language.'
+    : 'Preserve the main subject identity, silhouette, material language, and palette unless the instruction explicitly changes them.';
+  const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
   await codexWorkerPool.run(async (worker, workerIndex) => {
     await worker.generate({
       cwd: rootDir,
@@ -404,15 +603,20 @@ async function executeImageJob(job) {
     });
   });
   const sourceAssetIds = Array.isArray(job.sourceAssetIds) && job.sourceAssetIds.length ? job.sourceAssetIds : [job.sourceAssetId].filter(Boolean);
-  const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id });
+  const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id, projectId: job.projectId || 'default' });
   await jobStore.update(job.id, { status: 'completed', progress: 'Ready', outputUrl: asset.url, outputAssetId: asset.id, error: null });
 }
 
-function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null }) {
+function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null, projectId = 'default' }) {
   const id = randomUUID();
   const normalizedUrls = Array.isArray(sourceUrls) && sourceUrls.length ? sourceUrls : [sourceUrl].filter(Boolean);
   const normalizedAssetIds = Array.isArray(sourceAssetIds) && sourceAssetIds.length ? sourceAssetIds : [sourceAssetId].filter(Boolean);
-  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+}
+
+function assetBelongsToProject(asset, projectId) {
+  if (!asset) return false;
+  return asset.projectId === projectId || (Array.isArray(asset.projectIds) && asset.projectIds.includes(projectId));
 }
 
 async function getCodexProviderStatus() {
@@ -424,7 +628,6 @@ async function getCodexProviderStatus() {
   return { id: 'codex', label: 'Codex ImageGen', statusLabel, available: installed && connected, installed, connected, reason: installed && connected ? undefined : 'Sign in to Codex to enable ImageGen.', capabilities: { imageGeneration: true, imageEditing: true, cancellation: 'queued-only', maxConcurrency: codexWorkerCount } };
 }
 
-function safeDownloadName(value) { return String(value || 'frameforge-image.png').replace(/[\\/:*?"<>|]/g, '-').slice(0, 180); }
 function resolveLocalModelPath(directory, modelKey) {
   const key = typeof modelKey === 'string' ? modelKey : '';
   if (!/^tripo-[a-z0-9._-]+\.glb$/i.test(key) || path.basename(key) !== key) return null;
@@ -442,7 +645,7 @@ function publishTripoEvent(event) {
 function runCodex(args, timeoutMs) {
   return new Promise((resolve) => {
     let stdout = ''; let stderr = ''; let settled = false;
-    const child = spawn(codexCommand, args, { cwd: rootDir, shell: false, windowsHide: true });
+    const child = spawn(codexCommand, args, { cwd: rootDir, shell: false, windowsHide: true, env: codexSpawnEnv() });
     const timeout = setTimeout(() => { child.kill(); if (!settled) resolve({ code: null, stdout, stderr, spawnError: 'Codex timed out.' }); settled = true; }, timeoutMs);
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
     child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });

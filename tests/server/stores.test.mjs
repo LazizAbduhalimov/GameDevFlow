@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { detectRasterImage } from '../../server/image-validation.mjs';
@@ -12,7 +12,7 @@ import { CodexWorkerPool } from '../../server/codex-worker-pool.mjs';
 import { parseDerivedAssetMetadata } from '../../server/derived-asset.mjs';
 import { JobQueue } from '../../server/job-queue.mjs';
 import { JobStore } from '../../server/job-store.mjs';
-import { resolveWithin, slugify } from '../../server/path-safety.mjs';
+import { resolveWithin, safeDownloadName, slugify } from '../../server/path-safety.mjs';
 import { ProjectStore } from '../../server/project-store.mjs';
 
 test('raster signatures are accepted and text/SVG is rejected', () => {
@@ -41,6 +41,10 @@ test('batch normalization preserves Character Views and supports six variant slo
   assert.deepEqual(parts.sourceUrls, ['/data/assets/front', '/data/assets/left', '/data/assets/back', '/data/assets/right']);
   assert.deepEqual(parts.slots.map((slot) => slot.slotKey), ['hat', 'body']);
   assert.equal(parts.concurrency, 1);
+  const references = Array.from({ length: 6 }, (_, index) => `/data/assets/reference-${index + 1}`);
+  const referenceBatch = normalizeBatchRequest({ sourceUrls: references, kind: 'variants', slots: [{ key: 'one', prompt: 'Use every reference' }] });
+  assert.deepEqual(referenceBatch.sourceUrls, references);
+  assert.throws(() => normalizeBatchRequest({ sourceUrls: Array.from({ length: 17 }, (_, index) => `/data/assets/reference-${index + 1}`), kind: 'variants', slots: [{ key: 'one', prompt: 'Too many references' }] }), { code: 'BATCH_REFERENCE_COUNT' });
   assert.throws(() => normalizeBatchRequest({ sourceUrl: '/data/assets/source', concurrency: 5, views: [{ key: 'front', prompt: 'Front' }] }), { code: 'BATCH_CONCURRENCY' });
 });
 
@@ -56,6 +60,9 @@ test('path safety keeps asset paths inside their collection root', () => {
   assert.equal(resolveWithin(root, '../outside.png'), null);
   assert.equal(resolveWithin(root, '..\\outside.png'), null);
   assert.equal(slugify(' Front view: Character #1 '), 'front-view-character-1');
+  assert.equal(safeDownloadName('smart-crown-doodle-3528a54b', '.png'), 'smart-crown-doodle-3528a54b.png');
+  assert.equal(safeDownloadName('hero-front.png', '.png'), 'hero-front.png');
+  assert.equal(safeDownloadName('atlas', '.webp'), 'atlas.webp');
 });
 
 test('project store writes atomically and rejects a stale revision', async (t) => {
@@ -67,6 +74,47 @@ test('project store writes atomically and rejects a stale revision', async (t) =
   const saved = await store.saveDefault({ revision: 0, name: 'Test project', nodes: [{ id: 'n1' }], edges: [], viewport: { x: 1, y: 2, zoom: 1 } });
   assert.equal(saved.revision, 1);
   await assert.rejects(store.saveDefault({ revision: 0, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }), { code: 'REVISION_CONFLICT' });
+});
+
+test('project store preserves default while creating, listing, duplicating, and recoverably deleting projects', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-projects-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = new ProjectStore(path.join(root, 'projects'));
+  const original = await store.getDefault();
+  const created = await store.create({ name: 'Character Pack' });
+  const saved = await store.save(created.id, { revision: 0, name: created.name, nodes: [{ id: 'hero' }], edges: [], viewport: { x: 20, y: 30, zoom: 0.8 } });
+  const duplicate = await store.duplicate(saved.id, 'Character Pack Copy');
+  assert.equal(saved.id, created.id);
+  assert.equal(saved.revision, 1);
+  assert.equal(duplicate.nodes.length, 1);
+  assert.deepEqual((await store.list()).map((project) => project.id).sort(), [original.id, created.id, duplicate.id].sort());
+  await store.delete(created.id);
+  await assert.rejects(store.get(created.id), { code: 'PROJECT_NOT_FOUND' });
+  await assert.rejects(store.delete('default'), { code: 'CANNOT_DELETE_DEFAULT_PROJECT' });
+  assert.equal((await store.getDefault()).id, 'default');
+});
+
+test('asset store migrates legacy assets to default and scopes new uploads by project', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-assets-projects-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadataDir = path.join(root, 'metadata');
+  await mkdir(metadataDir, { recursive: true });
+  await writeFile(path.join(metadataDir, 'assets.json'), JSON.stringify({ schemaVersion: 1, assets: [{ id: 'legacy', name: 'legacy.png', kind: 'source', storageName: 'legacy.png', mediaType: 'image/png', size: 12, createdAt: '2026-01-01T00:00:00.000Z', metadata: {} }] }));
+  const store = new AssetStore({
+    dataDir: root,
+    assetsDir: path.join(root, 'assets'),
+    generatedDir: path.join(root, 'generated'),
+    metadataDir,
+    trashDir: path.join(root, 'trash'),
+  });
+  await store.initialize();
+  assert.equal(store.get('legacy').projectId, 'default');
+  const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const first = await store.createUpload({ buffer, name: 'first.png', image: detectRasterImage(buffer), projectId: 'project-one' });
+  const second = await store.createUpload({ buffer, name: 'second.png', image: detectRasterImage(buffer), projectId: 'project-two' });
+  assert.deepEqual(store.list({ projectId: 'project-one' }).map((asset) => asset.id), [first.id]);
+  assert.deepEqual(store.list({ projectId: 'project-two' }).map((asset) => asset.id), [second.id]);
+  assert.ok(store.list({ projectId: 'default' }).some((asset) => asset.id === 'legacy'));
 });
 
 test('asset store soft-delete can be restored and then purged permanently', async (t) => {
@@ -134,6 +182,7 @@ test('generated assets retain every parent from an All views input', async (t) =
   const pending = path.join(root, 'pending.png');
   await writeFile(pending, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]));
   const generated = await store.createGeneratedFromFile({ pending, temporaryPath: pending, name: 'all-result', prompt: 'Use every view', sourceAssetIds: ['front', 'left', 'back', 'right'], provider: 'codex', jobId: 'job-all' });
+  assert.equal(generated.name, 'all-result.png');
   assert.deepEqual(store.get(generated.id).metadata.parentAssetIds, ['front', 'left', 'back', 'right']);
 });
 
@@ -167,6 +216,18 @@ test('job store marks queued and running jobs interrupted after restart', async 
   const recovered = new JobStore(root);
   await recovered.initialize();
   assert.equal(recovered.get('job-1').status, 'interrupted');
+  assert.equal(recovered.get('job-1').projectId, 'default');
+});
+
+test('job store lists tasks only for the selected project', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-scoped-jobs-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = new JobStore(root);
+  await store.initialize();
+  await store.create({ id: 'default-job', projectId: 'default', status: 'completed', createdAt: '2026-01-01T00:00:00.000Z' });
+  await store.create({ id: 'other-job', projectId: 'project-two', status: 'completed', createdAt: '2026-01-02T00:00:00.000Z' });
+  assert.deepEqual(store.list('default').map((job) => job.id), ['default-job']);
+  assert.deepEqual(store.list('project-two').map((job) => job.id), ['other-job']);
 });
 
 test('queue runs one job at a time and cancels queued jobs', async () => {

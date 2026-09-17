@@ -1,0 +1,75 @@
+.ff-catalog {
+  position: fixed;
+  z-index: var(--z-menu, 35);
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(540px, calc(100dvh - 24px));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 22%), 0 4px 14px rgb(0 0 0 / 10%);
+  font-family: 'Manrope', sans-serif;
+  animation: ff-catalog-enter 140ms ease-out;
+}
+
+.ff-catalog button { font: inherit; cursor: pointer; }
+.ff-catalog button:focus-visible, .ff-catalog input:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ff-catalog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px 10px; }
+.ff-catalog-heading h2 { color: var(--text); font-size: 15px; font-weight: 650; line-height: 1.25; letter-spacing: -.02em; margin: 0; }
+.ff-catalog-heading small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.ff-catalog-close { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
+.ff-catalog-close:hover { background: var(--surface-hover); color: var(--text); }
+.ff-catalog-search { display: flex; align-items: center; gap: 9px; min-height: 36px; padding: 0 11px; margin: 0 12px 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-inset); color: var(--muted); }
+.ff-catalog-search:focus-within { border-color: var(--focus); }
+.ff-catalog-search input { width: 100%; min-width: 0; height: 34px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; }
+.ff-catalog-search input::placeholder { color: var(--muted); }
+.ff-catalog-search input:focus-visible { outline: none; }
+.ff-catalog-search button { display: grid; place-items: center; flex-shrink: 0; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); }
+.ff-catalog-search button:hover { background: var(--surface-hover); }
+.ff-catalog-tabs { display: flex; flex-shrink: 0; align-items: center; gap: 3px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; border-bottom: 1px solid var(--border); }
+.ff-catalog-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1 0 auto; min-height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.ff-catalog-tabs button:hover { background: var(--surface-hover); color: var(--text); }
+.ff-catalog-tabs button.is-active { background: var(--accent-soft); color: var(--accent-soft-text); }
+.ff-catalog-results { min-height: 120px; padding: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.ff-catalog-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); text-align: left; transition: background 120ms ease; }
+.ff-catalog-item.is-active, .ff-catalog-item:hover:not(:disabled) { background: var(--surface-hover); }
+.ff-catalog-item:disabled { cursor: default; }
+.ff-catalog-item:disabled .ff-catalog-icon { opacity: .45; }
+.ff-catalog-item:disabled strong { color: var(--muted); }
+.ff-catalog-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; background: color-mix(in srgb, var(--icon-color) 12%, var(--surface)); color: color-mix(in srgb, var(--icon-color) 66%, var(--text)); }
+.ff-catalog-icon.tone-coral { --icon-color: #ed785e; }
+.ff-catalog-icon.tone-teal { --icon-color: #39b4a5; }
+.ff-catalog-icon.tone-blue { --icon-color: #79aee8; }
+.ff-catalog-icon.tone-amber { --icon-color: #eeb446; }
+.ff-catalog-item-text { display: block; flex: 1; min-width: 0; }
+.ff-catalog-item-text strong { display: block; font-size: 13px; font-weight: 650; letter-spacing: -.02em; }
+.ff-catalog-item-text small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.35; margin-top: 1px; }
+.ff-catalog-chevron { flex-shrink: 0; color: var(--muted); opacity: 0; }
+.ff-catalog-item.is-active .ff-catalog-chevron { opacity: 1; }
+.ff-catalog-category { flex-shrink: 0; font-size: 10px; color: var(--muted); }
+.ff-catalog-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; min-height: 30px; padding: 6px 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 10px; }
+.ff-catalog-footer > span { display: flex; align-items: center; gap: 4px; }
+.ff-catalog-footer > svg { display: none; }
+.ff-catalog-footer kbd { font: inherit; }
+.ff-catalog-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 14px; color: var(--muted); text-align: center; }
+.ff-catalog-empty strong { color: var(--text); font-size: 13px; margin-top: 3px; }
+.ff-catalog-empty span { font-size: 11.5px; }
+.ff-catalog-empty button { border: 0; padding: 6px 10px; margin-top: 4px; border-radius: 7px; background: var(--accent-soft); color: var(--accent-soft-text); font-size: 11.5px; }
+
+@keyframes ff-catalog-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .ff-catalog { left: 8px !important; right: 8px; top: auto !important; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; max-height: calc(100dvh - 24px); border-radius: 16px; }
+  .ff-catalog-tabs { gap: 2px; padding-inline: 8px; }
+  .ff-catalog-tabs button { gap: 4px; padding-inline: 7px; font-size: 11px; }
+  .ff-catalog-tabs button svg { display: none; }
+  .ff-catalog-item { padding-inline: 8px; gap: 8px; min-height: 46px; }
+  .ff-catalog-icon { width: 28px; height: 28px; flex-basis: 28px; }
+  .ff-catalog-item-text strong { font-size: 12.5px; }
+  .ff-catalog-item-text small { font-size: 10.5px; }
+  .ff-catalog-category { display: none; }
+  .ff-catalog-footer { padding-inline: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .ff-catalog { animation: none; } .ff-catalog-item { transition: none; } }

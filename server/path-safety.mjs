@@ -30,3 +30,22 @@ export function slugify(value, fallback = 'image') {
     .slice(0, 48);
   return slug || fallback;
 }
+
+const IMAGE_EXTENSION = /^\.(png|jpe?g|webp|gif|bmp)$/i;
+
+export function imageExtension(value, fallback = '.png') {
+  const raw = String(value || '').toLowerCase();
+  const fromValue = raw.startsWith('.') ? raw : path.extname(raw);
+  if (IMAGE_EXTENSION.test(fromValue)) return fromValue;
+  const fallbackExt = String(fallback || '.png').toLowerCase();
+  const fromFallback = fallbackExt.startsWith('.') ? fallbackExt : `.${fallbackExt}`;
+  return IMAGE_EXTENSION.test(fromFallback) ? fromFallback : '.png';
+}
+
+export function safeDownloadName(value, extension = '.png') {
+  const ext = imageExtension(extension, '.png');
+  const cleaned = String(value || 'frameforge-image').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 180) || 'frameforge-image';
+  const currentExt = path.extname(cleaned);
+  const base = IMAGE_EXTENSION.test(currentExt) ? cleaned.slice(0, -currentExt.length) : cleaned.replace(/\.+$/, '');
+  return `${base || 'frameforge-image'}${ext}`;
+}

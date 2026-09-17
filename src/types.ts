@@ -6,6 +6,7 @@ export type ViewKey = 'front' | 'left' | 'back' | 'right';
 export type CharacterPartKey = 'hat' | 'top' | 'pants' | 'shoes' | 'body';
 export type MaterialMapKey = 'baseColor' | 'normal' | 'height' | 'roughness' | 'metallic' | 'ambientOcclusion' | 'orm';
 export type GenerationMode = 'reliable' | 'fast' | 'turbo';
+export type CharacterPose = 'a-pose' | 't-pose';
 
 export type ProviderStatus = {
   id: ProviderId;
@@ -21,6 +22,8 @@ export type AssetRecord = {
   name: string;
   url: string;
   kind: 'source' | 'generated' | 'mask';
+  projectId: string;
+  projectIds?: string[];
   size: number;
   createdAt: string;
   deletedAt?: string | null;
@@ -36,7 +39,7 @@ export type AssetRecord = {
     view?: ViewKey;
     batchId?: string;
     slotKey?: string;
-    assetRole?: 'sprite-atlas' | 'relative-atlas' | 'character-part' | 'seamless-texture' | 'material-map' | 'derived';
+    assetRole?: 'sprite-atlas' | 'relative-atlas' | 'character-part' | 'seamless-texture' | 'material-map' | 'smart-separation-sprite' | 'smart-separation-atlas' | 'derived';
     manifest?: Record<string, unknown>;
     [key: string]: unknown;
   };
@@ -48,11 +51,127 @@ export type ImageNodeData = {
   imageUrl: string;
   fileName: string;
   assetId?: string;
+  sourceItemId?: string;
+  sourceGroupId?: string;
   hasInput?: boolean;
   onBranch?: (nodeId: string, sourceHandle?: string) => void;
+  onDownload?: (nodeId: string) => void;
+  onDelete?: (nodeId: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusy?: boolean;
   onOpen?: (url: string, title: string, sourceUrl?: string) => void;
+};
+
+export type ReferenceSetItem = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  assetId?: string;
+};
+
+export type ReferenceSetNodeData = {
+  [key: string]: unknown;
+  title: string;
+  items: ReferenceSetItem[];
+  onBranch?: (nodeId: string, sourceHandle?: string) => void;
+  onOpen?: (url: string, title: string) => void;
+};
+
+export type SmartSeparationBounds = { x: number; y: number; width: number; height: number };
+
+export type SmartSeparationSource = {
+  sourceIndex: number;
+  sourceUrl: string;
+  sourceAssetId: string;
+  name: string;
+};
+
+export type SmartSeparationItem = {
+  id: string;
+  sourceIndex: number;
+  sourceUrl: string;
+  sourceAssetId: string;
+  name: string;
+  role: string;
+  description: string;
+  bounds: SmartSeparationBounds;
+  enabled: boolean;
+  groupId?: string;
+  generationMethod?: 'imagegen';
+  generationStatus?: NodeStatus;
+  generationProgress?: string;
+  generationError?: string;
+  jobId?: string;
+  rawOutputUrl?: string;
+  rawOutputAssetId?: string;
+  outputUrl?: string;
+  outputAssetId?: string;
+};
+
+export type SmartSeparationGroup = {
+  id: string;
+  name: string;
+  slug: string;
+  reasoning?: string;
+  status: 'idle' | 'building' | 'ready' | 'error';
+  previewUrl?: string;
+  outputUrl?: string;
+  outputAssetId?: string;
+  manifest?: Record<string, unknown>;
+  error?: string;
+};
+
+export type SmartSeparationSettings = {
+  packingMode: 'relative' | 'grid';
+  tolerance: number;
+  cropPadding: number;
+  pixelArt: boolean;
+  cellSize: 64 | 128 | 256 | 512;
+  atlasSize: 512 | 1024 | 2048;
+  atlasPadding: number;
+};
+
+export type SmartSeparationProgress = {
+  requestId: string;
+  stage: 'queued' | 'detecting' | 'grouping' | 'completed' | 'failed';
+  completedSources: number;
+  totalSources: number;
+  message: string;
+  startedAt: string;
+  updatedAt: string;
+};
+
+export type SmartSeparationNodeData = {
+  [key: string]: unknown;
+  title: string;
+  status: 'idle' | 'analyzing' | 'review' | 'extracting' | 'building' | 'completed' | 'partial' | 'failed';
+  userHint: string;
+  inputUrls?: string[];
+  sources: SmartSeparationSource[];
+  items: SmartSeparationItem[];
+  groups: SmartSeparationGroup[];
+  warnings?: string[];
+  error?: string;
+  analysisProgress?: SmartSeparationProgress;
+  activeSourceIndex: number;
+  activeGroupId?: string;
+  expanded: boolean;
+  settings: SmartSeparationSettings;
+  onHintChange?: (nodeId: string, hint: string) => void;
+  onAnalyze?: (nodeId: string) => void;
+  onBuildAll?: (nodeId: string) => void;
+  onPatchItem?: (nodeId: string, itemId: string, patch: Partial<SmartSeparationItem>) => void;
+  onAddItem?: (nodeId: string, sourceIndex: number, bounds: SmartSeparationBounds) => void;
+  onPatchGroup?: (nodeId: string, groupId: string, patch: Partial<SmartSeparationGroup>) => void;
+  onAddGroup?: (nodeId: string) => void;
+  onSourceChange?: (nodeId: string, sourceIndex: number) => void;
+  onGroupChange?: (nodeId: string, groupId?: string) => void;
+  onExpandedChange?: (nodeId: string, expanded: boolean) => void;
+  onSettingsChange?: (nodeId: string, patch: Partial<SmartSeparationSettings>) => void;
+  onDownloadGroupPng?: (nodeId: string, groupId: string) => void;
+  onDownloadGroupJson?: (nodeId: string, groupId: string) => void;
+  onUnpackToCanvas?: (nodeId: string) => void;
+  onOpen?: (url: string, title: string) => void;
 };
 
 export type GeneratorNodeData = {
@@ -62,6 +181,7 @@ export type GeneratorNodeData = {
   outputUrl?: string;
   sourceUrl?: string;
   sourceUrls?: string[];
+  inputCount?: number;
   provider?: ProviderId | 'global';
   resolvedProvider?: ProviderId;
   jobId?: string;
@@ -74,6 +194,9 @@ export type GeneratorNodeData = {
   onEnhancePrompt?: (nodeId: string) => void;
   onPromptChange?: (nodeId: string, prompt: string) => void;
   onProviderChange?: (nodeId: string, provider: ProviderId | 'global') => void;
+  isConfigOpen?: boolean;
+  onToggleConfig?: (nodeId: string, open?: boolean) => void;
+  onRegenerate?: (nodeId: string) => void;
   onApplyPreset?: (nodeId: string, presetId: string) => void;
   onRun?: (nodeId: string) => void;
   onCancel?: (nodeId: string) => void;
@@ -101,19 +224,19 @@ export type CharacterViewsNodeData = {
   [key: string]: unknown;
   title: string;
   basePrompt: string;
+  pose?: CharacterPose;
   provider?: ProviderId | 'global';
   generationMode?: GenerationMode;
   views: Record<ViewKey, CharacterViewOutput>;
-  enhancingPrompt?: boolean;
-  enhancePromptAvailable?: boolean;
-  enhancePromptError?: string;
-  onEnhancePrompt?: (nodeId: string) => void;
-  onBasePromptChange?: (nodeId: string, prompt: string) => void;
+  sourceReady?: boolean;
+  inputCount?: number;
+  onPoseChange?: (nodeId: string, pose: CharacterPose) => void;
   onProviderChange?: (nodeId: string, provider: ProviderId | 'global') => void;
   onModeChange?: (nodeId: string, mode: GenerationMode) => void;
   onRunAll?: (nodeId: string, onlyMissing?: boolean) => void;
   onRunView?: (nodeId: string, view: ViewKey) => void;
   onCancelView?: (nodeId: string, view: ViewKey) => void;
+  onCancelAll?: (nodeId: string) => void;
   onBranch?: (nodeId: string, sourceHandle?: string) => void;
   onDownloadView?: (nodeId: string, view: ViewKey) => void;
   onDeleteView?: (nodeId: string, view: ViewKey) => void;
@@ -123,6 +246,7 @@ export type CharacterViewsNodeData = {
   tripoMultiviewBusy?: boolean;
   onExportViews?: (nodeId: string) => void;
   onBuildSpriteSheet?: (nodeId: string) => void;
+  onUnpackToCanvas?: (nodeId: string) => void;
   onOpen?: (url: string, title: string, sourceUrl?: string) => void;
 };
 
@@ -385,6 +509,8 @@ export type Model3DNodeData = {
 
 export type StudioNode =
   | Node<ImageNodeData, 'image'>
+  | Node<ReferenceSetNodeData, 'referenceSet'>
+  | Node<SmartSeparationNodeData, 'smartSeparation'>
   | Node<GeneratorNodeData, 'generator'>
   | Node<CharacterViewsNodeData, 'characterViews'>
   | Node<MultiGenerateNodeData, 'multiGenerate'>
@@ -403,10 +529,12 @@ export type CodexStatus = {
 
 export type GenerationJob = {
   id: string;
+  projectId: string;
   status: NodeStatus;
   progress: string;
   provider: ProviderId;
   prompt?: string;
+  outputName?: string | null;
   sourceUrl?: string;
   sourceUrls?: string[];
   outputUrl?: string | null;
@@ -432,6 +560,10 @@ export type FrameforgeProject = {
   viewport: Viewport;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type ProjectSummary = Pick<FrameforgeProject, 'id' | 'name' | 'revision' | 'createdAt' | 'updatedAt'> & {
+  nodeCount: number;
 };
 
 export type ProjectSaveState = 'loading' | 'saving' | 'saved' | 'offline' | 'conflict';
