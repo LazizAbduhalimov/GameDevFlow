@@ -13,7 +13,7 @@ export function PromptEnhanceButton({ busy = false, available = true, disabled =
   return (
     <button
       type="button"
-      className={`enhance-prompt-button ${busy ? 'is-busy' : ''}`}
+      className={`enhance-prompt-button nodrag ${busy ? 'is-busy' : ''}`}
       disabled={disabled || busy || unavailable}
       onClick={onClick}
       title={title}

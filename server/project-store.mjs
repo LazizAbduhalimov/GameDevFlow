@@ -48,6 +48,9 @@ export class ProjectStore {
     return this.#enqueue(async () => {
       const id = randomUUID();
       const project = createProject(id, cleanName(input?.name, 'Untitled project'));
+      if (Array.isArray(input?.nodes)) project.nodes = JSON.parse(JSON.stringify(input.nodes));
+      if (Array.isArray(input?.edges)) project.edges = JSON.parse(JSON.stringify(input.edges));
+      if (validViewport(input?.viewport)) project.viewport = { ...input.viewport };
       await writeJsonAtomic(this.filePath(id), project);
       return project;
     });

@@ -9,6 +9,7 @@ data/jobs/
 data/projects/
 data/trash/
 data/models/*
+data/settings/
 data/tripo-browser-profile/
 *.log
 .DS_Store

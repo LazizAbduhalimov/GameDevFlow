@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AlertTriangle, Check, Download, Expand, Layers3, LoaderCircle, Package, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, Component, Download, Expand, Layers3, LoaderCircle, Package, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import type { MaterialMapKey, MaterialMapsNodeData } from '../types';
 
 const mapKeys: MaterialMapKey[] = ['baseColor', 'normal', 'height', 'roughness', 'metallic', 'ambientOcclusion', 'orm'];
@@ -25,7 +26,17 @@ export default function MaterialMapsNode({ id, data, selected }: NodeProps) {
             const map = nodeData.maps[key];
             return <section className={`material-map-cell ${map.outputUrl ? 'ready' : ''}`} key={key}>
             <header><strong>{map.title}</strong><small>{map.outputUrl ? 'ready' : 'empty'}</small></header>
-            {map.outputUrl ? <button type="button" className="material-map-preview nodrag" onClick={() => nodeData.onOpen?.(map.outputUrl!, `${nodeData.title} · ${map.title}`)} aria-label={`Inspect ${map.title}`}><img src={map.outputUrl} alt={map.title} draggable={false} /><Expand size={11} /></button> : <div className="material-map-empty"><Layers3 size={18} /></div>}
+            {map.outputUrl ? (
+              <InspectablePreview
+                className="material-map-preview"
+                ariaLabel={`Inspect ${map.title}`}
+                title="Drag to move, click to inspect"
+                onInspect={() => nodeData.onOpen?.(map.outputUrl!, `${nodeData.title} · ${map.title}`)}
+              >
+                <img src={map.outputUrl} alt={map.title} draggable={false} />
+                <Expand size={11} />
+              </InspectablePreview>
+            ) : <div className="material-map-empty"><Layers3 size={18} /></div>}
             <div className="material-map-actions nodrag">
               <button disabled={!map.outputUrl} title={`Download ${map.title}`} aria-label={`Download ${map.title}`} onClick={() => nodeData.onDownloadMap?.(id, key)}><Download size={10} /></button>
               <button className="danger" disabled={!map.outputUrl || key === 'baseColor'} title={key === 'baseColor' ? 'Base color belongs to the source node' : `Move ${map.title} to trash`} aria-label={`Delete ${map.title}`} onClick={() => nodeData.onDeleteMap?.(id, key)}><Trash2 size={10} /></button>
@@ -58,6 +69,7 @@ export default function MaterialMapsNode({ id, data, selected }: NodeProps) {
       <div className="material-actions nodrag">
         <button type="button" className="node-action primary material-build" disabled={busy || !nodeData.inputUrl} onClick={() => nodeData.onBuild?.(id)}>{busy ? <LoaderCircle className="spin" size={12} /> : <Layers3 size={12} />} {busy ? 'Building maps…' : allReady ? 'Rebuild maps' : 'Build & save maps'}</button>
         <button type="button" className="node-action material-export" disabled={!allReady} onClick={() => nodeData.onExport?.(id)}><Package size={12} /> Export ZIP</button>
+        <button type="button" className="node-action material-export" disabled={!allReady || nodeData.unityBusy} onClick={() => nodeData.onSendToUnity?.(id)}>{nodeData.unityBusy ? <LoaderCircle className="spin" size={12} /> : <Component size={12} />} Unity</button>
         <button type="button" className="material-json" disabled={!nodeData.manifest} onClick={() => nodeData.onDownloadManifest?.(id)}><Download size={10} /> JSON</button>
       </div>
       {allReady && <div className="material-ready-note"><Check size={10} /> Same resolution · repeat-ready edges · locally saved</div>}

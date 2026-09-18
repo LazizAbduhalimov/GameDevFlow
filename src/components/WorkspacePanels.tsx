@@ -21,8 +21,9 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { generatedImageDownloadUrl } from '../api';
-import type { AssetRecord, GenerationJob } from '../types';
+import type { AssetRecord, GenerationJob, GenerationRevision } from '../types';
 import { generationJobTitle, sortGenerationJobs } from '../workspace-display';
+import { formatRevisionTime } from '../generation-history';
 
 type GalleryProps = {
   open: boolean;
@@ -114,17 +115,25 @@ export function GalleryPanel({ open, assets, loading, compare, onClose, onRefres
   );
 }
 
-type PreviewState = { primary: { url: string; title: string; sourceUrl?: string }; secondary?: { url: string; title: string } };
+type PreviewState = {
+  primary: { url: string; title: string; sourceUrl?: string };
+  secondary?: { url: string; title: string };
+  revisions?: GenerationRevision[];
+  activeRevisionId?: string;
+  onRestoreRevision?: (revisionId: string) => void;
+};
 
 export function PreviewModal({ preview, onClose }: { preview: PreviewState | null; onClose: () => void }) {
   const [zoom, setZoom] = useState(1);
   const [split, setSplit] = useState(50);
+  const [hoveredRevisionId, setHoveredRevisionId] = useState<string | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!preview) return;
     setZoom(1);
     setSplit(50);
+    setHoveredRevisionId(null);
     closeButton.current?.focus();
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -132,7 +141,11 @@ export function PreviewModal({ preview, onClose }: { preview: PreviewState | nul
   }, [preview, onClose]);
 
   if (!preview) return null;
-  const compareUrl = preview.secondary?.url || preview.primary.sourceUrl;
+  const revisions = preview.revisions || [];
+  const hovered = revisions.find((revision) => revision.id === hoveredRevisionId);
+  const compareToHistory = hovered && hovered.outputUrl !== preview.primary.url ? hovered.outputUrl : '';
+  const compareUrl = compareToHistory || preview.secondary?.url || preview.primary.sourceUrl;
+  const compareLabel = compareToHistory ? 'Prev' : 'A';
 
   return (
     <div className="preview-backdrop" role="dialog" aria-modal="true" aria-label="Image inspector" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -154,7 +167,32 @@ export function PreviewModal({ preview, onClose }: { preview: PreviewState | nul
               {compareUrl && <div className="preview-overlay" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}><img src={preview.primary.url} alt={preview.primary.title} draggable={false} /></div>}
             </div>
           </div>
-          {compareUrl && <div className="compare-control"><span>A</span><input type="range" min="0" max="100" value={split} onChange={(event) => setSplit(Number(event.target.value))} aria-label="Comparison split" /><span>B</span></div>}
+          {compareUrl && <div className="compare-control"><span>{compareLabel}</span><input type="range" min="0" max="100" value={split} onChange={(event) => setSplit(Number(event.target.value))} aria-label="Comparison split" /><span>B</span></div>}
+          {revisions.length > 1 && (
+            <div className="preview-history" role="list" aria-label="Generation history">
+              {revisions.map((revision, index) => {
+                const active = revision.id === preview.activeRevisionId || revision.outputUrl === preview.primary.url;
+                return (
+                  <button
+                    key={revision.id}
+                    type="button"
+                    role="listitem"
+                    className={`preview-history-thumb ${active ? 'is-active' : ''}`}
+                    title={`${formatRevisionTime(revision.createdAt)}${revision.prompt ? ` · ${revision.prompt}` : ''}`}
+                    aria-label={`Version ${index + 1}${active ? ', current' : ''}`}
+                    aria-current={active ? 'true' : undefined}
+                    onMouseEnter={() => setHoveredRevisionId(revision.id)}
+                    onMouseLeave={() => setHoveredRevisionId(null)}
+                    onFocus={() => setHoveredRevisionId(revision.id)}
+                    onBlur={() => setHoveredRevisionId(null)}
+                    onClick={() => preview.onRestoreRevision?.(revision.id)}
+                  >
+                    <img src={revision.outputUrl} alt="" draggable={false} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </div>

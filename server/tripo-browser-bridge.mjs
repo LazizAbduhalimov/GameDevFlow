@@ -9,7 +9,7 @@ const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 const tripoMultiviewOrder = ['front', 'left', 'right', 'back'];
 
 export class TripoBrowserBridge {
-  constructor({ profileDir, modelsDir, onEvent, debugPort = Number(process.env.FRAMEFORGE_TRIPO_DEBUG_PORT || 9333), targetUrl = tripoUrl }) {
+  constructor({ profileDir, modelsDir, onEvent, debugPort = Number(process.env.CONSEPT_TRIPO_DEBUG_PORT || process.env.FRAMEFORGE_TRIPO_DEBUG_PORT || 9333), targetUrl = tripoUrl }) {
     this.profileDir = profileDir;
     this.modelsDir = modelsDir;
     this.onEvent = typeof onEvent === 'function' ? onEvent : () => {};
@@ -107,7 +107,7 @@ export class TripoBrowserBridge {
         if (await this.#debugEndpointReady()) return;
         await delay(250);
       }
-      throw bridgeError('TRIPO_BROWSER_START_FAILED', `${this.browserName} started, but Frameforge could not connect to its local automation port.`);
+      throw bridgeError('TRIPO_BROWSER_START_FAILED', `${this.browserName} started, but Consept could not connect to its local automation port.`);
     })().finally(() => { this.starting = null; });
     return this.starting;
   }
@@ -157,7 +157,7 @@ export class TripoBrowserBridge {
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class FrameforgeWindow {
+public static class ConseptWindow {
   [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
@@ -166,10 +166,10 @@ $browser = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq '${process
 if ($browser) {
   $process = Get-Process -Id $browser.ProcessId -ErrorAction SilentlyContinue
   if ($process -and $process.MainWindowHandle -ne 0) {
-    [FrameforgeWindow]::ShowWindowAsync($process.MainWindowHandle, 9) | Out-Null
+    [ConseptWindow]::ShowWindowAsync($process.MainWindowHandle, 9) | Out-Null
     $shell = New-Object -ComObject WScript.Shell
     $shell.AppActivate([int]$browser.ProcessId) | Out-Null
-    [FrameforgeWindow]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
+    [ConseptWindow]::SetForegroundWindow($process.MainWindowHandle) | Out-Null
   }
 }
 `;
@@ -267,7 +267,7 @@ if ($browser) {
     }
 
     // Tripo removes each file input after a slot is filled. Clear any previous
-    // Multi View selection so a later Frameforge send replaces all four views.
+    // Multi View selection so a later Consept send replaces all four views.
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const result = await client.request('Runtime.evaluate', {
         expression: `(() => {
@@ -393,12 +393,12 @@ if ($browser) {
     ]);
     await client.request('Runtime.evaluate', {
       expression: `(() => {
-        if (window.__frameforgeTripoGenerateListener) return true;
-        window.__frameforgeTripoGenerateListener = true;
+        if (window.__conseptTripoGenerateListener) return true;
+        window.__conseptTripoGenerateListener = true;
         document.addEventListener('click', (event) => {
           const button = event.target?.closest?.('button');
           const label = button?.innerText?.trim?.().toLowerCase?.() || '';
-          if (/generate|create model|генер|создать модель/.test(label)) console.debug('__FRAMEFORGE_TRIPO_GENERATE__');
+          if (/generate|create model|генер|создать модель/.test(label)) console.debug('__CONSEPT_TRIPO_GENERATE__');
         }, true);
         return true;
       })()`,
@@ -415,7 +415,7 @@ if ($browser) {
     if (this.monitor !== monitor || monitor.completed || monitor.failed) return;
     if (method === 'Runtime.consoleAPICalled') {
       const values = params.args?.map((arg) => arg.value).filter((value) => typeof value === 'string') || [];
-      if (values.includes('__FRAMEFORGE_TRIPO_GENERATE__')) this.#markGenerationStarted(monitor);
+      if (values.includes('__CONSEPT_TRIPO_GENERATE__') || values.includes('__FRAMEFORGE_TRIPO_GENERATE__')) this.#markGenerationStarted(monitor);
       return;
     }
     if (method === 'Network.requestWillBeSent') {

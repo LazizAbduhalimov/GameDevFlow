@@ -5,7 +5,7 @@ import type { GenerationJob, NodeStatus } from './types';
 export function themeEdges(edges: Edge[], color: string): Edge[] {
   return edges.map((edge) => ({
     ...edge,
-    type: edge.type || 'default',
+    type: 'default',
     style: { ...edge.style, stroke: color, strokeWidth: edge.style?.strokeWidth || 1.8 },
     markerEnd: undefined,
     markerStart: undefined,

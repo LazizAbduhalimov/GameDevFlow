@@ -1,8 +1,12 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { ImageNodeData, SmartSeparationItem, SmartSeparationNodeData } from './types';
 
-export const IMAGE_CARD_SIZE = { width: 250, height: 278 };
+export const IMAGE_CARD_SIZE = { width: 304, height: 332 };
 export const SMART_SEPARATION_SIZE = { width: 650, height: 720 };
+export const CHARACTER_PARTS_SIZE = { width: 380, height: 520 };
+export const PROP_VIEW_SIZE = { width: 304, height: 520 };
+export const PROP_VIEW_GAP = 28;
+export const PROP_VIEW_PARENT_GAP = 88;
 export const BRANCH_PARENT_GAP = 88;
 export const BRANCH_COLUMN_GAP = 36;
 export const BRANCH_ROW_GAP = 32;
@@ -11,6 +15,7 @@ export const BRANCH_MAX_ROWS = 6;
 export type LayoutCard = {
   id: string;
   groupId?: string | null;
+  height?: number;
 };
 
 export type ColumnLayout = {
@@ -49,9 +54,12 @@ export function layoutGroupedColumns(options: {
   for (const groupId of groupOrder) {
     const cards = options.cards.filter((card) => (card.groupId || '') === groupId);
     if (!cards.length) continue;
+    const columnY = new Map<number, number>();
     for (let index = 0; index < cards.length; index += 1) {
       const localColumn = Math.floor(index / maxRows);
       const row = index % maxRows;
+      const yOffset = columnY.get(localColumn) ?? 0;
+      const cardHeight = cards[index].height || cardSize.height;
       result.push({
         id: cards[index].id,
         groupId: cards[index].groupId || null,
@@ -59,9 +67,10 @@ export function layoutGroupedColumns(options: {
         row,
         position: {
           x: startX + (column + localColumn) * (cardSize.width + columnGap),
-          y: startY + row * (cardSize.height + rowGap),
+          y: startY + yOffset,
         },
       });
+      columnY.set(localColumn, yOffset + cardHeight + rowGap);
     }
     column += Math.ceil(cards.length / maxRows);
   }
@@ -96,7 +105,14 @@ export function applySmartSeparationLayout(parent: Node, nodes: Node[], edges: E
   const items = data.items.filter((item) => item.enabled && (item.outputUrl || item.rawOutputUrl));
   const cards = items.flatMap((item) => {
     const id = findSmartSeparationCardId(item, parent.id, nodes, edges);
-    return id ? [{ id, groupId: item.groupId || null, itemId: item.id }] : [];
+    if (!id) return [];
+    const node = nodes.find((entry) => entry.id === id);
+    return [{
+      id,
+      groupId: item.groupId || null,
+      itemId: item.id,
+      height: node?.measured?.height,
+    }];
   });
   if (!cards.length) return { nodes, edges };
 
@@ -131,7 +147,7 @@ export function applySmartSeparationLayout(parent: Node, nodes: Node[], edges: E
       source: parent.id,
       sourceHandle: smartSeparationSourceHandle(card.groupId),
       target: card.id,
-      type: 'smoothstep',
+      type: 'default',
       animated: true,
       data: { itemId: card.itemId },
     } satisfies Edge)),
@@ -186,13 +202,31 @@ export function unpackSmartSeparationCards(parent: Node, nodes: Node[], edges: E
       source: parent.id,
       sourceHandle: smartSeparationSourceHandle(item.groupId),
       target: card.id,
-      type: 'smoothstep',
+      type: 'default',
       animated: true,
       data: { itemId: item.id },
     }];
   }
   const arranged = applySmartSeparationLayout(parent, workingNodes, workingEdges);
   return { ...arranged, added: created.length, arranged: items.length };
+}
+
+export function layoutPropViewStack(origin: { x: number; y: number }, count: number, startY?: number) {
+  const x = origin.x + CHARACTER_PARTS_SIZE.width + PROP_VIEW_PARENT_GAP;
+  const y = startY ?? origin.y;
+  return Array.from({ length: Math.max(0, count) }, (_, index) => ({
+    x,
+    y: y + index * (PROP_VIEW_SIZE.height + PROP_VIEW_GAP),
+  }));
+}
+
+export function nextPropViewPosition(parent: { position: { x: number; y: number } }, existing: Array<{ position: { x: number; y: number } }>) {
+  if (!existing.length) return layoutPropViewStack(parent.position, 1)[0];
+  const last = existing.reduce((current, node) => node.position.y > current.position.y ? node : current);
+  return {
+    x: last.position.x,
+    y: last.position.y + PROP_VIEW_SIZE.height + PROP_VIEW_GAP,
+  };
 }
 
 export function downloadFileName(name?: string | null, fallback = 'asset.png'): string {

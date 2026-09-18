@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import {
   ApiError,
+  analyzeCharacterParts,
   analyzeSmartSeparation,
   cancelJob,
   connectCodex,
@@ -42,6 +43,7 @@ import {
   getProject,
   getProjects,
   getProviders,
+  getUnityStatus,
   openCharacterViewsInTripo,
   openImageInTripo,
   purgeAsset,
@@ -51,6 +53,8 @@ import {
   saveDerivedAsset,
   saveLocalBlob,
   saveProject,
+  sendToUnity,
+  setUnityTarget,
   startGeneration,
   startGenerationBatch,
   startSlotBatch,
@@ -58,6 +62,7 @@ import {
   trashAsset,
   uploadImage,
 } from './api';
+import { parseAppPath, readAppRoute, writeAppRoute, type AppRouteWriteMode } from './app-route';
 import { WorkspaceChrome, CanvasDock } from './components/WorkspaceChrome';
 import { ProjectHome } from './components/ProjectHome';
 import { NodeCatalog, type NodeCatalogAction } from './components/NodeCatalog';
@@ -65,10 +70,22 @@ import { AppearancePanel } from './components/AppearancePanel';
 import { useTheme } from './useTheme';
 import { canvasDuration, themeEdges } from './workspace-display';
 import { GalleryPanel, JobsDrawer, PreviewModal, type PreviewState } from './components/WorkspacePanels';
-import { characterPartKeys, characterPartPrompt, characterPartSpecs, characterPartsManifest, normalizeCharacterPartLayer } from './character-parts';
+import {
+  appendRevision,
+  hasRevisionHistory,
+  historyFromGenerator,
+  historyFromVariant,
+  historyToGeneratorPatch,
+  historyToVariantPatch,
+  hydrateGraphGenerationHistory,
+  restoreRevision,
+  stepRevisionId,
+  removeActiveRevision,
+} from './generation-history';
 import { SpriteSheetBuilder } from './components/SpriteSheetBuilder';
 import { exportProject, importProject, projectPayload, useGraphHistory } from './graph';
-import { arrangeSmartSeparationGraphs, downloadFileName, unpackSmartSeparationCards } from './graph-layout';
+import { instantiateTemplate } from './workflow-templates';
+import { arrangeSmartSeparationGraphs, downloadFileName, layoutPropViewStack, nextPropViewPosition, unpackSmartSeparationCards } from './graph-layout';
 import CharacterViewsNode from './nodes/CharacterViewsNode';
 import CharacterPartsNode from './nodes/CharacterPartsNode';
 import GeneratorNode from './nodes/GeneratorNode';
@@ -80,21 +97,25 @@ import RelativeAtlasNode from './nodes/RelativeAtlasNode';
 import ReferenceSetNode from './nodes/ReferenceSetNode';
 import SmartSeparationNode from './nodes/SmartSeparationNode';
 import { buildRelativeAtlas, buildSpriteAtlas } from './atlas';
-import { buildCharacterViewPrompt, CHARACTER_IDENTITY_PROMPT, CHARACTER_VIEW_KEYS as viewKeys, CHARACTER_VIEW_SPECS } from './character-views';
-import { buildSmartGroupAtlas, normalizeGeneratedSmartSprite, smartSeparationRegenerationPrompt } from './smart-separation';
+import { buildCharacterViewPrompt, CHARACTER_IDENTITY_PROMPT, CHARACTER_VIEW_KEYS as viewKeys, CHARACTER_VIEW_SPECS, PROP_VIEW_SPECS, isCharacterViewSourceReady, normalizeCharacterSubjectKind } from './character-views';
+import { addCharacterPart, buildPropIdentityPrompt, characterPartHandle, characterPartsInputError, createCharacterPartsData, normalizeCharacterPartsList, parseCharacterPartHandle, patchCharacterPart, removeCharacterPart, selectedCharacterParts, setAllCharacterPartsEnabled, toggleCharacterPart } from './character-parts';
+import { MULTI_ALL_HANDLE, resolveSelectedVariantKey, sourceUrlsForMultiGenerate } from './multi-generate';
+import { NODE_INSPECT_DRAG_THRESHOLD_PX } from './click-without-drag';
+import { buildSmartGroupAtlas, smartSeparationRegenerationPrompt } from './smart-separation';
 import MaterialMapsNode from './nodes/MaterialMapsNode';
 import SeamlessTextureNode from './nodes/SeamlessTextureNode';
 import { buildMaterialMaps, buildSeamlessTexture } from './material-maps';
 import type {
   AssetRecord,
-  CharacterPartKey,
   CharacterPartsNodeData,
+  CharacterPartCandidate,
+  CharacterPartsProgress,
   CharacterPose,
   CharacterViewsNodeData,
   CodexStatus,
-  FrameforgeProject,
-  GenerationMode,
+  ConseptProject,
   GenerationJob,
+  GenerationRevision,
   GeneratorNodeData,
   ImageNodeData,
   Model3DNodeData,
@@ -120,8 +141,19 @@ import type {
   SeamlessTextureNodeData,
   SeamlessTextureSettings,
   TripoModelEvent,
+  UnitySendItem,
+  UnityStatus,
   ViewKey,
 } from './types';
+
+function readLocal(key: string) {
+  try { return localStorage.getItem(`consept-${key}`) ?? localStorage.getItem(`frameforge-${key}`); }
+  catch { return null; }
+}
+
+function writeLocal(key: string, value: string) {
+  try { localStorage.setItem(`consept-${key}`, value); } catch { /* Browser storage is optional. */ }
+}
 
 const nodeTypes = { image: ImageNode, referenceSet: ReferenceSetNode, smartSeparation: SmartSeparationNode, generator: GeneratorNode, characterViews: CharacterViewsNode, characterParts: CharacterPartsNode, multiGenerate: MultiGenerateNode, spriteAtlas: SpriteAtlasNode, relativeAtlas: RelativeAtlasNode, seamlessTexture: SeamlessTextureNode, materialMaps: MaterialMapsNode, model3d: Model3DNode };
 const maxReferenceImages = 16;
@@ -178,13 +210,7 @@ function referenceItemsForNode(node: Node): ReferenceSetItem[] {
     const data = node.data as MultiGenerateNodeData;
     return data.variants.slice(0, data.variantCount).flatMap((variant) => item(variant.outputUrl, `${data.title} · ${variant.title}`, variant.assetId));
   }
-  if (node.type === 'characterParts') {
-    const data = node.data as CharacterPartsNodeData;
-    return characterPartKeys.flatMap((key) => {
-      const part = data.parts[key];
-      return item(part?.normalized ? part.outputUrl : undefined, `${data.title} · ${part?.title || key}`, part?.assetId);
-    });
-  }
+  if (node.type === 'characterParts') return [];
   if (node.type === 'spriteAtlas') {
     const data = node.data as SpriteAtlasNodeData;
     return item(data.outputUrl, data.title, data.outputAssetId);
@@ -215,7 +241,7 @@ function uniqueReferenceItems(sourceNodes: Node[]): ReferenceSetItem[] {
 
 function referenceSourceHandle(node: Node): string | undefined {
   if (node.type === 'smartSeparation') return 'all-atlases';
-  return ['referenceSet', 'characterViews', 'multiGenerate', 'characterParts', 'materialMaps'].includes(String(node.type)) ? 'all' : undefined;
+  return ['referenceSet', 'characterViews', 'multiGenerate', 'characterParts', 'materialMaps'].includes(String(node.type)) ? MULTI_ALL_HANDLE : undefined;
 }
 
 export default function App() {
@@ -224,7 +250,7 @@ export default function App() {
 
 function Studio() {
   const theme = useTheme();
-  const [screen, setScreen] = useState<'home' | 'workspace'>('home');
+  const [screen, setScreen] = useState<'home' | 'workspace'>(() => readAppRoute().screen);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [canvasMode, setCanvasMode] = useState<'select' | 'pan'>('select');
   const [minimapOpen, setMinimapOpen] = useState(false);
@@ -257,6 +283,8 @@ function Studio() {
   const [promptEnhancements, setPromptEnhancements] = useState<Record<string, { busy: boolean; error?: string }>>({});
   const [tripoBusyUrl, setTripoBusyUrl] = useState<string | null>(null);
   const [tripoMultiviewBusyNodeId, setTripoMultiviewBusyNodeId] = useState<string | null>(null);
+  const [unity, setUnity] = useState<UnityStatus>({ ready: false, target: null, running: [], recents: [] });
+  const [unityBusyKey, setUnityBusyKey] = useState<string | null>(null);
   const revisionRef = useRef(0);
   const projectRevisionsRef = useRef(new Map<string, number>());
   const activeProjectIdRef = useRef('default');
@@ -283,7 +311,12 @@ function Studio() {
   const history = useGraphHistory(nodes, edges, projectReady, applyGraph);
 
   const showToast = useCallback((message: string) => setToast(message), []);
-  const openPreview = useCallback((url: string, title: string, sourceUrl?: string) => setPreview({ primary: { url, title, sourceUrl } }), []);
+  const openPreview = useCallback((
+    url: string,
+    title: string,
+    sourceUrl?: string,
+    history?: { revisions?: GenerationRevision[]; activeRevisionId?: string; onRestoreRevision?: (revisionId: string) => void },
+  ) => setPreview({ primary: { url, title, sourceUrl }, ...history }), []);
 
   const handleTripoEvent = useCallback((event: TripoModelEvent) => {
     if (!event.watcherId || !event.id || seenTripoEventsRef.current.has(event.id)) return;
@@ -350,13 +383,28 @@ function Studio() {
     catch { /* status drawer stays on last known snapshot */ }
   }, []);
 
+  const refreshUnity = useCallback(async () => {
+    try { setUnity(await getUnityStatus()); }
+    catch { setUnity({ ready: false, target: null, running: [], recents: [] }); }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function loadWorkspace() {
+      const route = parseAppPath(window.location.pathname);
+      if (route.screen === 'home') writeAppRoute({ screen: 'home' }, 'replace');
       try {
         const projectList = await getProjects();
-        const rememberedId = localStorage.getItem('frameforge-active-project-id');
-        const selectedId = projectList.some((project) => project.id === rememberedId) ? rememberedId! : 'default';
+        const rememberedId = readLocal('active-project-id');
+        const requestedId = route.screen === 'workspace'
+          ? route.projectId
+          : (projectList.some((project) => project.id === rememberedId) ? rememberedId! : 'default');
+        const selectedId = projectList.some((project) => project.id === requestedId) ? requestedId : 'default';
+        const openWorkspace = route.screen === 'workspace' && selectedId === requestedId;
+        if (route.screen === 'workspace' && !openWorkspace) {
+          showToast('That project is no longer available.');
+          writeAppRoute({ screen: 'home' }, 'replace');
+        }
         const project = await getProject(selectedId);
         if (cancelled) return;
         activeProjectIdRef.current = project.id;
@@ -364,26 +412,27 @@ function Studio() {
         void refreshJobs();
         setActiveProjectId(project.id);
         setProjects(projectList);
-        setNodes(restoreInterruptedSmartNodes(project.nodes as Node[]));
+        setNodes(hydrateProjectNodes(project.nodes as Node[]));
         setEdges(project.edges);
         setProjectName(project.name);
         revisionRef.current = project.revision;
         projectRevisionsRef.current.set(project.id, project.revision);
         lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges);
-        localStorage.setItem('frameforge-active-project-id', project.id);
+        writeLocal('active-project-id', project.id);
         window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
+        setScreen(openWorkspace ? 'workspace' : 'home');
         setSaveState('saved');
       } catch {
         if (cancelled) return;
-        const rememberedId = localStorage.getItem('frameforge-active-project-id') || activeProjectIdRef.current;
-        const backup = localStorage.getItem(`frameforge-project-backup:${rememberedId}`) || localStorage.getItem('frameforge-project-backup');
+        const rememberedId = (route.screen === 'workspace' ? route.projectId : readLocal('active-project-id')) || activeProjectIdRef.current;
+        const backup = readLocal(`project-backup:${rememberedId}`) || readLocal('project-backup');
         if (backup) {
-          let project: FrameforgeProject | null = null;
-          try { project = JSON.parse(backup) as FrameforgeProject; } catch { /* Ignore an incomplete browser backup. */ }
+          let project: ConseptProject | null = null;
+          try { project = JSON.parse(backup) as ConseptProject; } catch { /* Ignore an incomplete browser backup. */ }
           if (!project || !Array.isArray(project.nodes) || !Array.isArray(project.edges)) { setSaveState('offline'); return; }
           activeProjectIdRef.current = project.id || 'default';
           setActiveProjectId(activeProjectIdRef.current);
-          setNodes(restoreInterruptedSmartNodes(project.nodes as Node[]));
+          setNodes(hydrateProjectNodes(project.nodes as Node[]));
           setEdges(project.edges);
           setProjectName(project.name);
           revisionRef.current = project.revision || 0;
@@ -392,6 +441,12 @@ function Studio() {
           setProjects([{ id: activeProjectIdRef.current, name: project.name, revision: project.revision || 0, nodeCount: project.nodes.length, updatedAt: project.updatedAt }]);
           if (project.viewport) window.setTimeout(() => reactFlow.setViewport(project!.viewport, { duration: 0 }), 0);
           showToast('Backend project was unavailable. Restored the browser backup.');
+          const openWorkspace = route.screen === 'workspace' && activeProjectIdRef.current === route.projectId;
+          if (route.screen === 'workspace' && !openWorkspace) writeAppRoute({ screen: 'home' }, 'replace');
+          setScreen(openWorkspace ? 'workspace' : 'home');
+        } else if (route.screen === 'workspace') {
+          writeAppRoute({ screen: 'home' }, 'replace');
+          setScreen('home');
         }
         setSaveState('offline');
       } finally {
@@ -400,8 +455,9 @@ function Studio() {
     }
     void loadWorkspace();
     void refreshCodex();
+    void refreshUnity();
     return () => { cancelled = true; };
-  }, [reactFlow, refreshAssets, refreshCodex, refreshJobs, setEdges, setNodes, showToast]);
+  }, [reactFlow, refreshAssets, refreshCodex, refreshJobs, refreshUnity, setEdges, setNodes, showToast]);
 
   const persistProject = useCallback((manual = false, notify = manual) => {
     if (!projectReady) return Promise.resolve();
@@ -409,8 +465,8 @@ function Studio() {
     const payload = projectPayload(projectId, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport());
     const hash = projectHash(projectName, nodes, edges);
     if (!manual && hash === lastSavedHashRef.current) return saveSequenceRef.current;
-    localStorage.setItem(`frameforge-project-backup:${projectId}`, JSON.stringify(payload));
-    if (projectId === 'default') localStorage.setItem('frameforge-project-backup', JSON.stringify(payload));
+    writeLocal(`project-backup:${projectId}`, JSON.stringify(payload));
+    if (projectId === 'default') writeLocal('project-backup', JSON.stringify(payload));
     setSaveState('saving');
     saveSequenceRef.current = saveSequenceRef.current.then(async () => {
       try {
@@ -475,14 +531,14 @@ function Studio() {
     activeProjectIdRef.current = project.id;
     setActiveProjectId(project.id);
     setProjects(projectList);
-    const restoredNodes = restoreInterruptedSmartNodes(project.nodes as Node[]);
+    const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
     setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name);
     setAssets(projectAssets); setJobs(projectJobs); setCompare([null, null]);
     closeWorkspacePanels();
     revisionRef.current = project.revision;
     projectRevisionsRef.current.set(project.id, project.revision);
     lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges);
-    localStorage.setItem('frameforge-active-project-id', project.id);
+    writeLocal('active-project-id', project.id);
     history.reset({ nodes: restoredNodes, edges: project.edges });
     window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
     setSaveState('saved');
@@ -495,24 +551,26 @@ function Studio() {
     finally { projectOperationRef.current = false; setProjectBusy(false); setProjectReady(true); }
   }
 
-  async function activateProject(projectId: string) {
+  async function activateProject(projectId: string, historyMode: AppRouteWriteMode = 'push') {
+    closeWorkspacePanels();
+    setScreen('workspace');
+    writeAppRoute({ screen: 'workspace', projectId }, historyMode);
     await projectOperation(async () => {
       if (projectId !== activeProjectIdRef.current) {
         await persistProject(true, false);
         await loadProject(projectId);
       }
-      closeWorkspacePanels();
-      setScreen('workspace');
+      writeAppRoute({ screen: 'workspace', projectId: activeProjectIdRef.current }, 'replace');
     });
   }
 
-  async function goHome() {
+  async function goHome(historyMode: AppRouteWriteMode = 'push') {
+    closeWorkspacePanels();
+    setScreen('home');
+    writeAppRoute({ screen: 'home' }, historyMode);
     try {
-      await projectOperation(async () => {
-        await persistProject(true, false);
-        closeWorkspacePanels(); setScreen('home');
-        try { setProjects(await getProjects()); } catch { /* Existing project cards remain available offline. */ }
-      });
+      await persistProject(true, false);
+      try { setProjects(await getProjects()); } catch { /* Existing project cards remain available offline. */ }
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
 
@@ -523,7 +581,25 @@ function Studio() {
       setProjects((current) => [{ id: created.id, name: created.name, revision: created.revision, nodeCount: created.nodes.length, createdAt: created.createdAt, updatedAt: created.updatedAt }, ...current]);
       await loadProject(created.id);
       setScreen('workspace');
+      writeAppRoute({ screen: 'workspace', projectId: created.id }, 'push');
       showToast(`Project “${created.name}” created.`);
+    });
+  }
+
+  async function handleUseTemplate(templateId: string) {
+    await projectOperation(async () => {
+      if (screen !== 'home') await persistProject(true, false);
+      const instance = instantiateTemplate(templateId);
+      const created = await createProject(instance.name, {
+        nodes: instance.nodes,
+        edges: instance.edges,
+        viewport: instance.viewport,
+      });
+      setProjects((current) => [{ id: created.id, name: created.name, revision: created.revision, nodeCount: created.nodes.length, createdAt: created.createdAt, updatedAt: created.updatedAt }, ...current]);
+      await loadProject(created.id);
+      setScreen('workspace');
+      writeAppRoute({ screen: 'workspace', projectId: created.id }, 'push');
+      showToast(`Project “${created.name}” created from template.`);
     });
   }
 
@@ -535,8 +611,8 @@ function Studio() {
       const current = await getProject(projectId);
       const saved = await saveProject(projectId, { ...current, name: cleanName });
       projectRevisionsRef.current.set(projectId, saved.revision);
-      localStorage.setItem(`frameforge-project-backup:${projectId}`, JSON.stringify(saved));
-      if (projectId === 'default') localStorage.setItem('frameforge-project-backup', JSON.stringify(saved));
+      writeLocal(`project-backup:${projectId}`, JSON.stringify(saved));
+      if (projectId === 'default') writeLocal('project-backup', JSON.stringify(saved));
       if (projectId === activeProjectIdRef.current) {
         setProjectName(saved.name); revisionRef.current = saved.revision;
         lastSavedHashRef.current = projectHash(saved.name, nodes, edges);
@@ -562,6 +638,31 @@ function Studio() {
     const timer = window.setTimeout(() => setToast(null), 4200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    document.title = screen === 'workspace' ? `${projectName} — Consept` : 'Consept — Local image lab';
+  }, [projectName, screen]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const route = readAppRoute();
+      closeWorkspacePanels();
+      if (route.screen === 'home') {
+        setScreen('home');
+        void persistProject(true, false);
+        void getProjects().then(setProjects).catch(() => { /* Existing project cards remain available offline. */ });
+        return;
+      }
+      setScreen('workspace');
+      if (route.projectId === activeProjectIdRef.current) return;
+      void projectOperation(async () => {
+        await persistProject(true, false);
+        await loadProject(route.projectId);
+      }).catch((error) => showToast(error instanceof Error ? error.message : String(error)));
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  });
 
   useEffect(() => () => {
     for (const controller of enhanceControllersRef.current.values()) controller.abort();
@@ -636,25 +737,6 @@ function Studio() {
           changed = true;
           return { ...node, data: { ...data, status, progress, error, rawOutputUrl, rawAssetId } };
         }
-        if (node.type === 'characterParts') {
-          const data = node.data as CharacterPartsNodeData;
-          let partsChanged = false;
-          const parts = { ...data.parts };
-          for (const key of characterPartKeys) {
-            const part = data.parts[key];
-            const job = part.jobId ? jobsById.get(part.jobId) : undefined;
-            if (!job) continue;
-            const outputUrl = part.normalized ? part.outputUrl : job.status === 'completed' && job.outputUrl ? job.outputUrl : part.outputUrl;
-            const assetId = part.normalized ? part.assetId : job.status === 'completed' && job.outputAssetId ? job.outputAssetId : part.assetId;
-            const error = job.error || part.error || undefined;
-            if (part.status === job.status && part.progress === job.progress && part.error === error && part.outputUrl === outputUrl && part.assetId === assetId) continue;
-            parts[key] = { ...part, status: job.status, progress: job.progress, error, outputUrl, assetId };
-            partsChanged = true;
-          }
-          if (!partsChanged) return node;
-          changed = true;
-          return { ...node, data: { ...data, parts } };
-        }
         if (node.type !== 'characterViews') return node;
         const data = node.data as CharacterViewsNodeData;
         let viewsChanged = false;
@@ -718,8 +800,7 @@ function Studio() {
           const data = node.data as CharacterPartsNodeData;
           if (sameStrings(data.inputUrls || [], urls)) return node;
           changed = true;
-          const parts = Object.fromEntries(characterPartKeys.map((key) => [key, { ...data.parts[key], status: 'idle', outputUrl: undefined, assetId: undefined, jobId: undefined, progress: undefined, error: undefined, normalized: false, geometry: undefined }])) as CharacterPartsNodeData['parts'];
-          return { ...node, data: { ...data, inputUrls: urls, parts, error: undefined } };
+          return { ...node, data: { ...data, inputUrls: urls, status: 'idle', parts: [], characterDescription: '', analysisProgress: undefined, error: undefined } };
         }
         if (node.type === 'spriteAtlas' || node.type === 'relativeAtlas') {
           const data = node.data as SpriteAtlasNodeData | RelativeAtlasNodeData;
@@ -761,6 +842,11 @@ function Studio() {
       } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l' && !editing) {
         event.preventDefault();
         arrangeCanvasLayout();
+      } else if (!editing && (event.key === '[' || event.key === ']')) {
+        const selected = reactFlow.getNodes().filter((node) => node.selected);
+        if (selected.length === 1 && cycleSelectedRevision(selected[0], event.key === '[' ? -1 : 1)) {
+          event.preventDefault();
+        }
       } else if (!editing && event.key.toLowerCase() === 'f') {
         const selected = reactFlow.getNodes().filter((node) => node.selected);
         if (selected.length) void reactFlow.fitView({ nodes: selected, padding: 0.22, duration: canvasDuration(280) });
@@ -808,6 +894,8 @@ function Studio() {
           },
           onOpenTripo: (url: string) => openInTripo(url, node.id),
           tripoBusy: tripoBusyUrl === node.data.imageUrl,
+          onSendToUnity: (url: string) => sendImageToUnity(url, url.includes('/data/assets/') ? 'source' : 'generated', { title: node.data.title, fileName: node.data.fileName }),
+          unityBusy: unityBusyKey === node.data.imageUrl,
         } as ImageNodeData,
       };
     }
@@ -842,11 +930,10 @@ function Studio() {
         ...node,
         data: {
           ...node.data,
-          sourceReady: input.sourceUrls.length === 1 && !input.error,
+          sourceReady: isCharacterViewSourceReady(node.data.subjectKind, input.sourceUrls.length) && !input.error,
           inputCount: input.sourceUrls.length,
           onPoseChange: updateTurnaroundPose,
           onProviderChange: updateProvider,
-          onModeChange: updateTurnaroundMode,
           onRunAll: runTurnaroundAll,
           onRunView: runTurnaroundView,
           onCancelView: cancelTurnaroundView,
@@ -858,6 +945,8 @@ function Studio() {
           tripoBusyUrl,
           onOpenTripoMultiview: openTurnaroundInTripo,
           tripoMultiviewBusy: tripoMultiviewBusyNodeId === node.id,
+          onSendToUnity: sendCharacterViewsToUnity,
+          unityBusy: unityBusyKey === node.id,
           onExportViews: exportTurnaroundViews,
           onBuildSpriteSheet: buildTurnaroundSpriteSheet,
           onUnpackToCanvas: unpackCharacterViewsToCanvas,
@@ -873,17 +962,15 @@ function Studio() {
           ...node.data,
           inputUrls: input.sourceUrls,
           onNotesChange: updatePartsNotes,
+          onDescriptionChange: updatePartsDescription,
           onProviderChange: updateProvider,
-          onModeChange: updatePartsMode,
-          onRunAll: runPartsAll,
-          onRunPart: runPart,
-          onCancelPart: cancelPart,
-          onExtractPart: extractPart,
-          onDownloadPart: downloadPart,
-          onDeletePart: deletePart,
-          onExportParts: exportParts,
-          onDownloadManifest: downloadPartsManifest,
-          onOpen: openPreview,
+          onAnalyze: analyzeCharacterPartsNode,
+          onGenerateSelected: generateSelectedProps,
+          onPatchPart: patchCharacterPartNode,
+          onTogglePart: toggleCharacterPartNode,
+          onSelectAll: selectAllCharacterParts,
+          onAddPart: addCharacterPartNode,
+          onRemovePart: removeCharacterPartNode,
         } as CharacterPartsNodeData,
       };
     }
@@ -898,17 +985,25 @@ function Studio() {
           enhancePromptError: promptEnhancements[node.id]?.error,
           enhancePromptAvailable: codex.connected,
           onCountChange: updateVariantCount,
+          onSelectVariant: selectMultiVariant,
+          onToggleConfig: toggleMultiConfig,
           onProviderChange: updateProvider,
-          onModeChange: updateMultiMode,
           onRunAll: runMultiAll,
           onRunVariant: runMultiVariant,
           onCancelVariant: cancelMultiVariant,
           onExtractVariant: extractMultiVariant,
           onDownloadVariant: downloadMultiVariant,
           onDeleteVariant: deleteMultiVariant,
+          onRestoreVariantRevision: restoreMultiVariantRevision,
+          onApplyRevisionPrompt: (nodeId: string, prompt: string) => { updatePrompt(nodeId, prompt); showToast('Using the prompt from this version.'); },
           onOpenTripo: (url: string) => openInTripo(url, node.id),
           tripoBusyUrl,
-          onOpen: openPreview,
+          onSendToUnity: (url: string) => sendImageToUnity(url, 'generated', { title: node.data.title }),
+          unityBusyUrl: unityBusyKey,
+          onOpen: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => openPreview(url, title, sourceUrl, history ? {
+            ...history,
+            onRestoreRevision: (revisionId) => restoreMultiVariantRevision(node.id, resolveSelectedVariantKey(node.data as MultiGenerateNodeData), revisionId),
+          } : undefined),
         } as MultiGenerateNodeData,
       };
     }
@@ -924,6 +1019,8 @@ function Studio() {
           onOpen: (url: string, title: string) => openPreview(url, title),
           onOpenTripo: (url: string) => openInTripo(url, node.id),
           tripoBusy: tripoBusyUrl === node.data.outputUrl,
+          onSendToUnity: (url: string) => sendImageToUnity(url, 'atlases', { title: node.data.title }),
+          unityBusy: unityBusyKey === node.data.outputUrl,
           onDownloadPng: downloadAtlasPng,
           onDownloadJson: downloadAtlasJson,
           onDelete: deleteAtlas,
@@ -932,7 +1029,7 @@ function Studio() {
     }
     if (node.type === 'relativeAtlas') {
       const connectedInput = findInput(node.id);
-      return { ...node, data: { ...node.data, inputUrls: connectedInput.sourceUrls, onSettingsChange: updateRelativeAtlasSettings, onBuild: buildRelativeAtlasNode, onOpen: (url: string, title: string) => openPreview(url, title), onOpenTripo: (url: string) => openInTripo(url, node.id), tripoBusy: tripoBusyUrl === node.data.outputUrl, onDownloadPng: downloadRelativeAtlasPng, onDownloadJson: downloadRelativeAtlasJson, onDelete: deleteRelativeAtlas } as RelativeAtlasNodeData };
+      return { ...node, data: { ...node.data, inputUrls: connectedInput.sourceUrls, onSettingsChange: updateRelativeAtlasSettings, onBuild: buildRelativeAtlasNode, onOpen: (url: string, title: string) => openPreview(url, title), onOpenTripo: (url: string) => openInTripo(url, node.id), tripoBusy: tripoBusyUrl === node.data.outputUrl, onSendToUnity: (url: string) => sendImageToUnity(url, 'atlases', { title: node.data.title }), unityBusy: unityBusyKey === node.data.outputUrl, onDownloadPng: downloadRelativeAtlasPng, onDownloadJson: downloadRelativeAtlasJson, onDelete: deleteRelativeAtlas } as RelativeAtlasNodeData };
     }
     if (node.type === 'seamlessTexture') {
       return {
@@ -969,11 +1066,13 @@ function Studio() {
           onDeleteMap: deleteMaterialMap,
           onExport: exportMaterialMapSet,
           onDownloadManifest: downloadMaterialMapManifest,
+          onSendToUnity: sendMaterialMapsToUnity,
+          unityBusy: unityBusyKey === node.id,
         } as MaterialMapsNodeData,
       };
     }
     if (node.type === 'model3d') {
-      return { ...node, data: { ...node.data, onDownload: downloadTripoModel, onRecover: recoverTripoPreview } as Model3DNodeData };
+      return { ...node, data: { ...node.data, onDownload: downloadTripoModel, onRecover: recoverTripoPreview, onSendToUnity: sendModelToUnity, unityBusy: unityBusyKey === node.id } as Model3DNodeData };
     }
     const input = findInput(node.id);
     const generatorData = node.data as GeneratorNodeData;
@@ -1007,9 +1106,16 @@ function Studio() {
         onBranch: branchFromNode,
         onDownload: downloadResult,
         onDelete: deleteResult,
+        onRestoreRevision: restoreGeneratorRevision,
+        onApplyRevisionPrompt: (nodeId: string, prompt: string) => { updatePrompt(nodeId, prompt); showToast('Using the prompt from this version.'); },
         onOpenTripo: (url: string) => openInTripo(url, node.id),
         tripoBusy: tripoBusyUrl === node.data.outputUrl,
-        onOpen: openPreview,
+        onSendToUnity: (url: string) => sendImageToUnity(url, 'generated', { title: node.data.title }),
+        unityBusy: unityBusyKey === node.data.outputUrl,
+        onOpen: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => openPreview(url, title, sourceUrl, history ? {
+          ...history,
+          onRestoreRevision: (revisionId) => restoreGeneratorRevision(node.id, revisionId),
+        } : undefined),
       } as GeneratorNodeData,
     };
   }
@@ -1126,6 +1232,82 @@ function Studio() {
     }
   }
 
+  async function sendItemsToUnity(busyKey: string, items: UnitySendItem[], placeOnScene = false) {
+    if (!items.length || unityBusyKey) return;
+    setUnityBusyKey(busyKey);
+    showToast(placeOnScene ? 'Sending model to Unity…' : 'Sending to Unity…');
+    try {
+      const result = await sendToUnity({ projectName, items, placeOnScene });
+      showToast(result.message);
+      await refreshUnity();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUnityBusyKey(null);
+    }
+  }
+
+  function sendImageToUnity(url: string, group: UnitySendItem['group'], options: { title?: string; fileName?: string } = {}) {
+    if (!url) return;
+    void sendItemsToUnity(url, [{ url, group, title: options.title || projectName, fileName: options.fileName }]);
+  }
+
+  function sendCharacterViewsToUnity(nodeId: string) {
+    const data = reactFlow.getNode(nodeId)?.data as CharacterViewsNodeData | undefined;
+    const views = data?.views;
+    if (!views || viewKeys.some((key) => !views[key]?.outputUrl)) {
+      showToast('Generate all four Character Views before sending them to Unity.');
+      return;
+    }
+    void sendItemsToUnity(nodeId, viewKeys.map((key) => ({
+      url: views[key].outputUrl,
+      group: 'views' as const,
+      title: data.title,
+      fileName: `${key}.png`,
+      viewKey: key,
+    })));
+  }
+
+  function sendMaterialMapsToUnity(nodeId: string) {
+    const data = reactFlow.getNode(nodeId)?.data as MaterialMapsNodeData | undefined;
+    const maps = data?.maps;
+    if (!maps) return;
+    const items = (Object.keys(maps) as MaterialMapKey[])
+      .filter((key) => maps[key]?.outputUrl)
+      .map((key) => ({
+        url: maps[key].outputUrl,
+        group: 'materials' as const,
+        title: data.title,
+        fileName: `${key}.png`,
+        mapKey: key,
+      }));
+    if (!items.length) {
+      showToast('Build the material maps before sending them to Unity.');
+      return;
+    }
+    void sendItemsToUnity(nodeId, items);
+  }
+
+  function sendModelToUnity(nodeId: string) {
+    const data = reactFlow.getNode(nodeId)?.data as Model3DNodeData | undefined;
+    if (!data?.modelUrl) return;
+    void sendItemsToUnity(nodeId, [{
+      url: data.modelUrl,
+      group: 'models',
+      title: data.title || data.fileName,
+      fileName: data.fileName,
+    }], true);
+  }
+
+  async function chooseUnityTarget(projectPath: string) {
+    try {
+      setUnity(await setUnityTarget(projectPath));
+      showToast(`Unity target set to ${projectPath.replace(/\\/g, '/').split('/').filter(Boolean).pop()}.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   function updateProvider(nodeId: string, provider: ProviderId | 'global') {
     setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, provider } } : node));
   }
@@ -1144,29 +1326,34 @@ function Studio() {
     setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, pose } } : node));
   }
 
-  function updateTurnaroundMode(nodeId: string, generationMode: GenerationMode) {
-    setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, generationMode } } : node));
-  }
-
   function updateVariantCount(nodeId: string, requestedCount: number) {
     const variantCount = Math.max(2, Math.min(6, Math.floor(requestedCount)));
     setNodes((current) => current.map((node) => {
       if (node.id !== nodeId || node.type !== 'multiGenerate') return node;
       const data = node.data as MultiGenerateNodeData;
-      return { ...node, data: { ...data, variantCount, variants: createVariantSlots(variantCount, data.variants) } };
+      const variants = createVariantSlots(variantCount, data.variants);
+      return { ...node, data: { ...data, variantCount, variants, selectedVariantKey: resolveSelectedVariantKey({ ...data, variantCount, variants }) } };
     }));
   }
 
-  function updateMultiMode(nodeId: string, generationMode: GenerationMode) {
-    setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, generationMode } } : node));
+  function selectMultiVariant(nodeId: string, selectedVariantKey: string) {
+    patchMulti(nodeId, { selectedVariantKey });
+  }
+
+  function toggleMultiConfig(nodeId: string, open?: boolean) {
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId || node.type !== 'multiGenerate') return node;
+      const data = node.data as MultiGenerateNodeData;
+      return { ...node, data: { ...data, isConfigOpen: open !== undefined ? open : !data.isConfigOpen } };
+    }));
   }
 
   function updatePartsNotes(nodeId: string, notes: string) {
     setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, notes } } : node));
   }
 
-  function updatePartsMode(nodeId: string, generationMode: GenerationMode) {
-    setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, generationMode } } : node));
+  function updatePartsDescription(nodeId: string, characterDescription: string) {
+    setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, characterDescription } } : node));
   }
 
   function updateAtlasSettings(nodeId: string, patch: Partial<SpriteAtlasSettings>) {
@@ -1231,7 +1418,7 @@ function Studio() {
     return {
       title: 'Character views',
       provider: 'global',
-      generationMode: 'fast',
+      generationMode: 'turbo',
       pose: 'a-pose',
       basePrompt: CHARACTER_IDENTITY_PROMPT,
       views: Object.fromEntries(viewKeys.map((key) => [key, { key, title: CHARACTER_VIEW_SPECS[key].title, prompt: CHARACTER_VIEW_SPECS[key].prompt, status: 'idle' }])) as CharacterViewsNodeData['views'],
@@ -1248,20 +1435,14 @@ function Studio() {
     return id;
   }
 
-  function createCharacterPartsData(): CharacterPartsNodeData {
-    return {
-      title: 'Character Parts',
-      notes: '',
-      provider: 'global',
-      generationMode: 'fast',
-      parts: Object.fromEntries(characterPartKeys.map((key) => [key, { key, title: characterPartSpecs[key].title, description: characterPartSpecs[key].description, status: 'idle' }])) as CharacterPartsNodeData['parts'],
-    };
+  function createCharacterPartsDataNode(): CharacterPartsNodeData {
+    return createCharacterPartsData();
   }
 
   function addCharacterParts(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
     const id = `character-parts-${crypto.randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
-    const node: StudioNode = { id, type: 'characterParts', position: position || viewportCenter, data: createCharacterPartsData() };
+    const node: StudioNode = { id, type: 'characterParts', position: position || viewportCenter, data: createCharacterPartsDataNode() };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
     if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.14, duration: canvasDuration(300) }), 30);
@@ -1279,8 +1460,9 @@ function Studio() {
         title: 'Multi Generate',
         prompt: 'Create a polished game-ready variation of this image. Preserve the core subject while exploring a distinct visual solution.',
         variantCount: 3,
+        selectedVariantKey: 'variant-1',
         provider: 'global',
-        generationMode: 'fast',
+        generationMode: 'turbo',
         variants: createVariantSlots(3),
       },
     };
@@ -1419,23 +1601,16 @@ function Studio() {
     if (node.type === 'characterViews' && sourceHandle && viewKeys.includes(sourceHandle as ViewKey)) {
       return [String((node.data as CharacterViewsNodeData).views[sourceHandle as ViewKey]?.outputUrl || '')].filter(Boolean);
     }
-    if (node.type === 'multiGenerate' && sourceHandle === 'all') {
-      const data = node.data as MultiGenerateNodeData;
-      const urls = data.variants.slice(0, data.variantCount).map((variant) => variant.outputUrl).filter((url): url is string => Boolean(url));
-      return urls.length === data.variantCount ? urls : [];
+    if (node.type === 'multiGenerate') {
+      return sourceUrlsForMultiGenerate(node.data as MultiGenerateNodeData, sourceHandle);
     }
-    if (node.type === 'multiGenerate' && sourceHandle) {
-      const variant = (node.data as MultiGenerateNodeData).variants.find((item) => item.key === sourceHandle);
-      return [String(variant?.outputUrl || '')].filter(Boolean);
-    }
-    if (node.type === 'characterParts' && sourceHandle === 'all') {
+    if (node.type === 'characterParts') {
       const data = node.data as CharacterPartsNodeData;
-      const urls = characterPartKeys.map((key) => data.parts[key]?.normalized ? data.parts[key].outputUrl : undefined).filter((url): url is string => Boolean(url));
-      return urls.length === characterPartKeys.length ? urls : [];
-    }
-    if (node.type === 'characterParts' && sourceHandle && characterPartKeys.includes(sourceHandle as CharacterPartKey)) {
-      const part = (node.data as CharacterPartsNodeData).parts[sourceHandle as CharacterPartKey];
-      return [String(part?.normalized ? part.outputUrl || '' : '')].filter(Boolean);
+      const urls = (data.inputUrls || []).filter(Boolean);
+      if (sourceHandle === 'all') return urls;
+      const partId = parseCharacterPartHandle(sourceHandle);
+      if (partId && data.parts.some((part) => part.id === partId)) return urls;
+      return [];
     }
     if (node.type === 'spriteAtlas') return [String((node.data as SpriteAtlasNodeData).outputUrl || '')].filter(Boolean);
     if (node.type === 'relativeAtlas') return [String((node.data as RelativeAtlasNodeData).outputUrl || '')].filter(Boolean);
@@ -1478,7 +1653,7 @@ function Studio() {
     if (!codex.connected) return patchGenerator(nodeId, { status: 'failed', error: 'Connect Codex before running ImageGen.' });
     patchGenerator(nodeId, { status: 'queued', sourceUrl: input.sourceUrl, sourceUrls: input.sourceUrls, resolvedProvider: provider, progress: input.sourceUrls.length > 1 ? `${input.sourceUrls.length} references added to local queue` : 'Added to local queue', error: undefined });
     try {
-      const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: String(graphNode.data.title || 'generated'), projectId: activeProjectIdRef.current });
+      const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: String(graphNode.data.title || 'generated'), projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: 'output' });
       patchGenerator(nodeId, { jobId });
       void pollGenerator(nodeId, jobId);
       void refreshJobs();
@@ -1493,7 +1668,7 @@ function Studio() {
         failures = 0;
         patchGenerator(nodeId, { status: job.status, progress: job.progress, error: job.error || undefined });
         if (job.status === 'completed' && job.outputUrl) {
-          patchGenerator(nodeId, { status: 'completed', outputUrl: job.outputUrl, progress: 'Ready' });
+          completeGeneratorJob(nodeId, job);
           showToast('Image saved locally and added to Gallery.');
           void refreshAssets(); void refreshJobs(); return;
         }
@@ -1524,6 +1699,102 @@ function Studio() {
 
   function patchGenerator(nodeId: string, patch: Partial<GeneratorNodeData>) {
     setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node));
+  }
+
+  function completeGeneratorJob(nodeId: string, job: GenerationJob) {
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId || node.type !== 'generator') return node;
+      const data = node.data as GeneratorNodeData;
+      const history = appendRevision(historyFromGenerator(data), {
+        outputUrl: job.outputUrl || undefined,
+        assetId: job.outputAssetId || undefined,
+        jobId: job.id,
+        prompt: data.prompt,
+        createdAt: job.updatedAt || job.createdAt,
+      });
+      return { ...node, data: { ...data, status: 'completed', progress: 'Ready', error: undefined, jobId: job.id, ...historyToGeneratorPatch(history) } };
+    }));
+  }
+
+  function restoreGeneratorRevision(nodeId: string, revisionId: string) {
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId || node.type !== 'generator') return node;
+      const data = node.data as GeneratorNodeData;
+      const history = restoreRevision(historyFromGenerator(data), revisionId);
+      return { ...node, data: { ...data, ...historyToGeneratorPatch(history), status: history.outputUrl ? 'completed' : data.status } };
+    }));
+    syncPreviewToRevision(revisionId);
+  }
+
+  function completeMultiVariantJob(nodeId: string, key: string, job: GenerationJob) {
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId || node.type !== 'multiGenerate') return node;
+      const data = node.data as MultiGenerateNodeData;
+      return {
+        ...node,
+        data: {
+          ...data,
+          variants: data.variants.map((variant) => {
+            if (variant.key !== key) return variant;
+            const history = appendRevision(historyFromVariant(variant, data.prompt), {
+              outputUrl: job.outputUrl || undefined,
+              assetId: job.outputAssetId || undefined,
+              jobId: job.id,
+              prompt: data.prompt,
+              createdAt: job.updatedAt || job.createdAt,
+            });
+            return { ...variant, status: 'completed', progress: 'Ready', error: undefined, jobId: job.id, ...historyToVariantPatch(history) };
+          }),
+        },
+      };
+    }));
+  }
+
+  function restoreMultiVariantRevision(nodeId: string, key: string, revisionId: string) {
+    setNodes((current) => current.map((node) => {
+      if (node.id !== nodeId || node.type !== 'multiGenerate') return node;
+      const data = node.data as MultiGenerateNodeData;
+      return {
+        ...node,
+        data: {
+          ...data,
+          variants: data.variants.map((variant) => {
+            if (variant.key !== key) return variant;
+            const history = restoreRevision(historyFromVariant(variant, data.prompt), revisionId);
+            return { ...variant, ...historyToVariantPatch(history), status: history.outputUrl ? 'completed' : variant.status };
+          }),
+        },
+      };
+    }));
+    syncPreviewToRevision(revisionId);
+  }
+
+  function syncPreviewToRevision(revisionId: string) {
+    setPreview((current) => {
+      const revision = current?.revisions?.find((item) => item.id === revisionId);
+      if (!current || !revision) return current;
+      return { ...current, activeRevisionId: revisionId, primary: { ...current.primary, url: revision.outputUrl } };
+    });
+  }
+
+  function cycleSelectedRevision(node: Node, delta: number) {
+    if (node.type === 'generator') {
+      const data = node.data as GeneratorNodeData;
+      const nextId = stepRevisionId(historyFromGenerator(data), delta);
+      if (!nextId || nextId === data.activeRevisionId) return false;
+      restoreGeneratorRevision(node.id, nextId);
+      return true;
+    }
+    if (node.type === 'multiGenerate') {
+      const data = node.data as MultiGenerateNodeData;
+      const variant = data.variants.find((item) => item.key === resolveSelectedVariantKey(data));
+      if (!variant) return false;
+      const nextId = stepRevisionId(historyFromVariant(variant, data.prompt), delta);
+      if (!nextId || nextId === variant.activeRevisionId) return false;
+      restoreMultiVariantRevision(node.id, variant.key, nextId);
+      return true;
+    }
+    return false;
   }
 
   function patchSeamless(nodeId: string, patch: Partial<SeamlessTextureNodeData>) {
@@ -1618,7 +1889,7 @@ function Studio() {
 
   async function deleteSeamlessTexture(nodeId: string) {
     const data = reactFlow.getNode(nodeId)?.data as SeamlessTextureNodeData | undefined;
-    if (!data?.outputUrl || !window.confirm('Move this seamless texture to Frameforge trash?')) return;
+    if (!data?.outputUrl || !window.confirm('Move this seamless texture to Consept trash?')) return;
     try {
       await deleteGeneratedImage(data.outputUrl);
       patchSeamless(nodeId, { status: 'idle', outputUrl: undefined, outputAssetId: undefined, seamScore: undefined, error: undefined });
@@ -1640,8 +1911,10 @@ function Studio() {
     const data = node.data as CharacterViewsNodeData;
     const input = findInput(nodeId);
     const provider = resolveProvider(data.provider);
+    const subjectKind = normalizeCharacterSubjectKind(data.subjectKind);
+    const sourceReady = isCharacterViewSourceReady(subjectKind, input.sourceUrls.length);
     if (input.error) { patchView(nodeId, viewKey, { status: 'failed', error: input.error }); return; }
-    if (input.sourceUrls.length !== 1) { patchView(nodeId, viewKey, { status: 'failed', error: 'Character Views requires one source image. Connect an individual output instead of All.' }); return; }
+    if (!sourceReady) { patchView(nodeId, viewKey, { status: 'failed', error: subjectKind === 'prop' ? 'Prop views need one image or a complete four-image All Views output.' : 'Character Views requires one source image. Connect an individual output instead of All.' }); return; }
     if (provider === 'gemini') { patchView(nodeId, viewKey, { status: 'failed', error: 'Gemini image generation is unavailable without an official API provider.' }); return; }
     if (!codex.connected) { patchView(nodeId, viewKey, { status: 'failed', error: 'Connect Codex before running ImageGen.' }); return; }
     const view = data.views[viewKey];
@@ -1650,10 +1923,11 @@ function Studio() {
       pose: data.pose,
       identityPrompt: data.basePrompt,
       viewPrompt: view.prompt,
+      subjectKind,
     });
     patchView(nodeId, viewKey, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined });
     try {
-      const { jobId } = await startGeneration(input.sourceUrl, prompt, { provider, outputName: `${data.title}-${viewKey}`, view: viewKey, projectId: activeProjectIdRef.current });
+      const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: `${data.title}-${viewKey}`, view: viewKey, projectId: activeProjectIdRef.current });
       patchView(nodeId, viewKey, { jobId });
       const polling = pollTurnaroundView(nodeId, viewKey, jobId);
       void refreshJobs();
@@ -1692,31 +1966,28 @@ function Studio() {
     const data = node.data as CharacterViewsNodeData;
     const keys = viewKeys.filter((key) => !onlyMissing || !data.views[key].outputUrl);
     if (!keys.length) return;
-    const generationMode = data.generationMode || 'fast';
-    if (generationMode === 'reliable') {
-      for (const key of keys) await runTurnaroundView(nodeId, key, true);
-      return;
-    }
-
     const input = findInput(nodeId);
     const provider = resolveProvider(data.provider);
-    if (input.error || input.sourceUrls.length !== 1 || provider === 'gemini' || !codex.connected) {
-      const error = input.error || (input.sourceUrls.length !== 1 ? 'Character Views requires one source image. Connect an individual output instead of All.' : provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : 'Connect Codex before running ImageGen.');
+    const subjectKind = normalizeCharacterSubjectKind(data.subjectKind);
+    const sourceReady = isCharacterViewSourceReady(subjectKind, input.sourceUrls.length);
+    if (input.error || !sourceReady || provider === 'gemini' || !codex.connected) {
+      const error = input.error || (!sourceReady ? (subjectKind === 'prop' ? 'Prop views need one image or a complete four-image All Views output.' : 'Character Views requires one source image. Connect an individual output instead of All.') : provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : 'Connect Codex before running ImageGen.');
       keys.forEach((key) => patchView(nodeId, key, { status: 'failed', error }));
       return;
     }
 
-    const workerLabel = generationMode === 'turbo' ? 'Turbo' : 'Fast';
-    const batchConcurrency = generationMode === 'turbo' ? 4 : 2;
+    const workerLabel = 'Turbo';
+    const batchConcurrency = 4;
     keys.forEach((key) => patchView(nodeId, key, { status: 'queued', progress: `Waiting for a ${workerLabel} worker`, sourceUrl: input.sourceUrl, error: undefined }));
     try {
-      const batch = await startGenerationBatch(input.sourceUrl, keys.map((key) => ({
+      const batch = await startGenerationBatch(input.sourceUrls, keys.map((key) => ({
         key,
         prompt: buildCharacterViewPrompt({
           view: key,
           pose: data.pose,
           identityPrompt: data.basePrompt,
           viewPrompt: data.views[key].prompt,
+          subjectKind,
         }),
         outputName: `${data.title}-${key}`,
       })), { provider, concurrency: batchConcurrency, projectId: activeProjectIdRef.current });
@@ -1731,7 +2002,6 @@ function Studio() {
       const settled = await Promise.all(polling.map(async ({ key, promise }) => ({ key, job: await promise })));
       const fallbackKeys = settled.filter(({ job }) => job?.status === 'failed' && /concurr|too many|rate.?limit|resource exhausted|temporarily unavailable|\b429\b/i.test(`${job.error || ''} ${job.progress || ''}`)).map(({ key }) => key);
       if (fallbackKeys.length) {
-        updateTurnaroundMode(nodeId, 'reliable');
         showToast(`${workerLabel} mode was limited by Codex. Retrying failed views one at a time.`);
         for (const key of fallbackKeys) await runTurnaroundView(nodeId, key, true);
       }
@@ -1858,7 +2128,7 @@ function Studio() {
 
     patchVariant(nodeId, key, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined });
     try {
-      const { jobId } = await startGeneration(input.sourceUrls, multiVariantPrompt(data, variant.index), { provider, outputName: `${data.title}-variant-${variant.index + 1}`, projectId: activeProjectIdRef.current });
+      const { jobId } = await startGeneration(input.sourceUrls, multiVariantPrompt(data, variant.index), { provider, outputName: `${data.title}-variant-${variant.index + 1}`, projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: key });
       patchVariant(nodeId, key, { jobId });
       const polling = pollMultiVariant(nodeId, key, jobId);
       void refreshJobs();
@@ -1877,7 +2147,7 @@ function Studio() {
         failures = 0;
         patchVariant(nodeId, key, { status: job.status, progress: job.progress, error: job.error || undefined });
         if (job.status === 'completed' && job.outputUrl) {
-          patchVariant(nodeId, key, { status: 'completed', outputUrl: job.outputUrl, assetId: job.outputAssetId || undefined, progress: 'Ready' });
+          completeMultiVariantJob(nodeId, key, job);
           void refreshAssets(); void refreshJobs(); return job;
         }
         if (['failed', 'cancelled', 'interrupted'].includes(job.status)) { void refreshJobs(); return job; }
@@ -1909,17 +2179,11 @@ function Studio() {
     }
     patchMulti(nodeId, { error: undefined });
 
-    if ((data.generationMode || 'fast') === 'reliable') {
-      for (const variant of variants) await runMultiVariant(nodeId, variant.key, true);
-      return;
-    }
-
-    const multiMode = data.generationMode || 'fast';
-    const multiConcurrency = multiMode === 'turbo' ? 4 : 2;
-    const multiWorkerLabel = multiMode === 'turbo' ? 'Turbo' : 'Fast';
+    const multiConcurrency = 4;
+    const multiWorkerLabel = 'Turbo';
     variants.forEach((variant) => patchVariant(nodeId, variant.key, { status: 'queued', progress: `Waiting for a ${multiWorkerLabel} worker`, sourceUrl: input.sourceUrl, error: undefined }));
     try {
-      const batch = await startSlotBatch(input.sourceUrls, variants.map((variant) => ({ key: variant.key, prompt: multiVariantPrompt(data, variant.index), outputName: `${data.title}-variant-${variant.index + 1}` })), { provider, kind: 'variants', concurrency: multiConcurrency, projectId: activeProjectIdRef.current });
+      const batch = await startSlotBatch(input.sourceUrls, variants.map((variant) => ({ key: variant.key, prompt: multiVariantPrompt(data, variant.index), outputName: `${data.title}-variant-${variant.index + 1}` })), { provider, kind: 'variants', concurrency: multiConcurrency, projectId: activeProjectIdRef.current, graphNodeId: nodeId });
       patchMulti(nodeId, { batchId: batch.batchId });
       const polling: Array<{ key: string; promise: Promise<GenerationJob | undefined> }> = [];
       for (const batchJob of batch.jobs) {
@@ -1932,8 +2196,7 @@ function Studio() {
       const settled = await Promise.all(polling.map(async ({ key, promise }) => ({ key, job: await promise })));
       const fallback = settled.filter(({ job }) => job?.status === 'failed' && /concurr|too many|rate.?limit|resource exhausted|temporarily unavailable|\b429\b/i.test(`${job.error || ''} ${job.progress || ''}`)).map(({ key }) => key);
       if (fallback.length) {
-        updateMultiMode(nodeId, 'reliable');
-        showToast('Fast mode was limited by Codex. Retrying failed variants one at a time.');
+        showToast(`${multiWorkerLabel} mode was limited by Codex. Retrying failed variants one at a time.`);
         for (const key of fallback) await runMultiVariant(nodeId, key, true);
       }
     } catch (batchError) {
@@ -1974,7 +2237,7 @@ function Studio() {
     if (!asset || asset.deletedAt) return showToast('This result is not available in the active Gallery.');
     const imageId = addAssetNode(
       asset,
-      { x: source.position.x + 590, y: source.position.y + 80 + Math.floor(variant.index / 2) * 250 },
+      { x: source.position.x + 360, y: source.position.y + 36 },
       { title: variant.title, hasInput: true },
     );
     setEdges((current) => addEdge({
@@ -1990,10 +2253,17 @@ function Studio() {
   async function deleteMultiVariant(nodeId: string, key: string) {
     const data = reactFlow.getNode(nodeId)?.data as MultiGenerateNodeData | undefined;
     const variant = data?.variants.find((item) => item.key === key);
-    if (!variant?.outputUrl || !window.confirm(`Move ${variant.title} to Frameforge trash? Extracted nodes using this asset will also lose it.`)) return;
+    if (!variant?.outputUrl || !window.confirm(hasRevisionHistory(historyFromVariant(variant, data?.prompt)) ? `Move this ${variant.title} version to Consept trash? Earlier versions stay on the slot.` : `Move ${variant.title} to Consept trash? Extracted nodes using this asset will also lose it.`)) return;
     try {
       await deleteGeneratedImage(variant.outputUrl);
-      patchVariant(nodeId, key, { outputUrl: undefined, assetId: undefined, jobId: undefined, status: 'idle', progress: undefined, error: undefined });
+      const history = removeActiveRevision(historyFromVariant(variant, data?.prompt));
+      patchVariant(nodeId, key, {
+        ...historyToVariantPatch(history),
+        jobId: history.outputUrl ? variant.jobId : undefined,
+        status: history.outputUrl ? 'completed' : 'idle',
+        progress: history.outputUrl ? 'Ready' : undefined,
+        error: undefined,
+      });
       await refreshAssets();
     } catch (deleteError) { showToast(deleteError instanceof Error ? deleteError.message : String(deleteError)); }
   }
@@ -2002,206 +2272,158 @@ function Studio() {
     setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node));
   }
 
-  function patchPart(nodeId: string, key: CharacterPartKey, patch: Partial<CharacterPartsNodeData['parts'][CharacterPartKey]>) {
+  function mapCharacterParts(nodeId: string, mapper: (parts: CharacterPartCandidate[]) => CharacterPartCandidate[]) {
     setNodes((current) => current.map((node) => {
       if (node.id !== nodeId || node.type !== 'characterParts') return node;
       const data = node.data as CharacterPartsNodeData;
-      return { ...node, data: { ...data, parts: { ...data.parts, [key]: { ...data.parts[key], ...patch } } } };
+      return { ...node, data: { ...data, parts: mapper(data.parts) } };
     }));
   }
 
   function partsInputError(input: ReturnType<typeof findInput>) {
     if (input.error) return input.error;
-    return input.sourceUrls.length === 1 || input.sourceUrls.length === 4 ? '' : 'Character Parts accepts one image or a complete four-image All Views output.';
+    return characterPartsInputError(input.sourceUrls.length);
   }
 
-  async function runPart(nodeId: string, key: CharacterPartKey, waitForCompletion = false): Promise<GenerationJob | undefined> {
+  function patchCharacterPartNode(nodeId: string, partId: string, patch: Partial<CharacterPartCandidate>) {
+    mapCharacterParts(nodeId, (parts) => patchCharacterPart(parts, partId, patch));
+  }
+
+  function toggleCharacterPartNode(nodeId: string, partId: string) {
+    mapCharacterParts(nodeId, (parts) => toggleCharacterPart(parts, partId));
+  }
+
+  function selectAllCharacterParts(nodeId: string, enabled: boolean) {
+    mapCharacterParts(nodeId, (parts) => setAllCharacterPartsEnabled(parts, enabled));
+  }
+
+  function addCharacterPartNode(nodeId: string) {
+    mapCharacterParts(nodeId, (parts) => addCharacterPart(parts));
+    patchParts(nodeId, { status: 'review', error: undefined });
+  }
+
+  function removeCharacterPartNode(nodeId: string, partId: string) {
+    mapCharacterParts(nodeId, (parts) => removeCharacterPart(parts, partId));
+  }
+
+  async function analyzeCharacterPartsNode(nodeId: string) {
     const node = reactFlow.getNode(nodeId);
     if (!node || node.type !== 'characterParts') return;
     const data = node.data as CharacterPartsNodeData;
     const input = findInput(nodeId);
-    const provider = resolveProvider(data.provider);
-    const error = partsInputError(input) || (provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : !codex.connected ? 'Connect Codex before running ImageGen.' : '');
-    if (error) { patchPart(nodeId, key, { status: 'failed', error }); return; }
-    patchParts(nodeId, { error: undefined, inputUrls: input.sourceUrls });
-    patchPart(nodeId, key, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined, normalized: false, geometry: undefined });
+    const error = partsInputError(input) || (!codex.connected ? 'Connect Codex before analyzing character props.' : '');
+    if (error) return patchParts(nodeId, { status: 'failed', error, inputUrls: input.sourceUrls });
+    if (data.parts.length && !window.confirm('Replace the current prop list? Existing 4-view nodes stay on the canvas.')) return;
+    const projectId = activeProjectIdRef.current;
+    const startedAt = new Date().toISOString();
+    patchParts(nodeId, {
+      status: 'analyzing',
+      error: undefined,
+      inputUrls: input.sourceUrls,
+      analysisProgress: { requestId: '', stage: 'queued', message: input.sourceUrls.length === 1 ? 'Preparing source image…' : 'Preparing character views…', startedAt, updatedAt: startedAt },
+    });
     try {
-      const { jobId } = await startGeneration(input.sourceUrls, characterPartPrompt(data, key, input.sourceUrls.length), { provider, outputName: `${data.title}-${key}`, projectId: activeProjectIdRef.current });
-      patchPart(nodeId, key, { jobId });
-      const polling = pollPart(nodeId, key, jobId);
-      void refreshJobs();
-      if (waitForCompletion) return await polling;
-      void polling;
-    } catch (generationError) {
-      patchPart(nodeId, key, { status: 'failed', progress: 'Could not start layer generation', error: generationError instanceof Error ? generationError.message : String(generationError) });
-    }
-  }
-
-  async function pollPart(nodeId: string, key: CharacterPartKey, jobId: string): Promise<GenerationJob | undefined> {
-    let failures = 0;
-    for (;;) {
-      try {
-        const job = await getGenerationJob(jobId);
-        failures = 0;
-        patchPart(nodeId, key, { status: job.status, progress: job.progress, error: job.error || undefined });
-        if (job.status === 'completed' && job.outputUrl) {
-          patchPart(nodeId, key, { status: 'running', outputUrl: job.outputUrl, assetId: job.outputAssetId || undefined, progress: 'Aligning canvas and removing background' });
-          await finalizePartLayer(nodeId, key, job);
-          void refreshAssets(); void refreshJobs(); return job;
-        }
-        if (['failed', 'cancelled', 'interrupted'].includes(job.status)) { void refreshJobs(); return job; }
-      } catch (pollError) {
-        failures += 1;
-        if (pollError instanceof ApiError && pollError.status === 404) {
-          patchPart(nodeId, key, { status: 'failed', progress: 'Job is unavailable', error: 'Generation job was not found. Generate this layer again.' });
-          return;
-        }
-        patchPart(nodeId, key, { progress: failures > 1 ? 'Backend unavailable, still checking status' : 'Reconnecting to local queue' });
+      const result = await analyzeCharacterParts(input.sourceUrls, {
+        projectId,
+        userHint: data.notes,
+        onProgress: (analysisProgress: CharacterPartsProgress) => {
+          if (activeProjectIdRef.current === projectId) patchParts(nodeId, { analysisProgress });
+        },
+      });
+      if (activeProjectIdRef.current !== projectId) return;
+      patchParts(nodeId, {
+        status: 'review',
+        characterDescription: result.characterDescription,
+        parts: result.parts,
+        analysisProgress: undefined,
+        error: undefined,
+      });
+      showToast(`${result.parts.length} extractable prop${result.parts.length === 1 ? '' : 's'} proposed.`);
+    } catch (analysisError) {
+      if (activeProjectIdRef.current === projectId) {
+        patchParts(nodeId, { status: 'failed', analysisProgress: undefined, error: analysisError instanceof Error ? analysisError.message : String(analysisError) });
       }
-      await new Promise((resolve) => window.setTimeout(resolve, Math.min(4_000, 1_350 + failures * 650)));
     }
   }
 
-  async function finalizePartLayer(nodeId: string, key: CharacterPartKey, job: GenerationJob) {
-    const data = reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined;
-    const part = data?.parts[key];
-    const referenceUrl = part?.sourceUrl || job.sourceUrl;
-    if (!data || !job.outputUrl || !referenceUrl) throw new Error('The source canvas is no longer connected.');
-    try {
-      const normalized = await normalizeCharacterPartLayer(job.outputUrl, referenceUrl);
-      let library = assets;
-      const relevantUrls = [...(data.inputUrls || []), job.outputUrl];
-      if (relevantUrls.some((url) => !library.some((asset) => asset.url === url))) {
-        library = await getAssets({ projectId: activeProjectIdRef.current, includeTrashed: true });
-        setAssets(library);
-      }
-      const parentAssetIds = relevantUrls.map((url) => library.find((asset) => asset.url === url)?.id).filter((id): id is string => Boolean(id));
-      if (job.outputAssetId && !parentAssetIds.includes(job.outputAssetId)) parentAssetIds.push(job.outputAssetId);
-      const manifest = {
-        schemaVersion: 1,
-        kind: 'frameforge-character-part',
-        part: key,
-        title: data.parts[key].title,
-        coordinateSpace: 'source-pixel-top-left',
-        canvas: { width: normalized.geometry.canvasWidth, height: normalized.geometry.canvasHeight },
-        anchor: { x: 0, y: 0 },
-        bounds: normalized.geometry.bounds,
-        normalizedBounds: normalized.geometry.normalizedBounds,
-        backgroundRemoved: normalized.geometry.backgroundRemoved,
-        referenceUrls: data.inputUrls || [referenceUrl],
-        generatedAssetId: job.outputAssetId || null,
-      };
-      const saved = await saveDerivedAsset(normalized.blob, { name: `${data.title}-${key}-aligned.png`, projectId: activeProjectIdRef.current, parentAssetIds, assetRole: 'character-part', manifest });
-      patchPart(nodeId, key, { status: 'completed', progress: 'Aligned transparent PNG ready', outputUrl: saved.url, assetId: saved.id, normalized: true, geometry: normalized.geometry, error: undefined });
-    } catch (normalizationError) {
-      patchPart(nodeId, key, { status: 'failed', progress: 'Layer needs another pass', normalized: false, error: normalizationError instanceof Error ? normalizationError.message : String(normalizationError) });
-    }
+  function createPropViewsData(part: CharacterPartCandidate, notes: string, provider?: CharacterPartsNodeData['provider']): CharacterViewsNodeData {
+    return {
+      title: part.name,
+      subjectKind: 'prop',
+      provider: provider || 'global',
+      generationMode: 'turbo',
+      basePrompt: buildPropIdentityPrompt(part, notes),
+      views: Object.fromEntries(viewKeys.map((key) => [key, { key, title: PROP_VIEW_SPECS[key].title, prompt: PROP_VIEW_SPECS[key].prompt, status: 'idle' }])) as CharacterViewsNodeData['views'],
+    };
   }
 
-  async function runPartsAll(nodeId: string, onlyMissing = false) {
+  async function generateSelectedProps(nodeId: string) {
     const node = reactFlow.getNode(nodeId);
     if (!node || node.type !== 'characterParts') return;
     const data = node.data as CharacterPartsNodeData;
-    const keys = characterPartKeys.filter((key) => !onlyMissing || !data.parts[key].normalized);
-    if (!keys.length) return;
+    const selected = selectedCharacterParts(data.parts);
     const input = findInput(nodeId);
-    const provider = resolveProvider(data.provider);
-    const error = partsInputError(input) || (provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : !codex.connected ? 'Connect Codex before running ImageGen.' : '');
-    if (error) {
-      patchParts(nodeId, { error, inputUrls: input.sourceUrls });
-      keys.forEach((key) => patchPart(nodeId, key, { status: 'failed', error }));
-      return;
+    const error = partsInputError(input) || (!codex.connected ? 'Connect Codex before generating props.' : '');
+    if (error) return patchParts(nodeId, { error, inputUrls: input.sourceUrls });
+    if (!selected.length) return patchParts(nodeId, { error: 'Select at least one prop before generating.' });
+    patchParts(nodeId, { error: undefined, inputUrls: input.sourceUrls, status: 'review' });
+
+    const currentNodes = reactFlow.getNodes();
+    const rerunIds: string[] = [];
+    const toSpawn: CharacterPartCandidate[] = [];
+    for (const part of selected) {
+      const spawned = part.spawnedNodeId ? currentNodes.find((entry) => entry.id === part.spawnedNodeId && entry.type === 'characterViews') : undefined;
+      if (spawned) rerunIds.push(spawned.id);
+      else toSpawn.push(part);
     }
-    patchParts(nodeId, { error: undefined, inputUrls: input.sourceUrls });
-    if ((data.generationMode || 'fast') === 'reliable') {
-      for (const key of keys) await runPart(nodeId, key, true);
-      showToast('Character layers aligned and saved locally.');
-      return;
-    }
-    const partsMode = data.generationMode || 'fast';
-    const partsConcurrency = partsMode === 'turbo' ? 4 : 2;
-    const partsWorkerLabel = partsMode === 'turbo' ? 'Turbo' : 'Fast';
-    keys.forEach((key) => patchPart(nodeId, key, { status: 'queued', progress: `Waiting for a ${partsWorkerLabel} worker`, sourceUrl: input.sourceUrl, error: undefined, normalized: false, geometry: undefined }));
-    try {
-      const batch = await startSlotBatch(input.sourceUrls, keys.map((key) => ({ key, prompt: characterPartPrompt(data, key, input.sourceUrls.length), outputName: `${data.title}-${key}` })), { provider, kind: 'character-parts', concurrency: partsConcurrency, projectId: activeProjectIdRef.current });
-      patchParts(nodeId, { batchId: batch.batchId });
-      const polling: Array<{ key: CharacterPartKey; promise: Promise<GenerationJob | undefined> }> = [];
-      for (const batchJob of batch.jobs) {
-        const key = batchJob.slotKey as CharacterPartKey;
-        if (!characterPartKeys.includes(key)) continue;
-        patchPart(nodeId, key, { jobId: batchJob.id, status: 'queued', progress: `Waiting for a ${partsWorkerLabel} worker` });
-        polling.push({ key, promise: pollPart(nodeId, key, batchJob.id) });
-      }
-      void refreshJobs();
-      const settled = await Promise.all(polling.map(async ({ key, promise }) => ({ key, job: await promise })));
-      const fallback = settled.filter(({ job }) => job?.status === 'failed' && /concurr|too many|rate.?limit|resource exhausted|temporarily unavailable|\b429\b/i.test(`${job.error || ''} ${job.progress || ''}`)).map(({ key }) => key);
-      if (fallback.length) {
-        updatePartsMode(nodeId, 'reliable');
-        showToast('Fast mode was limited by Codex. Retrying failed layers one at a time.');
-        for (const key of fallback) await runPart(nodeId, key, true);
-      } else showToast('Character layers aligned and saved locally.');
-    } catch (batchError) {
-      const message = batchError instanceof Error ? batchError.message : String(batchError);
-      keys.forEach((key) => patchPart(nodeId, key, { status: 'failed', progress: 'Could not start batch', error: message }));
-    }
-  }
 
-  async function cancelPart(nodeId: string, key: CharacterPartKey) {
-    const data = reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined;
-    const jobId = data?.parts[key]?.jobId;
-    if (!jobId) return;
-    try {
-      const job = await cancelJob(jobId);
-      setJobs((current) => current.map((item) => item.id === job.id ? job : item));
-      patchPart(nodeId, key, { status: job.status, progress: job.progress });
-    } catch (cancelError) { showToast(cancelError instanceof Error ? cancelError.message : String(cancelError)); }
-  }
+    const existingSpawned = currentNodes.filter((entry) => data.parts.some((part) => part.spawnedNodeId === entry.id));
+    const firstPosition = nextPropViewPosition(node, existingSpawned);
+    const positions = layoutPropViewStack(node.position, toSpawn.length, firstPosition.y).map((position, index) => index === 0 ? firstPosition : position);
+    const spawnedIds: Array<{ partId: string; nodeId: string }> = [];
+    const newNodes: StudioNode[] = [];
+    const newEdges: Edge[] = [];
+    toSpawn.forEach((part, index) => {
+      const viewsId = `character-views-${crypto.randomUUID()}`;
+      spawnedIds.push({ partId: part.id, nodeId: viewsId });
+      newNodes.push({ id: viewsId, type: 'characterViews', position: positions[index], data: createPropViewsData(part, data.notes, data.provider) });
+      newEdges.push({
+        id: `edge-${nodeId}-${part.id}-${viewsId}`,
+        source: nodeId,
+        sourceHandle: characterPartHandle(part.id),
+        target: viewsId,
+        ...allViewsEdgeDefaults,
+      });
+    });
 
-  function downloadPart(nodeId: string, key: CharacterPartKey) {
-    const url = (reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined)?.parts[key]?.outputUrl;
-    if (url) downloadUrl(url);
-  }
+    setNodes((current) => {
+      const next = current.map((entry) => {
+        if (entry.id === nodeId) {
+          const currentData = entry.data as CharacterPartsNodeData;
+          return {
+            ...entry,
+            data: {
+              ...currentData,
+              parts: currentData.parts.map((part) => {
+                const spawned = spawnedIds.find((item) => item.partId === part.id);
+                return spawned ? { ...part, spawnedNodeId: spawned.nodeId } : part;
+              }),
+            },
+          };
+        }
+        const selectedPart = selected.find((part) => part.spawnedNodeId === entry.id);
+        if (!selectedPart) return entry;
+        return { ...entry, data: { ...entry.data, title: selectedPart.name, basePrompt: buildPropIdentityPrompt(selectedPart, data.notes) } };
+      });
+      return newNodes.length ? [...next, ...newNodes] : next;
+    });
+    if (newEdges.length) setEdges((current) => [...current, ...newEdges]);
 
-  async function extractPart(nodeId: string, key: CharacterPartKey) {
-    const source = reactFlow.getNode(nodeId);
-    const part = (source?.data as CharacterPartsNodeData | undefined)?.parts[key];
-    if (!source || !part?.outputUrl || !part.normalized) return;
-    let library = assets;
-    let asset = library.find((item) => item.id === part.assetId || item.url === part.outputUrl);
-    if (!asset) {
-      try { library = await getAssets({ projectId: activeProjectIdRef.current, includeTrashed: true }); setAssets(library); asset = library.find((item) => item.id === part.assetId || item.url === part.outputUrl); }
-      catch (extractError) { return showToast(extractError instanceof Error ? extractError.message : String(extractError)); }
-    }
-    if (!asset || asset.deletedAt) return showToast('This layer is not available in the active Gallery.');
-    const imageId = addAssetNode(asset, { x: source.position.x + 620, y: source.position.y + 45 + characterPartKeys.indexOf(key) * 118 }, { title: `${part.title} layer`, hasInput: true });
-    setEdges((current) => addEdge({ id: `edge-${nodeId}-${key}-${imageId}`, source: nodeId, sourceHandle: key, target: imageId, ...edgeDefaults }, current));
-    showToast(`${part.title} is now a connected aligned Image node.`);
-  }
-
-  async function deletePart(nodeId: string, key: CharacterPartKey) {
-    const part = (reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined)?.parts[key];
-    if (!part?.outputUrl || !window.confirm(`Move the ${part.title} layer to Frameforge trash?`)) return;
-    try {
-      await deleteGeneratedImage(part.outputUrl);
-      patchPart(nodeId, key, { outputUrl: undefined, assetId: undefined, jobId: undefined, status: 'idle', progress: undefined, error: undefined, normalized: false, geometry: undefined });
-      await refreshAssets();
-    } catch (deleteError) { showToast(deleteError instanceof Error ? deleteError.message : String(deleteError)); }
-  }
-
-  async function exportParts(nodeId: string) {
-    const data = reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined;
-    const urls = data ? characterPartKeys.map((key) => data.parts[key].normalized ? data.parts[key].outputUrl : undefined).filter((url): url is string => Boolean(url)) : [];
-    if (!urls.length) return showToast('Generate at least one aligned character layer first.');
-    try {
-      await exportAssetArchive({ urls, name: `${projectName}-character-parts` });
-      showToast(`${urls.length} aligned layer${urls.length === 1 ? '' : 's'} exported with position metadata.`);
-    } catch (exportError) { showToast(exportError instanceof Error ? exportError.message : String(exportError)); }
-  }
-
-  function downloadPartsManifest(nodeId: string) {
-    const data = reactFlow.getNode(nodeId)?.data as CharacterPartsNodeData | undefined;
-    if (!data) return;
-    saveLocalBlob(new Blob([JSON.stringify(characterPartsManifest(data), null, 2)], { type: 'application/json' }), 'character-parts-positions.json');
+    window.setTimeout(() => {
+      for (const viewsId of rerunIds) void runTurnaroundAll(viewsId, false);
+      for (const spawned of spawnedIds) void runTurnaroundAll(spawned.nodeId, false);
+    }, 40);
+    showToast(toSpawn.length ? `Generating ${selected.length} selected prop${selected.length === 1 ? '' : 's'}.` : `Regenerating ${selected.length} selected prop${selected.length === 1 ? '' : 's'}.`);
   }
 
   function patchSmartNode(nodeId: string, patch: Partial<SmartSeparationNodeData>) {
@@ -2358,7 +2580,7 @@ function Studio() {
       workingItems = workingItems.map((item) => item.id === itemId ? { ...item, ...patch } : item);
       if (activeProjectIdRef.current === projectId) patchSmartNode(nodeId, { items: [...workingItems] });
     };
-    const generationTargets = enabledItems.filter((item) => item.generationMethod !== 'imagegen' || !item.rawOutputUrl);
+    const generationTargets = enabledItems.filter((item) => item.generationMethod !== 'imagegen' || !item.rawOutputUrl || item.transparentBackground !== true);
     patchSmartNode(nodeId, {
       status: 'extracting',
       error: undefined,
@@ -2404,7 +2626,7 @@ function Studio() {
           failures = 0;
           patchWorkingItem(itemId, { generationStatus: job.status, generationProgress: job.progress, generationError: job.error || undefined });
           if (job.status === 'completed' && job.outputUrl) {
-            patchWorkingItem(itemId, { generationMethod: 'imagegen', generationStatus: 'running', generationProgress: 'Cleaning transparency', rawOutputUrl: job.outputUrl, rawOutputAssetId: job.outputAssetId || undefined, generationError: undefined });
+            patchWorkingItem(itemId, { generationMethod: 'imagegen', generationStatus: 'completed', generationProgress: 'Native transparent PNG ready', rawOutputUrl: job.outputUrl, rawOutputAssetId: job.outputAssetId || undefined, transparentBackground: job.transparentBackground === true, outputUrl: job.outputUrl, outputAssetId: job.outputAssetId || undefined, generationError: undefined });
             return;
           }
           if (['failed', 'cancelled', 'interrupted'].includes(job.status)) return;
@@ -2425,32 +2647,8 @@ function Studio() {
     for (const original of enabledItems) {
       if (activeProjectIdRef.current !== projectId) return;
       const item = workingItems.find((entry) => entry.id === original.id);
-      if (!item || (item.outputUrl && item.generationMethod === 'imagegen')) continue;
-      if (!item.rawOutputUrl || item.generationMethod !== 'imagegen') {
-        if (item.generationStatus !== 'failed') patchWorkingItem(item.id, { generationStatus: 'failed', generationError: 'ImageGen did not produce an isolated asset.' });
-        continue;
-      }
-      try {
-        patchWorkingItem(item.id, { generationStatus: 'running', generationProgress: 'Removing residual background and trimming alpha', generationError: undefined });
-        const result = await normalizeGeneratedSmartSprite(item.rawOutputUrl, data.settings);
-        assertProjectStillActive();
-        const prompt = smartSeparationRegenerationPrompt(item, data.sources.find((source) => source.sourceIndex === item.sourceIndex)?.name);
-        const saved = await saveDerivedAsset(result.blob, {
-          name: `smart-${fileSlug(item.name)}-${item.id.slice(-8)}.png`,
-          projectId,
-          parentAssetIds: [item.sourceAssetId, item.rawOutputAssetId].filter((assetId): assetId is string => Boolean(assetId)),
-          assetRole: 'smart-separation-sprite',
-          manifest: {
-            ...result.manifest,
-            smartSeparation: { nodeId, itemId: item.id, groupId: item.groupId, name: item.name, role: item.role, sourceBounds: item.bounds, method: 'imagegen-recreation', generationJobId: item.jobId, generatedAssetId: item.rawOutputAssetId, prompt },
-          },
-        });
-        assertProjectStillActive();
-        patchWorkingItem(item.id, { generationMethod: 'imagegen', generationStatus: 'completed', generationProgress: 'Regenerated transparent PNG ready', generationError: undefined, outputUrl: saved.url, outputAssetId: saved.id });
-      } catch (error) {
-        if (activeProjectIdRef.current !== projectId) return;
-        patchWorkingItem(item.id, { generationStatus: 'failed', generationProgress: 'Transparency cleanup failed', generationError: error instanceof Error ? error.message : String(error), outputUrl: undefined, outputAssetId: undefined });
-      }
+      if (!item || (item.outputUrl && item.generationMethod === 'imagegen' && item.transparentBackground === true)) continue;
+      if (item.generationStatus !== 'failed') patchWorkingItem(item.id, { generationStatus: 'failed', generationError: 'ImageGen did not produce a native transparent PNG.' });
     }
 
     if (activeProjectIdRef.current !== projectId) return;
@@ -2559,7 +2757,7 @@ function Studio() {
 
   async function deleteAtlas(nodeId: string) {
     const data = reactFlow.getNode(nodeId)?.data as SpriteAtlasNodeData | undefined;
-    if (!data?.outputUrl || !window.confirm('Move this sprite atlas to Frameforge trash?')) return;
+    if (!data?.outputUrl || !window.confirm('Move this sprite atlas to Consept trash?')) return;
     try {
       await deleteGeneratedImage(data.outputUrl);
       patchAtlas(nodeId, { status: 'idle', outputUrl: undefined, outputAssetId: undefined, previewUrl: undefined, manifest: undefined, validation: undefined, error: undefined });
@@ -2606,7 +2804,7 @@ function Studio() {
 
   async function deleteRelativeAtlas(nodeId: string) {
     const data = reactFlow.getNode(nodeId)?.data as RelativeAtlasNodeData | undefined;
-    if (!data?.outputUrl || !window.confirm('Move this relative atlas to Frameforge trash?')) return;
+    if (!data?.outputUrl || !window.confirm('Move this relative atlas to Consept trash?')) return;
     try { await deleteGeneratedImage(data.outputUrl); patchRelativeAtlas(nodeId, { status: 'idle', outputUrl: undefined, outputAssetId: undefined, previewUrl: undefined, manifest: undefined, validation: undefined, error: undefined }); await refreshAssets(); }
     catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
@@ -2664,7 +2862,7 @@ function Studio() {
     if (key === 'baseColor') return showToast('Base Color belongs to the connected source node.');
     const data = reactFlow.getNode(nodeId)?.data as MaterialMapsNodeData | undefined;
     const map = data?.maps[key];
-    if (!data || !map?.outputUrl || !window.confirm(`Move ${map.title} to Frameforge trash?`)) return;
+    if (!data || !map?.outputUrl || !window.confirm(`Move ${map.title} to Consept trash?`)) return;
     try {
       await deleteGeneratedImage(map.outputUrl);
       patchMaterialMaps(nodeId, { status: 'idle', manifest: undefined, maps: { ...data.maps, [key]: { key, title: materialMapTitles[key] } } });
@@ -2734,10 +2932,20 @@ function Studio() {
   }
 
   async function deleteResult(nodeId: string) {
-    const url = String(reactFlow.getNode(nodeId)?.data.outputUrl || '');
-    if (!url || !window.confirm('Move this generated PNG to Frameforge trash?')) return;
-    try { await deleteGeneratedImage(url); patchGenerator(nodeId, { outputUrl: undefined, status: 'idle', progress: undefined, error: undefined }); await refreshAssets(); showToast('Result moved to data/trash.'); }
-    catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
+    const data = reactFlow.getNode(nodeId)?.data as GeneratorNodeData | undefined;
+    if (!data?.outputUrl || !window.confirm(hasRevisionHistory(historyFromGenerator(data)) ? 'Move this version to Consept trash? Earlier versions stay on the node.' : 'Move this generated PNG to Consept trash?')) return;
+    try {
+      await deleteGeneratedImage(data.outputUrl);
+      const removed = removeActiveRevision(historyFromGenerator(data));
+      patchGenerator(nodeId, {
+        ...historyToGeneratorPatch(removed),
+        status: removed.outputUrl ? 'completed' : 'idle',
+        progress: removed.outputUrl ? 'Ready' : undefined,
+        error: undefined,
+      });
+      await refreshAssets();
+      showToast(removed.outputUrl ? 'Version moved to data/trash.' : 'Result moved to data/trash.');
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
 
   function downloadTurnaroundView(nodeId: string, viewKey: ViewKey) {
@@ -2747,7 +2955,7 @@ function Studio() {
 
   async function deleteTurnaroundView(nodeId: string, viewKey: ViewKey) {
     const url = (reactFlow.getNode(nodeId)?.data as CharacterViewsNodeData | undefined)?.views?.[viewKey]?.outputUrl;
-    if (!url || !window.confirm(`Move ${viewKey} view to Frameforge trash?`)) return;
+    if (!url || !window.confirm(`Move ${viewKey} view to Consept trash?`)) return;
     try { await deleteGeneratedImage(url); patchView(nodeId, viewKey, { outputUrl: undefined, status: 'idle', progress: undefined, error: undefined }); await refreshAssets(); }
     catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
@@ -2884,7 +3092,7 @@ function Studio() {
   }
 
   async function trashLibraryAsset(asset: AssetRecord) {
-    if (!window.confirm(`Move “${asset.name}” to Frameforge trash? Canvas references may stop working.`)) return;
+    if (!window.confirm(`Move “${asset.name}” to Consept trash? Canvas references may stop working.`)) return;
     try { await trashAsset(asset.url); await refreshAssets(); setCompare(([a, b]) => [a?.id === asset.id ? null : a, b?.id === asset.id ? null : b]); }
     catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
@@ -2965,12 +3173,6 @@ function Studio() {
         const key = (multi.data as MultiGenerateNodeData).variants.find((variant) => variant.jobId === job.id)!.key;
         patchVariant(multi.id, key, { status: 'queued', progress: 'Retry queued' }); void pollMultiVariant(multi.id, key, jobId);
       }
-      const partsNode = nodes.find((node) => node.type === 'characterParts' && characterPartKeys.some((key) => (node.data as CharacterPartsNodeData).parts[key].jobId === job.id));
-      if (partsNode) {
-        const key = characterPartKeys.find((partKey) => (partsNode.data as CharacterPartsNodeData).parts[partKey].jobId === job.id)!;
-        patchPart(partsNode.id, key, { status: 'queued', progress: 'Retry queued', normalized: false, geometry: undefined });
-        void pollPart(partsNode.id, key, jobId);
-      }
       await refreshJobs();
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
   }
@@ -2979,7 +3181,7 @@ function Studio() {
     if (!file) return;
     try {
       const project = await importProject(file);
-      const restoredNodes = restoreInterruptedSmartNodes(project.nodes as Node[]);
+      const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
       setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); reactFlow.setViewport(project.viewport);
       history.reset({ nodes: restoredNodes, edges: project.edges }); showToast('Project imported. Autosave will update the local workspace.');
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
@@ -3013,7 +3215,8 @@ function Studio() {
           onHome={() => void goHome()} onPanel={togglePanel} onRename={setProjectName}
           onSave={() => void persistProject(true)} onImport={() => importRef.current?.click()}
           onExport={exportCurrentProject} onClear={clearCanvas}
-          onConnect={codex.connected ? refreshCodex : handleConnectAccount} />
+          onConnect={codex.connected ? refreshCodex : handleConnectAccount}
+          unity={unity} unityBusy={Boolean(unityBusyKey)} onUnityTarget={(path) => void chooseUnityTarget(path)} />
         <section
           ref={canvasShellRef}
           className={`editor-canvas ${dragActive ? 'is-dragging-over' : ''}`}
@@ -3050,6 +3253,7 @@ function Studio() {
             panOnDrag={canvasMode === 'pan' ? [0, 1] : [1]}
             selectionOnDrag={canvasMode === 'select'}
             selectionMode={SelectionMode.Partial}
+            nodeDragThreshold={NODE_INSPECT_DRAG_THRESHOLD_PX}
             defaultEdgeOptions={edgeDefaults}
             deleteKeyCode={screen === 'workspace' && !projectBusy && !appearanceOpen && !galleryOpen && !jobsOpen && !spriteOpen && !preview && !connectionMenu ? ['Backspace', 'Delete'] : null}
           >
@@ -3075,7 +3279,7 @@ function Studio() {
       {screen === 'home' && <ProjectHome projects={projects.map((project) => project.id === activeProjectId ? { ...project, name: projectName, nodeCount: nodes.length } : project)}
         activeProjectId={activeProjectId} busy={projectBusy} loading={!projectReady}
         error={saveState === 'offline' ? 'The local server is unavailable. Your browser backup is kept.' : saveState === 'conflict' ? 'The project could not be saved. Your browser backup is kept.' : null}
-        onOpen={activateProject} onCreate={handleCreateProject} onRename={handleRenameProject} onDelete={handleDeleteProject}
+        onOpen={activateProject} onCreate={handleCreateProject} onUseTemplate={handleUseTemplate} onRename={handleRenameProject} onDelete={handleDeleteProject}
         onAppearance={() => togglePanel('appearance')} />}
       {screen === 'workspace' && connectionMenu && <NodeCatalog anchor={connectionMenu.screen} connected={Boolean(connectionMenu.sourceId)}
         canGroupReferences={canCreateReferenceSet} referenceCount={selectedReferenceCount}
@@ -3097,6 +3301,31 @@ function projectHash(name: string, nodes: Node[], edges: Edge[]) {
     nodes: nodes.map((node) => ({ id: node.id, type: node.type, position: node.position, data: node.data })),
     edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle })),
   }, (_key, value) => typeof value === 'function' ? undefined : value);
+}
+
+function hydrateProjectNodes(nodes: Node[]): Node[] {
+  return hydrateGraphGenerationHistory(restoreInterruptedSmartNodes(restoreCharacterPartsNodes(nodes)));
+}
+
+function restoreCharacterPartsNodes(nodes: Node[]): Node[] {
+  return nodes.map((node) => {
+    if (node.type !== 'characterParts') return node;
+    const data = node.data as CharacterPartsNodeData;
+    const interrupted = data.status === 'analyzing';
+    return {
+      ...node,
+      data: {
+        ...data,
+        title: data.title || 'Character Parts',
+        notes: data.notes || '',
+        status: interrupted ? 'failed' : data.parts?.length ? 'review' : (data.status === 'review' ? 'idle' : data.status || 'idle'),
+        characterDescription: data.characterDescription || '',
+        parts: normalizeCharacterPartsList(data.parts),
+        analysisProgress: undefined,
+        error: interrupted ? 'The previous props analysis was interrupted when the app restarted. Run it again.' : data.error,
+      },
+    };
+  });
 }
 
 function restoreInterruptedSmartNodes(nodes: Node[]): Node[] {

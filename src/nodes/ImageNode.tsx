@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Box, Download, Expand, Image as ImageIcon, LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import { Box, Component, Download, Expand, Image as ImageIcon, LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import type { ImageNodeData } from '../types';
 
 export default function ImageNode({ id, data, selected }: NodeProps) {
@@ -24,13 +25,14 @@ export default function ImageNode({ id, data, selected }: NodeProps) {
 
       {/* Clean asset squircle card */}
       <article className={`clean-asset-card mode-ready ${selected ? 'is-selected' : ''}`}>
-        <div
-          className="asset-image-wrap nodrag"
-          onClick={() => nodeData.onOpen?.(nodeData.imageUrl, nodeData.title)}
-          title={`Inspect ${nodeData.title || 'image'}`}
+        <InspectablePreview
+          className="asset-image-wrap"
+          title="Drag to move, click to inspect"
+          ariaLabel={`Inspect ${nodeData.title || 'image'}`}
+          onInspect={() => nodeData.onOpen?.(nodeData.imageUrl, nodeData.title)}
         >
           <img src={nodeData.imageUrl} alt={nodeData.title || 'Asset'} draggable={false} />
-        </div>
+        </InspectablePreview>
 
         {/* Hover action overlay */}
         <div className="card-hover-actions nodrag">
@@ -58,6 +60,14 @@ export default function ImageNode({ id, data, selected }: NodeProps) {
               aria-label="Tripo 3D"
             >
               {nodeData.tripoBusy ? <LoaderCircle className="spin" size={12} /> : <Box size={12} />}
+            </button>
+            <button
+              title="Send to Unity"
+              disabled={nodeData.unityBusy}
+              onClick={() => nodeData.onSendToUnity?.(nodeData.imageUrl)}
+              aria-label="Send to Unity"
+            >
+              {nodeData.unityBusy ? <LoaderCircle className="spin" size={12} /> : <Component size={12} />}
             </button>
             {nodeData.onDownload && (
               <button

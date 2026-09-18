@@ -1,157 +1,134 @@
-import type { CharacterPartGeometry, CharacterPartKey, CharacterPartsNodeData } from './types';
+import type { CharacterPartCandidate, CharacterPartsNodeData } from './types';
 
-export const characterPartKeys: CharacterPartKey[] = ['hat', 'top', 'pants', 'shoes', 'body'];
+export const MAX_CHARACTER_PARTS = 24;
+export const CHARACTER_PART_HANDLE_PREFIX = 'part:';
 
-export const characterPartSpecs: Record<CharacterPartKey, { title: string; description: string; instruction: string }> = {
-  hat: {
-    title: 'Hat',
-    description: 'Headwear and attached hat details',
-    instruction: 'Isolate only the complete hat or headwear, including its band and decorations. Exclude hair, head, face and every other object.',
-  },
-  top: {
-    title: 'Top',
-    description: 'Shirt, jacket or upper garment',
-    instruction: 'Isolate only the upper-body garment: shirt, jacket, coat, sleeves and garment trims. Exclude exposed hands, head, trousers and accessories.',
-  },
-  pants: {
-    title: 'Pants',
-    description: 'Trousers or lower garment',
-    instruction: 'Isolate only the trousers or lower-body garment, including cuffs, belt loops and garment details. Exclude shoes and body.',
-  },
-  shoes: {
-    title: 'Shoes',
-    description: 'Both shoes as one aligned layer',
-    instruction: 'Isolate only both shoes, boots or other footwear. Keep both feet in their original locations and exclude legs, trousers and ground shadow.',
-  },
-  body: {
-    title: 'Body',
-    description: 'Character base without wearable items',
-    instruction: 'Create the character body base without hat, shirt, trousers, shoes or wearable accessories. Preserve the exact head, face, hands, pose and proportions. Reconstruct only the simple covered body shapes needed underneath clothing; keep it non-explicit and suitable for a stylized game character.',
-  },
-};
-
-export function characterPartPrompt(data: CharacterPartsNodeData, key: CharacterPartKey, referenceCount: number): string {
-  const spec = characterPartSpecs[key];
-  return [
-    `Create one production-ready 2D cutout layer for: ${spec.title}.`,
-    spec.instruction,
-    'The FIRST attached image defines the exact output canvas, camera, scale and pixel placement. Additional images are identity and boundary references only.',
-    'Output exactly one PNG layer with the same aspect ratio and composition as the first image. Keep the isolated part at its original location; never crop, recenter, enlarge, rotate or move it.',
-    'Every pixel outside this layer must be fully transparent alpha 0. No backdrop, floor, cast shadow, outline, labels, guides, contact sheet or checkerboard pattern.',
-    'Preserve the original visual style, colors, materials and visible details. Do not include any pixels belonging to other layers.',
-    referenceCount > 1 ? `Use all ${referenceCount} references to understand the same character, but produce the layer aligned to the first/front reference.` : '',
-    data.notes.trim() ? `Project-specific separation notes: ${data.notes.trim()}` : '',
-  ].filter(Boolean).join('\n');
+export function characterPartHandle(partId: string) {
+  return `${CHARACTER_PART_HANDLE_PREFIX}${partId}`;
 }
 
-export async function normalizeCharacterPartLayer(layerUrl: string, referenceUrl: string): Promise<{ blob: Blob; geometry: CharacterPartGeometry }> {
-  const [layer, reference] = await Promise.all([loadImage(layerUrl), loadImage(referenceUrl)]);
-  const canvas = document.createElement('canvas');
-  canvas.width = reference.naturalWidth;
-  canvas.height = reference.naturalHeight;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context || !canvas.width || !canvas.height) throw new Error('Could not prepare the source coordinate canvas.');
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(layer, 0, 0, canvas.width, canvas.height);
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  const transparentBefore = transparentRatio(imageData.data);
-  const backgroundRemoved = transparentBefore < 0.01 ? removeEdgeBackground(imageData) : false;
-  context.putImageData(imageData, 0, 0);
-  const bounds = alphaBounds(imageData);
-  if (!bounds) throw new Error('The generated layer did not contain a visible part. Retry this part.');
-  const geometry: CharacterPartGeometry = {
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height,
-    anchorX: 0,
-    anchorY: 0,
-    bounds,
-    normalizedBounds: {
-      x: bounds.x / canvas.width,
-      y: bounds.y / canvas.height,
-      width: bounds.width / canvas.width,
-      height: bounds.height / canvas.height,
-    },
-    backgroundRemoved,
-    hasTransparency: transparentRatio(imageData.data) > 0.01,
-  };
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('Could not save the normalized transparent layer.');
-  return { blob, geometry };
+export function parseCharacterPartHandle(handle?: string | null) {
+  if (!handle?.startsWith(CHARACTER_PART_HANDLE_PREFIX)) return '';
+  return handle.slice(CHARACTER_PART_HANDLE_PREFIX.length);
 }
 
-export function characterPartsManifest(data: CharacterPartsNodeData) {
-  const primary = characterPartKeys.map((key) => data.parts[key].geometry).find((geometry) => Boolean(geometry));
+export function createCharacterPart(input: { name?: string; description?: string; enabled?: boolean; id?: string } = {}): CharacterPartCandidate {
+  const name = cleanPartName(input.name, 'Part');
   return {
-    schemaVersion: 1,
-    kind: 'frameforge-character-parts',
-    coordinateSpace: 'source-pixel-top-left',
-    canvas: primary ? { width: primary.canvasWidth, height: primary.canvasHeight } : null,
-    primaryReference: data.inputUrls?.[0] || null,
-    referenceCount: data.inputUrls?.length || 0,
-    layers: characterPartKeys.map((key) => {
-      const part = data.parts[key];
-      return { key, title: part.title, url: part.outputUrl || null, assetId: part.assetId || null, anchor: { x: 0, y: 0 }, bounds: part.geometry?.bounds || null, normalizedBounds: part.geometry?.normalizedBounds || null };
-    }),
+    id: input.id || `part-${crypto.randomUUID()}`,
+    name,
+    description: cleanPartText(input.description, 400),
+    enabled: input.enabled !== false,
   };
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('A layer image could not be read from the local library.'));
-    image.src = url;
+export function normalizeCharacterPart(value: unknown): CharacterPartCandidate | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const name = cleanPartName(record.name || record.title, '');
+  if (!name) return null;
+  const id = typeof record.id === 'string' && record.id.trim() ? record.id.trim().slice(0, 80) : `part-${slugPartName(name)}`;
+  return {
+    id,
+    name,
+    description: cleanPartText(record.description, 400),
+    enabled: record.enabled !== false,
+    spawnedNodeId: typeof record.spawnedNodeId === 'string' && record.spawnedNodeId.trim() ? record.spawnedNodeId.trim() : undefined,
+  };
+}
+
+export function normalizeCharacterPartsList(value: unknown): CharacterPartCandidate[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const parts: CharacterPartCandidate[] = [];
+  for (const entry of value) {
+    const part = normalizeCharacterPart(entry);
+    if (!part || seen.has(part.id)) continue;
+    seen.add(part.id);
+    parts.push(part);
+    if (parts.length >= MAX_CHARACTER_PARTS) break;
+  }
+  return parts;
+}
+
+export function createCharacterPartsData(overrides: Partial<CharacterPartsNodeData> = {}): CharacterPartsNodeData {
+  return {
+    title: overrides.title || 'Character Parts',
+    notes: overrides.notes || '',
+    status: overrides.status || 'idle',
+    characterDescription: overrides.characterDescription || '',
+    provider: overrides.provider || 'global',
+    parts: normalizeCharacterPartsList(overrides.parts),
+  };
+}
+
+export function selectedCharacterParts(parts: CharacterPartCandidate[]) {
+  return parts.filter((part) => part.enabled);
+}
+
+export function setCharacterPartEnabled(parts: CharacterPartCandidate[], partId: string, enabled: boolean) {
+  return parts.map((part) => part.id === partId ? { ...part, enabled } : part);
+}
+
+export function toggleCharacterPart(parts: CharacterPartCandidate[], partId: string) {
+  return parts.map((part) => part.id === partId ? { ...part, enabled: !part.enabled } : part);
+}
+
+export function setAllCharacterPartsEnabled(parts: CharacterPartCandidate[], enabled: boolean) {
+  return parts.map((part) => ({ ...part, enabled }));
+}
+
+export function patchCharacterPart(parts: CharacterPartCandidate[], partId: string, patch: Partial<CharacterPartCandidate>) {
+  return parts.map((part) => {
+    if (part.id !== partId) return part;
+    const name = patch.name === undefined ? part.name : cleanPartName(patch.name, part.name);
+    return {
+      ...part,
+      ...patch,
+      name,
+      description: patch.description === undefined ? part.description : cleanPartText(patch.description, 400),
+    };
   });
 }
 
-function transparentRatio(data: Uint8ClampedArray) {
-  let transparent = 0;
-  for (let index = 3; index < data.length; index += 4) if (data[index] < 245) transparent += 1;
-  return transparent / (data.length / 4);
+export function addCharacterPart(parts: CharacterPartCandidate[], input: { name?: string; description?: string } = {}) {
+  if (parts.length >= MAX_CHARACTER_PARTS) return parts;
+  const index = parts.length + 1;
+  return [...parts, createCharacterPart({
+    name: input.name || `Part ${index}`,
+    description: input.description,
+    enabled: true,
+  })];
 }
 
-function removeEdgeBackground(imageData: ImageData) {
-  const { data, width, height } = imageData;
-  const total = width * height;
-  const visited = new Uint8Array(total);
-  const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
-  const corners = [0, width - 1, (height - 1) * width, total - 1].map((pixel) => [data[pixel * 4], data[pixel * 4 + 1], data[pixel * 4 + 2]]);
-  const matchesBackground = (pixel: number) => {
-    const offset = pixel * 4;
-    if (data[offset + 3] < 20) return true;
-    return corners.some(([red, green, blue]) => Math.abs(data[offset] - red) + Math.abs(data[offset + 1] - green) + Math.abs(data[offset + 2] - blue) <= 72);
-  };
-  const push = (pixel: number) => {
-    if (pixel < 0 || pixel >= total || visited[pixel] || !matchesBackground(pixel)) return;
-    visited[pixel] = 1;
-    queue[tail++] = pixel;
-  };
-  for (let x = 0; x < width; x += 1) { push(x); push((height - 1) * width + x); }
-  for (let y = 1; y < height - 1; y += 1) { push(y * width); push(y * width + width - 1); }
-  while (head < tail) {
-    const pixel = queue[head++];
-    const x = pixel % width;
-    if (x > 0) push(pixel - 1);
-    if (x < width - 1) push(pixel + 1);
-    if (pixel >= width) push(pixel - width);
-    if (pixel < total - width) push(pixel + width);
-  }
-  if (!tail || tail / total > 0.98) return false;
-  for (let pixel = 0; pixel < total; pixel += 1) if (visited[pixel]) data[pixel * 4 + 3] = 0;
-  return true;
+export function removeCharacterPart(parts: CharacterPartCandidate[], partId: string) {
+  return parts.filter((part) => part.id !== partId);
 }
 
-function alphaBounds(imageData: ImageData) {
-  const { data, width, height } = imageData;
-  let left = width;
-  let top = height;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    if (data[(y * width + x) * 4 + 3] <= 16) continue;
-    left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
-  }
-  return right < left ? null : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+export function characterPartsInputError(sourceCount: number) {
+  return sourceCount === 1 || sourceCount === 4 ? '' : 'Character Parts accepts one image or a complete four-image All Views output.';
+}
+
+export function buildPropIdentityPrompt(part: Pick<CharacterPartCandidate, 'name' | 'description'>, notes = '') {
+  return [
+    `Isolate only: ${part.name.trim() || 'this part'}.`,
+    part.description.trim() ? part.description.trim() : '',
+    'This is a standalone production turnaround of that single part or object. Do not include the rest of the character, clothing that is not this part, or any environment.',
+    'Use a plain light studio background that clearly separates from the subject. Do not blend the subject into the background.',
+    'Preserve exact materials, colors, silhouette and visible details from the attached character references.',
+    notes.trim() ? `Project notes: ${notes.trim()}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function cleanPartName(value: unknown, fallback: string) {
+  return cleanPartText(value, 80) || fallback;
+}
+
+function cleanPartText(value: unknown, maxLength: number) {
+  const text = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+  return text.slice(0, maxLength);
+}
+
+function slugPartName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'part';
 }

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { detectRasterImage } from '../../server/image-validation.mjs';
+import { detectRasterImage, hasPngTransparency } from '../../server/image-validation.mjs';
 import { AssetStore } from '../../server/asset-store.mjs';
 import { resolveExportAssets } from '../../server/archive-export.mjs';
 import { normalizeBatchRequest } from '../../server/batch-normalization.mjs';
@@ -21,10 +21,26 @@ test('raster signatures are accepted and text/SVG is rejected', () => {
   assert.equal(detectRasterImage(Buffer.from('<svg onload="alert(1)">')), null);
 });
 
+test('native PNG transparency gate rejects opaque RGB and accepts alpha PNGs', () => {
+  const header = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 1, 0, 0, 0, 1, 8]);
+  const opaque = Buffer.concat([header, Buffer.from([2, 0, 0, 0, 0, 0, 0, 0])]);
+  const alpha = Buffer.concat([header, Buffer.from([6, 0, 0, 0, 0, 0, 0, 0])]);
+  assert.equal(hasPngTransparency(opaque), false);
+  assert.equal(hasPngTransparency(alpha), true);
+});
+
 test('batch normalization preserves Character Views and supports six variant slots', () => {
   const legacy = normalizeBatchRequest({ sourceUrl: '/data/assets/source', concurrency: 4, views: [{ key: 'front', prompt: 'Front' }, { key: 'back', prompt: 'Back' }] });
   assert.equal(legacy.batchKind, 'character-views');
   assert.equal(legacy.concurrency, 4);
+  assert.deepEqual(legacy.sourceUrls, ['/data/assets/source']);
+  const propViews = normalizeBatchRequest({
+    sourceUrls: ['/data/assets/front', '/data/assets/left', '/data/assets/back', '/data/assets/right'],
+    concurrency: 2,
+    views: [{ key: 'front', prompt: 'Prop front' }, { key: 'right', prompt: 'Prop right' }],
+  });
+  assert.equal(propViews.batchKind, 'character-views');
+  assert.deepEqual(propViews.sourceUrls, ['/data/assets/front', '/data/assets/left', '/data/assets/back', '/data/assets/right']);
   assert.deepEqual(legacy.slots.map(({ slotKey, slotIndex, viewKey }) => ({ slotKey, slotIndex, viewKey })), [
     { slotKey: 'front', slotIndex: 0, viewKey: 'front' },
     { slotKey: 'back', slotIndex: 1, viewKey: 'back' },
@@ -55,7 +71,7 @@ test('derived asset metadata retains atlas provenance and rejects invalid parent
 });
 
 test('path safety keeps asset paths inside their collection root', () => {
-  const root = path.join(os.tmpdir(), 'frameforge-root');
+  const root = path.join(os.tmpdir(), 'consept-root');
   assert.equal(resolveWithin(root, 'asset.png'), path.join(root, 'asset.png'));
   assert.equal(resolveWithin(root, '../outside.png'), null);
   assert.equal(resolveWithin(root, '..\\outside.png'), null);
@@ -66,7 +82,7 @@ test('path safety keeps asset paths inside their collection root', () => {
 });
 
 test('project store writes atomically and rejects a stale revision', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-project-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-project-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new ProjectStore(path.join(root, 'projects'));
   const initial = await store.getDefault();
@@ -77,7 +93,7 @@ test('project store writes atomically and rejects a stale revision', async (t) =
 });
 
 test('project store preserves default while creating, listing, duplicating, and recoverably deleting projects', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-projects-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-projects-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new ProjectStore(path.join(root, 'projects'));
   const original = await store.getDefault();
@@ -87,7 +103,20 @@ test('project store preserves default while creating, listing, duplicating, and 
   assert.equal(saved.id, created.id);
   assert.equal(saved.revision, 1);
   assert.equal(duplicate.nodes.length, 1);
-  assert.deepEqual((await store.list()).map((project) => project.id).sort(), [original.id, created.id, duplicate.id].sort());
+  const fromGraph = await store.create({
+    name: 'Seamless material',
+    nodes: [{ id: 'seamless-texture', type: 'seamlessTexture', position: { x: 80, y: 160 }, data: { title: 'Seamless Texture', status: 'idle' } }],
+    edges: [{ id: 'edge-1', source: 'seamless-texture', target: 'material-maps' }],
+    viewport: { x: 12, y: 24, zoom: 0.86 },
+  });
+  assert.equal(fromGraph.revision, 0);
+  assert.equal(fromGraph.nodes.length, 1);
+  assert.equal(fromGraph.edges.length, 1);
+  assert.equal(fromGraph.viewport.zoom, 0.86);
+  const listed = await store.list();
+  assert.deepEqual(listed.map((project) => project.id).sort(), [original.id, created.id, duplicate.id, fromGraph.id].sort());
+  assert.equal(listed.find((project) => project.id === fromGraph.id)?.nodeCount, 1);
+  assert.equal(listed.every((project) => project.id === 'default' || /^[a-f0-9-]{36}$/.test(project.id)), true);
   await store.delete(created.id);
   await assert.rejects(store.get(created.id), { code: 'PROJECT_NOT_FOUND' });
   await assert.rejects(store.delete('default'), { code: 'CANNOT_DELETE_DEFAULT_PROJECT' });
@@ -95,7 +124,7 @@ test('project store preserves default while creating, listing, duplicating, and 
 });
 
 test('asset store migrates legacy assets to default and scopes new uploads by project', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-assets-projects-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-assets-projects-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const metadataDir = path.join(root, 'metadata');
   await mkdir(metadataDir, { recursive: true });
@@ -118,7 +147,7 @@ test('asset store migrates legacy assets to default and scopes new uploads by pr
 });
 
 test('asset store soft-delete can be restored and then purged permanently', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-assets-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-assets-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new AssetStore({
     dataDir: root,
@@ -149,7 +178,7 @@ test('asset store soft-delete can be restored and then purged permanently', asyn
 });
 
 test('archive selection deduplicates ids and urls and excludes trashed assets', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-archive-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-archive-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new AssetStore({
     dataDir: root,
@@ -169,7 +198,7 @@ test('archive selection deduplicates ids and urls and excludes trashed assets', 
 });
 
 test('generated assets retain every parent from an All views input', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-parents-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-parents-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new AssetStore({
     dataDir: root,
@@ -181,13 +210,15 @@ test('generated assets retain every parent from an All views input', async (t) =
   await store.initialize();
   const pending = path.join(root, 'pending.png');
   await writeFile(pending, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]));
-  const generated = await store.createGeneratedFromFile({ pending, temporaryPath: pending, name: 'all-result', prompt: 'Use every view', sourceAssetIds: ['front', 'left', 'back', 'right'], provider: 'codex', jobId: 'job-all' });
+  const generated = await store.createGeneratedFromFile({ pending, temporaryPath: pending, name: 'all-result', prompt: 'Use every view', sourceAssetIds: ['front', 'left', 'back', 'right'], provider: 'codex', jobId: 'job-all', graphNodeId: 'generator-1', slotKey: 'output' });
   assert.equal(generated.name, 'all-result.png');
   assert.deepEqual(store.get(generated.id).metadata.parentAssetIds, ['front', 'left', 'back', 'right']);
+  assert.equal(store.get(generated.id).metadata.graphNodeId, 'generator-1');
+  assert.equal(store.get(generated.id).metadata.slotKey, 'output');
 });
 
 test('derived raster assets use generated storage and keep their soft-delete lifecycle', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-derived-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-derived-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new AssetStore({
     dataDir: root,
@@ -208,7 +239,7 @@ test('derived raster assets use generated storage and keep their soft-delete lif
 });
 
 test('job store marks queued and running jobs interrupted after restart', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-jobs-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-jobs-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const first = new JobStore(root);
   await first.initialize();
@@ -220,7 +251,7 @@ test('job store marks queued and running jobs interrupted after restart', async 
 });
 
 test('job store lists tasks only for the selected project', async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'frameforge-scoped-jobs-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-scoped-jobs-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new JobStore(root);
   await store.initialize();

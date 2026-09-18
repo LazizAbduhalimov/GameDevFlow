@@ -3,7 +3,7 @@ import multer from 'multer';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CodexWorkerPool } from './codex-worker-pool.mjs';
@@ -12,16 +12,18 @@ import { AssetStore } from './asset-store.mjs';
 import { resolveExportAssets, streamAssetArchive } from './archive-export.mjs';
 import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest } from './batch-normalization.mjs';
 import { parseDerivedAssetMetadata } from './derived-asset.mjs';
-import { detectRasterImage } from './image-validation.mjs';
+import { detectRasterImage, hasPngTransparency } from './image-validation.mjs';
 import { JobQueue } from './job-queue.mjs';
 import { JobStore } from './job-store.mjs';
 import { safeDownloadName, slugify } from './path-safety.mjs';
 import { ProjectStore } from './project-store.mjs';
+import { characterPropsDetectionSchema, MAX_CHARACTER_PARTS, normalizeCharacterProps } from './character-parts.mjs';
 import { fallbackGroup, groupingSchema, MAX_SMART_SEPARATION_ITEMS, normalizeDetectedItems, normalizeGroups, uiSheetDetectionSchema } from './smart-separation.mjs';
 import { TripoBrowserBridge } from './tripo-browser-bridge.mjs';
+import { parseModelKey, UnityBridge } from './unity-bridge.mjs';
 
 const app = express();
-const port = Number(process.env.FRAMEFORGE_PORT || 4317);
+const port = Number(process.env.CONSEPT_PORT || process.env.FRAMEFORGE_PORT || 4317);
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(serverDir, '..');
 const dataDir = path.join(rootDir, 'data');
@@ -32,8 +34,9 @@ const trashDir = path.join(dataDir, 'trash');
 const jobsDir = path.join(dataDir, 'jobs');
 const projectsDir = path.join(dataDir, 'projects');
 const modelsDir = path.join(dataDir, 'models');
+const settingsDir = path.join(dataDir, 'settings');
 const codexCommand = resolveCodexCommand();
-const codexWorkerCount = Math.max(1, Math.min(4, Number(process.env.FRAMEFORGE_CODEX_WORKERS || 4)));
+const codexWorkerCount = Math.max(1, Math.min(4, Number(process.env.CONSEPT_CODEX_WORKERS || process.env.FRAMEFORGE_CODEX_WORKERS || 4)));
 const codexWorkerPool = new CodexWorkerPool({
   size: codexWorkerCount,
   onDiagnostic: (message, index) => { if (message) console.log(`[codex worker ${index + 1}] ${message}`); },
@@ -43,11 +46,13 @@ const jobStore = new JobStore(jobsDir);
 const projectStore = new ProjectStore(projectsDir);
 const tripoEventClients = new Set();
 const smartSeparationRuns = new Map();
+const characterPartsRuns = new Map();
 const tripoBrowserBridge = new TripoBrowserBridge({
   profileDir: path.join(dataDir, 'tripo-browser-profile'),
   modelsDir,
   onEvent: publishTripoEvent,
 });
+const unityBridge = new UnityBridge({ settingsPath: path.join(settingsDir, 'unity.json') });
 
 function setSmartSeparationProgress(requestId, patch) {
   const previous = smartSeparationRuns.get(requestId) || {};
@@ -60,13 +65,24 @@ function finishSmartSeparationProgress(requestId, stage, message) {
   cleanup.unref?.();
 }
 
-await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(generatedDir, { recursive: true }), mkdir(modelsDir, { recursive: true }), assetStore.initialize(), jobStore.initialize()]);
+function setCharacterPartsProgress(requestId, patch) {
+  const previous = characterPartsRuns.get(requestId) || {};
+  characterPartsRuns.set(requestId, { ...previous, ...patch, requestId, updatedAt: new Date().toISOString() });
+}
+
+function finishCharacterPartsProgress(requestId, stage, message) {
+  setCharacterPartsProgress(requestId, { stage, message });
+  const cleanup = setTimeout(() => characterPartsRuns.delete(requestId), 10 * 60 * 1000);
+  cleanup.unref?.();
+}
+
+await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(generatedDir, { recursive: true }), mkdir(modelsDir, { recursive: true }), mkdir(settingsDir, { recursive: true }), assetStore.initialize(), jobStore.initialize()]);
 const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concurrency: codexWorkerCount });
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
 
-app.get('/api/health', (_request, response) => response.json({ ok: true, service: 'frameforge-local', queue: jobQueue.snapshot(), workers: codexWorkerPool.snapshot() }));
+app.get('/api/health', (_request, response) => response.json({ ok: true, service: 'consept-local', queue: jobQueue.snapshot(), workers: codexWorkerPool.snapshot() }));
 
 app.get('/api/providers', async (_request, response) => {
   response.json([
@@ -213,11 +229,80 @@ app.post('/api/smart-separation/analyze', async (request, response) => {
   }
 });
 
+app.get('/api/character-parts/progress/:requestId', (request, response) => {
+  const progress = characterPartsRuns.get(request.params.requestId);
+  if (!progress) return response.status(404).json({ message: 'Character Parts progress is not available.' });
+  response.json(progress);
+});
+
+app.post('/api/character-parts/analyze', async (request, response) => {
+  const requestedId = typeof request.body?.requestId === 'string' ? request.body.requestId : '';
+  const requestId = /^[a-zA-Z0-9-]{1,100}$/.test(requestedId) ? requestedId : randomUUID();
+  const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+  const sourceUrls = Array.isArray(request.body?.sourceUrls)
+    ? [...new Set(request.body.sourceUrls.filter((url) => typeof url === 'string' && url))]
+    : [];
+  const userHint = typeof request.body?.userHint === 'string' ? request.body.userHint.trim().slice(0, 4_000) : '';
+  if (sourceUrls.length !== 1 && sourceUrls.length !== 4) {
+    return response.status(400).json({ message: 'Character Parts requires one image or a complete four-image All Views set.' });
+  }
+  if (sourceUrls.length > MAX_REFERENCE_IMAGES) {
+    return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
+  }
+
+  setCharacterPartsProgress(requestId, {
+    requestId,
+    stage: 'queued',
+    message: sourceUrls.length === 1 ? 'Preparing source image…' : 'Preparing character views…',
+    startedAt: new Date().toISOString(),
+  });
+
+  try {
+    await projectStore.get(projectId);
+    const sources = [];
+    for (const sourceUrl of sourceUrls) {
+      const resolved = await assetStore.resolveDataUrl(sourceUrl);
+      const projectIds = resolved?.asset?.projectIds || [resolved?.asset?.projectId].filter(Boolean);
+      if (!resolved?.asset || !resolved.path || !existsSync(resolved.path) || !projectIds.includes(projectId)) {
+        finishCharacterPartsProgress(requestId, 'failed', 'A source image is unavailable in the active project.');
+        return response.status(400).json({ message: 'Every Character Parts source must belong to the active local project.' });
+      }
+      sources.push({ sourceUrl, path: resolved.path, sourceAssetId: resolved.asset.id, name: resolved.asset.name });
+    }
+
+    setCharacterPartsProgress(requestId, { stage: 'inspecting', message: 'Inspecting the character for extractable props…' });
+    const payload = await codexWorkerPool.run((worker) => worker.analyzeCharacterProps({
+      cwd: rootDir,
+      imagePaths: sources.map((source) => source.path),
+      userHint,
+      outputSchema: characterPropsDetectionSchema,
+    }));
+    const normalized = normalizeCharacterProps(payload);
+    if (!normalized.parts.length) {
+      finishCharacterPartsProgress(requestId, 'failed', 'No extractable props were detected.');
+      return response.status(422).json({ message: 'No extractable props were detected. Add guidance or choose a clearer character image.' });
+    }
+    if (normalized.parts.length > MAX_CHARACTER_PARTS) normalized.parts.length = MAX_CHARACTER_PARTS;
+
+    finishCharacterPartsProgress(requestId, 'completed', `${normalized.parts.length} props proposed.`);
+    response.json({
+      analysisId: requestId,
+      characterDescription: normalized.characterDescription,
+      parts: normalized.parts,
+    });
+  } catch (error) {
+    console.error('Character Parts analysis failed:', error);
+    const message = error instanceof Error ? error.message : 'Character Parts analysis failed.';
+    finishCharacterPartsProgress(requestId, 'failed', message);
+    response.status(/timed out/i.test(message) ? 504 : 502).json({ message });
+  }
+});
+
 app.get('/api/projects', async (_request, response, next) => {
   try { response.json(await projectStore.list()); } catch (error) { next(error); }
 });
 app.post('/api/projects', async (request, response, next) => {
-  try { response.status(201).json(await projectStore.create({ name: request.body?.name })); } catch (error) { next(error); }
+  try { response.status(201).json(await projectStore.create(request.body || {})); } catch (error) { next(error); }
 });
 app.get('/api/projects/:projectId', async (request, response, next) => {
   try { response.json(await projectStore.get(request.params.projectId)); }
@@ -255,7 +340,7 @@ app.delete('/api/projects/:projectId', async (request, response, next) => {
 app.get('/api/projects/:projectId/export/manifest', async (request, response, next) => {
   try {
     const project = await projectStore.get(request.params.projectId);
-    response.setHeader('Content-Disposition', `attachment; filename="frameforge-${slugify(project.name, 'project')}-manifest.json"`);
+    response.setHeader('Content-Disposition', `attachment; filename="consept-${slugify(project.name, 'project')}-manifest.json"`);
     response.json({
       exportedAt: new Date().toISOString(),
       project,
@@ -317,7 +402,7 @@ app.post('/api/integrations/tripo/open', async (request, response) => {
   const url = typeof request.body?.url === 'string' ? request.body.url : '';
   const sourceNodeId = typeof request.body?.sourceNodeId === 'string' ? request.body.sourceNodeId : '';
   const resolved = await assetStore.resolveDataUrl(url).catch(() => null);
-  if (!resolved?.path || !existsSync(resolved.path)) return response.status(400).json({ message: 'Choose an image from the active local Frameforge library.' });
+  if (!resolved?.path || !existsSync(resolved.path)) return response.status(400).json({ message: 'Choose an image from the active local Consept library.' });
   try {
     response.json(await tripoBrowserBridge.openWithImage(resolved.path, { sourceNodeId }));
   } catch (error) {
@@ -336,7 +421,7 @@ app.post('/api/integrations/tripo/open-multiview', async (request, response) => 
     const url = typeof requestedViews[key] === 'string' ? requestedViews[key] : '';
     const resolved = await assetStore.resolveDataUrl(url).catch(() => null);
     if (!resolved?.path || !existsSync(resolved.path)) {
-      return response.status(400).json({ message: `The ${key} view must come from the active local Frameforge library.` });
+      return response.status(400).json({ message: `The ${key} view must come from the active local Consept library.` });
     }
     viewPaths[key] = resolved.path;
   }
@@ -375,6 +460,58 @@ app.get('/api/integrations/tripo/models/:modelKey/download', (request, response)
   const modelPath = resolveLocalModelPath(modelsDir, request.params.modelKey);
   if (!modelPath || !existsSync(modelPath)) return response.status(404).json({ message: 'Tripo model not found.' });
   response.download(modelPath, request.params.modelKey);
+});
+app.get('/api/integrations/unity/status', async (_request, response, next) => {
+  try { response.json(await unityBridge.status()); }
+  catch (error) { next(error); }
+});
+app.post('/api/integrations/unity/target', async (request, response) => {
+  try { response.json(await unityBridge.setTarget(typeof request.body?.path === 'string' ? request.body.path : '')); }
+  catch (error) {
+    response.status(400).json({ code: error?.code || 'UNITY_PATH_INVALID', message: error instanceof Error ? error.message : 'Choose a Unity project folder.' });
+  }
+});
+app.post('/api/integrations/unity/send', async (request, response) => {
+  const projectName = typeof request.body?.projectName === 'string' ? request.body.projectName : 'Consept';
+  const requestedItems = Array.isArray(request.body?.items) ? request.body.items : [];
+  const items = [];
+  for (const item of requestedItems) {
+    const group = typeof item?.group === 'string' ? item.group : '';
+    if (group === 'models') {
+      const modelKey = parseModelKey(item.url || item.modelKey || '');
+      const sourcePath = resolveLocalModelPath(modelsDir, modelKey);
+      if (!sourcePath || !existsSync(sourcePath)) return response.status(400).json({ message: 'Choose a local Tripo GLB from this Consept project.' });
+      items.push({
+        group,
+        sourcePath,
+        fileName: typeof item.fileName === 'string' ? item.fileName : modelKey,
+        title: typeof item.title === 'string' ? item.title : modelKey,
+      });
+      continue;
+    }
+    const url = typeof item?.url === 'string' ? item.url : '';
+    const resolved = await assetStore.resolveDataUrl(url).catch(() => null);
+    if (!resolved?.path || !existsSync(resolved.path)) return response.status(400).json({ message: 'Choose an image from the active local Consept library.' });
+    items.push({
+      group,
+      sourcePath: resolved.path,
+      fileName: typeof item.fileName === 'string' ? item.fileName : resolved.asset?.name || path.basename(resolved.path),
+      title: typeof item.title === 'string' ? item.title : resolved.asset?.name,
+      viewKey: typeof item.viewKey === 'string' ? item.viewKey : undefined,
+      mapKey: typeof item.mapKey === 'string' ? item.mapKey : undefined,
+      extension: path.extname(resolved.path),
+    });
+  }
+  try {
+    response.json(await unityBridge.send({
+      projectName,
+      items,
+      placeOnScene: Boolean(request.body?.placeOnScene),
+    }));
+  } catch (error) {
+    const status = error?.code === 'UNITY_PROJECT_MISSING' || error?.code === 'UNITY_EDITOR_MISSING' ? 409 : 400;
+    response.status(status).json({ code: error?.code || 'UNITY_SEND_FAILED', message: error instanceof Error ? error.message : 'Could not send files to Unity.' });
+  }
 });
 app.post('/api/assets/trash', async (request, response, next) => {
   try { response.json({ ok: true, asset: await assetStore.trashByUrl(typeof request.body?.url === 'string' ? request.body.url : '') }); }
@@ -464,6 +601,9 @@ app.post('/api/generate', async (request, response, next) => {
     const provider = typeof request.body?.provider === 'string' ? request.body.provider : 'codex';
     const outputName = typeof request.body?.outputName === 'string' ? request.body.outputName.trim().slice(0, 180) : '';
     const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    const graphNodeId = typeof request.body?.graphNodeId === 'string' ? request.body.graphNodeId.trim().slice(0, 80) : '';
+    const slotKey = typeof request.body?.slotKey === 'string' ? request.body.slotKey.trim().slice(0, 32) : '';
+    const viewKey = typeof request.body?.view === 'string' ? request.body.view.trim().slice(0, 32) : '';
     await projectStore.get(projectId);
     if (requestedUrls.length > MAX_REFERENCE_IMAGES) return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
     if (!prompt || !requestedUrls.length) return response.status(400).json({ message: 'At least one input image and a prompt are required.' });
@@ -474,7 +614,7 @@ app.post('/api/generate', async (request, response, next) => {
       if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, projectId)) return response.status(400).json({ message: 'Every input image must belong to the active local project.' });
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
-    const job = createJob({ prompt, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, outputName, projectId });
+    const job = createJob({ prompt, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, outputName, projectId, graphNodeId: graphNodeId || null, slotKey: slotKey || null, viewKey: viewKey || null });
     await jobStore.create(job);
     jobQueue.enqueue(job.id);
     response.status(202).json({ jobId: job.id });
@@ -496,9 +636,10 @@ app.post('/api/batches', async (request, response, next) => {
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
     const batchId = randomUUID();
+    const graphNodeId = typeof request.body?.graphNodeId === 'string' ? request.body.graphNodeId.trim().slice(0, 80) : '';
     const jobs = [];
     for (const slot of batch.slots) {
-      jobs.push(createJob({ ...slot, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, batchId, batchConcurrency: batch.concurrency, projectId }));
+      jobs.push(createJob({ ...slot, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, batchId, batchConcurrency: batch.concurrency, projectId, graphNodeId: graphNodeId || null }));
     }
     for (const job of jobs) await jobStore.create(job);
     for (const job of jobs) jobQueue.enqueue(job.id);
@@ -557,7 +698,7 @@ app.use((error, _request, response, _next) => {
 });
 
 const httpServer = app.listen(port, '127.0.0.1', () => {
-  console.log(`Frameforge backend listening at http://127.0.0.1:${port}`);
+  console.log(`Consept backend listening at http://127.0.0.1:${port}`);
   void codexWorkerPool.warm(rootDir).then((results) => {
     const failed = results.filter((result) => result.status === 'rejected').length;
     if (failed) console.warn(`${failed} Codex worker${failed === 1 ? '' : 's'} could not be prewarmed and will retry on demand.`);
@@ -584,7 +725,7 @@ async function executeImageJob(job) {
   const layerConstraint = job.batchKind === 'character-parts'
     ? 'This is a compositing-layer task. Respect the first reference canvas and requested pixel placement. Prefer real PNG alpha transparency; do not simulate transparency with white, gray, or checkerboard backgrounds.'
     : job.batchKind === 'smart-separation'
-      ? 'This is a Smart Separation regeneration task. Generate exactly one standalone UI asset matching only the requested element; recreate it cleanly instead of cropping or copying surrounding sheet pixels. Render the exact visible text requested by the User instruction verbatim: do not correct, paraphrase, translate, add, or omit text. Match the requested visual style exactly. Return one complete PNG asset with real alpha transparency around it. Do not include an atlas, sprite sheet, collage, neighboring elements, surrounding scene, background, solid matte, transparency checkerboard, labels, guides, mockup, or presentation frame. The canvas must contain only this single isolated asset with transparent padding.'
+      ? 'This is a Smart Separation regeneration task. Generate exactly one standalone UI asset matching only the requested element; recreate it cleanly instead of cropping or copying surrounding sheet pixels. Render the exact visible text requested by the User instruction verbatim: do not correct, paraphrase, translate, add, or omit text. Match the requested visual style exactly. Return an RGBA PNG with alpha 0 outside the asset silhouette: a gray-and-white checkerboard, including a noisy or distorted checkerboard, is a background and is forbidden. Do not include an atlas, sprite sheet, collage, neighboring elements, surrounding scene, background, solid matte, transparency checkerboard, labels, guides, mockup, or presentation frame. The canvas must contain only this single isolated asset with transparent padding.'
     : '';
   const taskIntro = job.batchKind === 'smart-separation'
     ? 'Use the attached source sheet only as visual reference. Recreate the requested target as a new isolated asset.'
@@ -593,25 +734,30 @@ async function executeImageJob(job) {
     ? 'Preserve the requested target, not the source-sheet canvas. Use nearby sheet content only to understand the design language.'
     : 'Preserve the main subject identity, silhouette, material language, and palette unless the instruction explicitly changes them.';
   const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
-  await codexWorkerPool.run(async (worker, workerIndex) => {
-    await worker.generate({
+  const generation = await codexWorkerPool.run(async (worker, workerIndex) => {
+    return worker.generate({
       cwd: rootDir,
       sourcePaths: sources.map((source) => source.path),
       outputPath: temporaryPath,
       prompt: workerPrompt,
+      requireTransparentBackground: job.batchKind === 'smart-separation',
       onProgress: (progress) => { void jobStore.update(job.id, { progress: `Worker ${workerIndex + 1} · ${progress}` }); },
     });
   });
+  if (job.batchKind === 'smart-separation' && !hasPngTransparency(await readFile(temporaryPath))) {
+    await unlink(temporaryPath).catch(() => {});
+    throw new Error('ImageGen reported transparency, but the PNG has no native alpha channel. No sprite was saved; retry the generation.');
+  }
   const sourceAssetIds = Array.isArray(job.sourceAssetIds) && job.sourceAssetIds.length ? job.sourceAssetIds : [job.sourceAssetId].filter(Boolean);
-  const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id, projectId: job.projectId || 'default' });
-  await jobStore.update(job.id, { status: 'completed', progress: 'Ready', outputUrl: asset.url, outputAssetId: asset.id, error: null });
+  const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id, projectId: job.projectId || 'default', graphNodeId: job.graphNodeId, slotKey: job.slotKey, view: job.viewKey });
+  await jobStore.update(job.id, { status: 'completed', progress: 'Ready', outputUrl: asset.url, outputAssetId: asset.id, transparentBackground: generation.transparentBackground, error: null });
 }
 
-function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null, projectId = 'default' }) {
+function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null, projectId = 'default', graphNodeId = null }) {
   const id = randomUUID();
   const normalizedUrls = Array.isArray(sourceUrls) && sourceUrls.length ? sourceUrls : [sourceUrl].filter(Boolean);
   const normalizedAssetIds = Array.isArray(sourceAssetIds) && sourceAssetIds.length ? sourceAssetIds : [sourceAssetId].filter(Boolean);
-  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, graphNodeId: graphNodeId || null, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
 }
 
 function assetBelongsToProject(asset, projectId) {

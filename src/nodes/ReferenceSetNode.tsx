@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { ArrowUpRight, Images, Layers3, Plus } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import type { ReferenceSetNodeData } from '../types';
 
 export default function ReferenceSetNode({ id, data, selected }: NodeProps) {
@@ -17,11 +18,17 @@ export default function ReferenceSetNode({ id, data, selected }: NodeProps) {
 
       <div className={`reference-set-grid count-${Math.min(visibleItems.length, 6)}`}>
         {visibleItems.map((item, index) => (
-          <button type="button" className="reference-set-item nodrag" key={item.id} onClick={() => nodeData.onOpen?.(item.imageUrl, item.title)} aria-label={`Inspect reference ${index + 1}: ${item.title}`}>
+          <InspectablePreview
+            className="reference-set-item"
+            key={item.id}
+            ariaLabel={`Inspect reference ${index + 1}: ${item.title}`}
+            title="Drag to move, click to inspect"
+            onInspect={() => nodeData.onOpen?.(item.imageUrl, item.title)}
+          >
             <img src={item.imageUrl} alt={item.title} draggable={false} />
             <span>{String(index + 1).padStart(2, '0')}</span>
             {index === 5 && items.length > 6 && <strong>+{items.length - 6}</strong>}
-          </button>
+          </InspectablePreview>
         ))}
       </div>
 

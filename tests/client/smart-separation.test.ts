@@ -57,6 +57,7 @@ describe('Smart Separation regeneration prompt', () => {
     expect(prompt).toContain('left 10.0%, top 5.0%, right 40.0%, bottom 20.0%');
     expect(prompt).toContain('Do not paste or preserve a rectangular crop');
     expect(prompt).toContain('Copy every visible word and symbol exactly');
-    expect(prompt).toContain('real alpha transparency');
+    expect(prompt).toContain('alpha 0');
+    expect(prompt).toContain('checker pattern is a background');
   });
 });

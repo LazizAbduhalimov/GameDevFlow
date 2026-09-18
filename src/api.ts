@@ -1,4 +1,4 @@
-import type { AssetRecord, CodexStatus, FrameforgeProject, GenerationJob, ProjectSummary, ProviderId, ProviderStatus, SmartSeparationGroup, SmartSeparationItem, SmartSeparationProgress, SmartSeparationSource, TripoModelEvent } from './types';
+import type { AssetRecord, CharacterPartCandidate, CharacterPartsProgress, CodexStatus, ConseptProject, GenerationJob, ProjectSummary, ProviderId, ProviderStatus, SmartSeparationGroup, SmartSeparationItem, SmartSeparationProgress, SmartSeparationSource, TripoModelEvent, UnitySendItem, UnitySendResult, UnityStatus } from './types';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number, public code?: string) {
@@ -56,6 +56,27 @@ export async function recoverTripoModel(sourceNodeId: string | null | undefined,
   });
 }
 
+export async function getUnityStatus(): Promise<UnityStatus> {
+  return request('/api/integrations/unity/status');
+}
+
+export async function setUnityTarget(projectPath: string): Promise<UnityStatus> {
+  return request('/api/integrations/unity/target', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: projectPath }),
+  });
+}
+
+export async function sendToUnity(payload: { projectName: string; items: UnitySendItem[]; placeOnScene?: boolean }, signal?: AbortSignal): Promise<UnitySendResult> {
+  return request('/api/integrations/unity/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  });
+}
+
 export async function enhanceImagePrompt(
   prompt: string,
   context: 'image-generation' | 'multi-variation' | 'character-consistency',
@@ -90,6 +111,34 @@ export async function analyzeSmartSeparation(
     groups: SmartSeparationGroup[];
     warnings: string[];
   }>('/api/smart-separation/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId, sourceUrls, projectId: options.projectId, userHint: options.userHint || '' }),
+  });
+  pollTimer = setTimeout(() => void poll(), 250);
+  try {
+    return await analysisRequest;
+  } finally {
+    stopped = true;
+    if (pollTimer) clearTimeout(pollTimer);
+  }
+}
+
+export async function analyzeCharacterParts(
+  sourceUrls: string[],
+  options: { projectId: string; userHint?: string; onProgress?: (progress: CharacterPartsProgress) => void },
+): Promise<{ analysisId: string; characterDescription: string; parts: CharacterPartCandidate[] }> {
+  const requestId = crypto.randomUUID();
+  let stopped = false;
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  const poll = async () => {
+    try {
+      const progress = await request<CharacterPartsProgress>(`/api/character-parts/progress/${requestId}`);
+      if (!stopped) options.onProgress?.(progress);
+    } catch { /* The POST may not have registered its progress record yet. */ }
+    if (!stopped) pollTimer = setTimeout(() => void poll(), 700);
+  };
+  const analysisRequest = request<{ analysisId: string; characterDescription: string; parts: CharacterPartCandidate[] }>('/api/character-parts/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ requestId, sourceUrls, projectId: options.projectId, userHint: options.userHint || '' }),
@@ -169,11 +218,11 @@ export async function exportAssetArchive(options: { assetIds?: string[]; urls?: 
       throw new ApiError(payload.message || `Archive export failed with status ${response.status}`, response.status);
     }
     const disposition = response.headers.get('Content-Disposition') || '';
-    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] || 'frameforge-assets.zip';
+    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] || 'consept-assets.zip';
     saveLocalBlob(await response.blob(), filename);
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError('Local Frameforge backend is unavailable.', 0, 'NETWORK_ERROR');
+    throw new ApiError('Local Consept backend is unavailable.', 0, 'NETWORK_ERROR');
   }
 }
 
@@ -192,15 +241,18 @@ export async function getProjects(): Promise<ProjectSummary[]> {
   return request('/api/projects');
 }
 
-export async function createProject(name: string): Promise<FrameforgeProject> {
+export async function createProject(
+  name: string,
+  graph?: Pick<ConseptProject, 'nodes' | 'edges' | 'viewport'>,
+): Promise<ConseptProject> {
   return request('/api/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, ...graph }),
   });
 }
 
-export async function duplicateProject(projectId: string, name?: string): Promise<FrameforgeProject> {
+export async function duplicateProject(projectId: string, name?: string): Promise<ConseptProject> {
   return request(`/api/projects/${encodeURIComponent(projectId)}/duplicate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -212,11 +264,11 @@ export async function deleteProject(projectId: string): Promise<ProjectSummary> 
   return request(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' });
 }
 
-export async function getProject(projectId = 'default'): Promise<FrameforgeProject> {
+export async function getProject(projectId = 'default'): Promise<ConseptProject> {
   return request(`/api/projects/${encodeURIComponent(projectId)}`);
 }
 
-export async function saveProject(projectId: string, project: Omit<FrameforgeProject, 'updatedAt' | 'createdAt'>): Promise<FrameforgeProject> {
+export async function saveProject(projectId: string, project: Omit<ConseptProject, 'updatedAt' | 'createdAt'>): Promise<ConseptProject> {
   return request(`/api/projects/${encodeURIComponent(projectId)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -227,7 +279,7 @@ export async function saveProject(projectId: string, project: Omit<FrameforgePro
 export async function startGeneration(
   source: string | string[],
   prompt: string,
-  options: { provider?: ProviderId; outputName?: string; view?: string; projectId?: string } = {},
+  options: { provider?: ProviderId; outputName?: string; view?: string; projectId?: string; graphNodeId?: string; slotKey?: string } = {},
 ): Promise<{ jobId: string }> {
   const sourceUrls = Array.isArray(source) ? source : [source];
   return request('/api/generate', {
@@ -238,26 +290,27 @@ export async function startGeneration(
 }
 
 export async function startGenerationBatch(
-  sourceUrl: string,
+  source: string | string[],
   views: Array<{ key: string; prompt: string; outputName: string }>,
   options: { provider?: ProviderId; concurrency?: 1 | 2 | 3 | 4; projectId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; viewKey: string; status: string }> }> {
+  const sourceUrls = Array.isArray(source) ? source : [source];
   return request('/api/batches', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sourceUrl, views, ...options }),
+    body: JSON.stringify({ sourceUrl: sourceUrls[0], sourceUrls, views, ...options }),
   });
 }
 
 export async function startSlotBatch(
   sourceUrls: string[],
   slots: Array<{ key: string; prompt: string; outputName: string }>,
-  options: { provider?: ProviderId; kind?: string; concurrency?: 1 | 2 | 3 | 4; projectId?: string } = {},
+  options: { provider?: ProviderId; kind?: string; concurrency?: 1 | 2 | 3 | 4; projectId?: string; graphNodeId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; slotKey: string; slotIndex: number; status: string }> }> {
   return request('/api/batches', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sourceUrl: sourceUrls[0], sourceUrls, slots, kind: options.kind || 'variants', provider: options.provider, concurrency: options.concurrency, projectId: options.projectId }),
+    body: JSON.stringify({ sourceUrl: sourceUrls[0], sourceUrls, slots, kind: options.kind || 'variants', provider: options.provider, concurrency: options.concurrency, projectId: options.projectId, graphNodeId: options.graphNodeId }),
   });
 }
 
@@ -295,6 +348,6 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     return payload as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError('Local Frameforge backend is unavailable.', 0, 'NETWORK_ERROR');
+    throw new ApiError('Local Consept backend is unavailable.', 0, 'NETWORK_ERROR');
   }
 }

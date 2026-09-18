@@ -26,7 +26,8 @@ export function smartSeparationRegenerationPrompt(item: SmartSeparationItem, sou
     'Redraw the complete target as a clean isolated asset. Do not paste or preserve a rectangular crop of the source sheet.',
     'Preserve its silhouette, composition, palette, line work, texture, typography and all intentional decorations. Copy every visible word and symbol exactly; do not rewrite, translate or invent text.',
     'Remove every neighboring panel, overlapping object, page background, guide, label and fragment that is not part of this target.',
-    'Output exactly one tightly framed PNG with real alpha transparency around the complete asset. No background, scene, canvas color, checkerboard, contact sheet, mockup, shadow from neighboring objects or extra option.',
+    'Output an RGBA PNG: every pixel outside the asset silhouette must have alpha 0 (fully transparent). Do not draw, imitate, bake in, or photograph a transparency checkerboard; a gray-and-white checker pattern is a background and is forbidden.',
+    'No background, scene, canvas color, checkerboard, contact sheet, mockup, shadow from neighboring objects or extra option. The delivered file must be usable directly as a UI sprite over any color.',
   ].filter(Boolean).join('\n');
 }
 

@@ -21,7 +21,7 @@ export class JobStore {
       }
       if (job.status === 'running' || job.status === 'queued') {
         job.status = 'interrupted';
-        job.progress = 'Interrupted by a Frameforge restart. Retry when ready.';
+        job.progress = 'Interrupted by a Consept restart. Retry when ready.';
         job.updatedAt = new Date().toISOString();
         await writeJsonAtomic(path.join(this.jobsDir, file), job);
       }

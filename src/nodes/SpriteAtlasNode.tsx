@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AlertTriangle, Box, Check, Download, Expand, Grid3X3, ImagePlus, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, Box, Check, Component, Download, Expand, Grid3X3, ImagePlus, LoaderCircle, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import type { SpriteAtlasNodeData } from '../types';
 
 export default function SpriteAtlasNode({ id, data, selected }: NodeProps) {
@@ -22,7 +23,17 @@ export default function SpriteAtlasNode({ id, data, selected }: NodeProps) {
 
       <div className="atlas-input-label"><ImagePlus size={11} /><span>Input</span><small>{inputCount ? `${inputCount} image${inputCount === 1 ? '' : 's'}` : 'Connect collection or image'}</small></div>
       <div className="atlas-preview">
-        {previewUrl ? <button type="button" className="atlas-preview-button nodrag" onClick={() => nodeData.onOpen?.(previewUrl, `${nodeData.title} preview`)} aria-label="Open atlas preview"><img src={previewUrl} alt="Sprite atlas preview" draggable={false} /><Expand size={14} /></button> : <div className="atlas-preview-empty" aria-hidden="true"><Grid3X3 size={28} /><span>Atlas preview</span></div>}
+        {previewUrl ? (
+          <InspectablePreview
+            className="atlas-preview-button"
+            ariaLabel="Open atlas preview"
+            title="Drag to move, click to inspect"
+            onInspect={() => nodeData.onOpen?.(previewUrl, `${nodeData.title} preview`)}
+          >
+            <img src={previewUrl} alt="Sprite atlas preview" draggable={false} />
+            <Expand size={14} />
+          </InspectablePreview>
+        ) : <div className="atlas-preview-empty" aria-hidden="true"><Grid3X3 size={28} /><span>Atlas preview</span></div>}
         {busy && <span className="atlas-building"><LoaderCircle className="spin" size={13} /> Building atlas…</span>}
       </div>
 
@@ -52,6 +63,7 @@ export default function SpriteAtlasNode({ id, data, selected }: NodeProps) {
           <button type="button" title="Download atlas JSON" aria-label="Download atlas JSON" disabled={!nodeData.manifest} onClick={() => nodeData.onDownloadJson?.(id)}><Download size={11} /><small>JSON</small></button>
           <button type="button" title="Open atlas" aria-label="Open atlas" onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, `${nodeData.title} atlas`)}><Expand size={11} /></button>
           <button type="button" title="Open atlas PNG in Tripo Studio" aria-label="Send atlas PNG to Tripo Studio" disabled={nodeData.tripoBusy} onClick={() => nodeData.onOpenTripo?.(nodeData.outputUrl!)}>{nodeData.tripoBusy ? <LoaderCircle className="spin" size={11} /> : <Box size={11} />}</button>
+          <button type="button" title="Send atlas PNG to Unity" aria-label="Send atlas PNG to Unity" disabled={nodeData.unityBusy} onClick={() => nodeData.onSendToUnity?.(nodeData.outputUrl!)}>{nodeData.unityBusy ? <LoaderCircle className="spin" size={11} /> : <Component size={11} />}</button>
           <button type="button" className="danger" title="Move atlas to trash" aria-label="Move atlas to trash" onClick={() => nodeData.onDelete?.(id)}><Trash2 size={11} /></button>
         </div>
         <Handle type="source" position={Position.Right} aria-label="Atlas PNG output" title="Atlas PNG output" className="flow-handle output-handle atlas-output-handle" />

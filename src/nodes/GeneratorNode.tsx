@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { useState, type MouseEvent } from 'react';
 import {
   AlertTriangle,
-  ArrowUpRight,
   Box,
+  Component,
   Download,
   Expand,
   Layers3,
@@ -16,14 +16,18 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { GeneratorNodeData } from '../types';
+import { InspectablePreview } from '../components/InspectablePreview';
+import { GenerationHistoryButton, GenerationHistoryPopover } from '../components/GenerationHistoryPopover';
 import { PromptEnhanceButton } from '../components/PromptEnhanceButton';
+import type { GeneratorNodeData } from '../types';
 
 export default function GeneratorNode({ id, data, selected }: NodeProps) {
   const nodeData = data as GeneratorNodeData;
   const busy = nodeData.status === 'queued' || nodeData.status === 'running';
   const hasOutput = Boolean(nodeData.outputUrl);
   const isEditing = nodeData.isConfigOpen ?? (!hasOutput && !busy);
+  const [historyAnchor, setHistoryAnchor] = useState<{ x: number; y: number } | null>(null);
+  const revisions = nodeData.revisions || [];
 
   const presets = [
     { id: 'identity', label: 'Identity' },
@@ -41,9 +45,113 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
     }
   }
 
+  function openHistory(event: MouseEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHistoryAnchor({ x: rect.left, y: rect.bottom + 8 });
+  }
+
+  function openInspect() {
+    if (!nodeData.outputUrl) return;
+    nodeData.onOpen?.(nodeData.outputUrl, nodeData.title, nodeData.sourceUrl, {
+      revisions: nodeData.revisions,
+      activeRevisionId: nodeData.activeRevisionId,
+    });
+  }
+
+  const resultCard = hasOutput && (
+    <article className={`clean-asset-card mode-ready ${selected ? 'is-selected' : ''} ${busy ? 'is-busy' : ''}`}>
+      <InspectablePreview
+        className="asset-image-wrap"
+        title="Drag to move, click to inspect"
+        ariaLabel="Inspect generated image"
+        disabled={busy}
+        onInspect={busy ? undefined : openInspect}
+      >
+        <img src={nodeData.outputUrl} alt={nodeData.title} draggable={false} />
+      </InspectablePreview>
+      {busy && (
+        <div className="card-busy-overlay">
+          <LoaderCircle className="spin" size={22} />
+          <span>{nodeData.progress || 'Generating…'}</span>
+          <button className="generating-cancel-btn nodrag" onClick={() => nodeData.onCancel?.(id)} title="Stop generation">
+            <Square size={10} fill="currentColor" /> Cancel
+          </button>
+        </div>
+      )}
+
+      {!busy && (
+        <div className="card-hover-actions nodrag">
+          <button
+            className="card-btn-regenerate"
+            onClick={handleRegenerate}
+            title="Regenerate (1-click re-run)"
+          >
+            <RotateCcw size={12} />
+            <span>Regenerate</span>
+          </button>
+
+          <div className="card-btn-group">
+            <GenerationHistoryButton count={revisions.length} onClick={openHistory} />
+            <button
+              title="Edit parameters"
+              onClick={() => nodeData.onToggleConfig?.(id, true)}
+              aria-label="Edit parameters"
+            >
+              <SlidersHorizontal size={12} />
+            </button>
+            <button
+              title="Inspect image"
+              onClick={openInspect}
+              aria-label="Inspect image"
+            >
+              <Expand size={12} />
+            </button>
+            <button
+              title="Branch node"
+              onClick={() => nodeData.onBranch?.(id)}
+              aria-label="Branch node"
+            >
+              <Plus size={12} />
+            </button>
+            <button
+              title="Save PNG"
+              onClick={() => nodeData.onDownload?.(id)}
+              aria-label="Save PNG"
+            >
+              <Download size={12} />
+            </button>
+            <button
+              title="Tripo 3D"
+              disabled={nodeData.tripoBusy}
+              onClick={() => nodeData.onOpenTripo?.(nodeData.outputUrl!)}
+              aria-label="Tripo 3D"
+            >
+              {nodeData.tripoBusy ? <LoaderCircle className="spin" size={12} /> : <Box size={12} />}
+            </button>
+            <button
+              title="Send to Unity"
+              disabled={nodeData.unityBusy}
+              onClick={() => nodeData.onSendToUnity?.(nodeData.outputUrl!)}
+              aria-label="Send to Unity"
+            >
+              {nodeData.unityBusy ? <LoaderCircle className="spin" size={12} /> : <Component size={12} />}
+            </button>
+            <button
+              className="danger"
+              title="Delete this version"
+              onClick={() => nodeData.onDelete?.(id)}
+              aria-label="Delete this version"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+
   return (
     <div className={`customuse-node-wrapper ${selected ? 'is-selected' : ''}`}>
-      {/* Floating micro-label above the card (Customuse style) */}
       <div className="node-floating-label">
         <Sparkles size={12} />
         <span>{nodeData.title || 'Generate image'}</span>
@@ -52,8 +160,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
 
       <Handle type="target" position={Position.Left} className="flow-handle input-handle" />
 
-      {busy ? (
-        /* PHASE 2: GENERATING STATE (Minimalist loader) */
+      {busy && !hasOutput ? (
         <article className={`clean-asset-card mode-generating ${selected ? 'is-selected' : ''}`}>
           <div className="card-generating-state">
             <div className="generating-pulse-ring">
@@ -69,80 +176,11 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
             </button>
           </div>
         </article>
-      ) : hasOutput && !isEditing ? (
-        /* PHASE 3: RESULT STATE (Pure image card with 1-click Regenerate) */
-        <article className={`clean-asset-card mode-ready ${selected ? 'is-selected' : ''}`}>
-          <div
-            className="asset-image-wrap nodrag"
-            onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, nodeData.title, nodeData.sourceUrl)}
-            title="Click to inspect full resolution"
-          >
-            <img src={nodeData.outputUrl} alt={nodeData.title} draggable={false} />
-          </div>
-
-          {/* Hover action overlay */}
-          <div className="card-hover-actions nodrag">
-            <button
-              className="card-btn-regenerate"
-              onClick={handleRegenerate}
-              title="Regenerate (1-click re-run)"
-            >
-              <RotateCcw size={12} />
-              <span>Regenerate</span>
-            </button>
-
-            <div className="card-btn-group">
-              <button
-                title="Edit parameters"
-                onClick={() => nodeData.onToggleConfig?.(id, true)}
-                aria-label="Edit parameters"
-              >
-                <SlidersHorizontal size={12} />
-              </button>
-              <button
-                title="Inspect image"
-                onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, nodeData.title, nodeData.sourceUrl)}
-                aria-label="Inspect image"
-              >
-                <Expand size={12} />
-              </button>
-              <button
-                title="Branch node"
-                onClick={() => nodeData.onBranch?.(id)}
-                aria-label="Branch node"
-              >
-                <Plus size={12} />
-              </button>
-              <button
-                title="Save PNG"
-                onClick={() => nodeData.onDownload?.(id)}
-                aria-label="Save PNG"
-              >
-                <Download size={12} />
-              </button>
-              <button
-                title="Tripo 3D"
-                disabled={nodeData.tripoBusy}
-                onClick={() => nodeData.onOpenTripo?.(nodeData.outputUrl!)}
-                aria-label="Tripo 3D"
-              >
-                {nodeData.tripoBusy ? <LoaderCircle className="spin" size={12} /> : <Box size={12} />}
-              </button>
-              <button
-                className="danger"
-                title="Delete node"
-                onClick={() => nodeData.onDelete?.(id)}
-                aria-label="Delete node"
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          </div>
-        </article>
+      ) : hasOutput && (busy || !isEditing) ? (
+        resultCard
       ) : (
-        /* PHASE 1: CONFIG STATE (Compact parameters form) */
         <article className={`clean-config-card ${selected ? 'is-selected' : ''}`}>
-          <div className="clean-config-header nodrag">
+          <div className="clean-config-header">
             <span>
               <Sparkles size={13} style={{ color: 'var(--accent)' }} />
               Instruction
@@ -249,6 +287,17 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
       {nodeData.outputUrl && (
         <Handle type="source" position={Position.Right} className="flow-handle output-handle" />
       )}
+
+      <GenerationHistoryPopover
+        open={Boolean(historyAnchor) && revisions.length > 1}
+        anchor={historyAnchor || { x: 0, y: 0 }}
+        revisions={revisions}
+        activeRevisionId={nodeData.activeRevisionId}
+        onRestore={(revisionId) => nodeData.onRestoreRevision?.(id, revisionId)}
+        onInspect={openInspect}
+        onApplyPrompt={nodeData.onApplyRevisionPrompt ? (prompt) => nodeData.onApplyRevisionPrompt?.(id, prompt) : undefined}
+        onClose={() => setHistoryAnchor(null)}
+      />
     </div>
   );
 }

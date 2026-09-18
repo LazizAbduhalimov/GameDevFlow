@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AlertTriangle, Box, Check, Download, Expand, ImagePlus, LoaderCircle, Scaling, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, Box, Check, Component, Download, Expand, ImagePlus, LoaderCircle, Scaling, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import type { RelativeAtlasNodeData } from '../types';
 
 export default function RelativeAtlasNode({ id, data, selected }: NodeProps) {
@@ -16,7 +17,17 @@ export default function RelativeAtlasNode({ id, data, selected }: NodeProps) {
     <div className="node-cap relative-atlas-cap"><span className="node-kind"><Scaling size={13} /> Relative atlas</span><span className="node-code">PACK</span></div>
     <div className="atlas-input-label"><ImagePlus size={11} /><span>Input</span><small>{inputCount ? `${inputCount} object${inputCount === 1 ? '' : 's'} · shared scale` : 'Connect transparent objects'}</small></div>
     <div className="atlas-preview relative-atlas-preview">
-      {previewUrl ? <button type="button" className="atlas-preview-button nodrag" onClick={() => nodeData.onOpen?.(previewUrl, `${nodeData.title} preview`)}><img src={previewUrl} alt="Relative atlas preview" draggable={false} /><Expand size={14} /></button> : <div className="atlas-preview-empty"><Scaling size={28} /><span>Relative packing</span><small>Sizes stay proportional</small></div>}
+      {previewUrl ? (
+        <InspectablePreview
+          className="atlas-preview-button"
+          title="Drag to move, click to inspect"
+          ariaLabel="Open relative atlas preview"
+          onInspect={() => nodeData.onOpen?.(previewUrl, `${nodeData.title} preview`)}
+        >
+          <img src={previewUrl} alt="Relative atlas preview" draggable={false} />
+          <Expand size={14} />
+        </InspectablePreview>
+      ) : <div className="atlas-preview-empty"><Scaling size={28} /><span>Relative packing</span><small>Sizes stay proportional</small></div>}
       {busy && <span className="atlas-building"><LoaderCircle className="spin" size={13} /> Packing at one scale…</span>}
     </div>
     <fieldset className="atlas-settings nodrag relative-atlas-settings" disabled={busy}>
@@ -32,6 +43,6 @@ export default function RelativeAtlasNode({ id, data, selected }: NodeProps) {
       {nodeData.error && <p className="error"><AlertTriangle size={10} /> {nodeData.error}</p>}
     </div>
     <div className="atlas-actions nodrag"><button type="button" className="node-action primary relative-atlas-build" disabled={busy || !inputCount} onClick={() => nodeData.onBuild?.(id)}>{busy ? <LoaderCircle className="spin" size={12} /> : <Scaling size={12} />} Pack &amp; save</button></div>
-    {nodeData.outputUrl && <div className="atlas-output relative-atlas-output nodrag"><span><Check size={11} /> Relative PNG</span><div><button type="button" title="Download PNG" onClick={() => nodeData.onDownloadPng?.(id)}><Download size={11} /></button><button type="button" title="Download JSON" disabled={!nodeData.manifest} onClick={() => nodeData.onDownloadJson?.(id)}><Download size={11} /><small>JSON</small></button><button type="button" title="Open atlas" onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, `${nodeData.title} atlas`)}><Expand size={11} /></button><button type="button" title="Open in Tripo" disabled={nodeData.tripoBusy} onClick={() => nodeData.onOpenTripo?.(nodeData.outputUrl!)}>{nodeData.tripoBusy ? <LoaderCircle className="spin" size={11} /> : <Box size={11} />}</button><button type="button" className="danger" title="Move to trash" onClick={() => nodeData.onDelete?.(id)}><Trash2 size={11} /></button></div><Handle type="source" position={Position.Right} className="flow-handle output-handle relative-atlas-handle" aria-label="Relative atlas output" /></div>}
+    {nodeData.outputUrl && <div className="atlas-output relative-atlas-output nodrag"><span><Check size={11} /> Relative PNG</span><div><button type="button" title="Download PNG" onClick={() => nodeData.onDownloadPng?.(id)}><Download size={11} /></button><button type="button" title="Download JSON" disabled={!nodeData.manifest} onClick={() => nodeData.onDownloadJson?.(id)}><Download size={11} /><small>JSON</small></button><button type="button" title="Open atlas" onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, `${nodeData.title} atlas`)}><Expand size={11} /></button><button type="button" title="Open in Tripo" disabled={nodeData.tripoBusy} onClick={() => nodeData.onOpenTripo?.(nodeData.outputUrl!)}>{nodeData.tripoBusy ? <LoaderCircle className="spin" size={11} /> : <Box size={11} />}</button><button type="button" title="Send to Unity" disabled={nodeData.unityBusy} onClick={() => nodeData.onSendToUnity?.(nodeData.outputUrl!)}>{nodeData.unityBusy ? <LoaderCircle className="spin" size={11} /> : <Component size={11} />}</button><button type="button" className="danger" title="Move to trash" onClick={() => nodeData.onDelete?.(id)}><Trash2 size={11} /></button></div><Handle type="source" position={Position.Right} className="flow-handle output-handle relative-atlas-handle" aria-label="Relative atlas output" /></div>}
   </article>;
 }

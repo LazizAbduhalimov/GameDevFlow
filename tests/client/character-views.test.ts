@@ -4,7 +4,10 @@ import {
   CHARACTER_IDENTITY_PROMPT,
   CHARACTER_POSE_SPECS,
   CHARACTER_VIEW_SPECS,
+  isCharacterViewSourceReady,
   normalizeCharacterPose,
+  PROP_IDENTITY_PROMPT,
+  PROP_VIEW_SPECS,
 } from '../../src/character-views';
 
 describe('Character view prompts', () => {
@@ -29,5 +32,23 @@ describe('Character view prompts', () => {
     expect(aPose).toContain('A-pose');
     expect(tPose).toContain('T-pose');
     expect(tPose).not.toContain(CHARACTER_POSE_SPECS['a-pose'].prompt);
+  });
+
+  it('builds isolated prop prompts without pose language', () => {
+    const prompt = buildCharacterViewPrompt({
+      view: 'right',
+      pose: 't-pose',
+      subjectKind: 'prop',
+      identityPrompt: 'Isolate only: right boot.',
+    });
+    expect(prompt).toContain('Isolate only: right boot.');
+    expect(prompt).toContain(PROP_VIEW_SPECS.right.prompt);
+    expect(prompt).not.toContain(CHARACTER_POSE_SPECS['t-pose'].prompt);
+    expect(prompt).not.toContain(CHARACTER_VIEW_SPECS.right.prompt);
+    expect(prompt).not.toContain(CHARACTER_IDENTITY_PROMPT);
+    expect(isCharacterViewSourceReady('prop', 4)).toBe(true);
+    expect(isCharacterViewSourceReady('prop', 2)).toBe(false);
+    expect(isCharacterViewSourceReady('character', 4)).toBe(false);
+    expect(buildCharacterViewPrompt({ view: 'front', subjectKind: 'prop' })).toContain(PROP_IDENTITY_PROMPT);
   });
 });

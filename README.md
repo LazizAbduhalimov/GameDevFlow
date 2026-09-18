@@ -1,6 +1,6 @@
-# Frameforge Local
+# Consept Local
 
-Frameforge is a local node-based image lab for game concept workflows. It uses the signed-in Codex/ImageGen session on this computer, stores projects and images on disk, and binds only to `127.0.0.1`.
+Consept is a local node-based image lab for game concept workflows. It uses the signed-in Codex/ImageGen session on this computer, stores projects and images on disk, and binds only to `127.0.0.1`.
 
 No OpenAI API key is required for the Codex provider. Gemini is represented in the provider layer, but remains disabled until Google exposes an official local/consumer-quota image-generation path suitable for this app.
 
@@ -24,12 +24,7 @@ Open `http://127.0.0.1:8080`.
 
 The **Character views** node accepts one source and owns four independent Front/Left/Back/Right outputs plus a distinct orange **All views** output. All views becomes usable when the complete set is ready and sends the four images together as references to a downstream ImageGen node. Portrait previews use contain sizing, so the entire generated frame remains visible.
 
-Character Views has two execution modes:
-
-- **Fast 2×** sends a four-view batch through two isolated local Codex app-server workers. If Codex explicitly reports a concurrency or rate limit, failed views automatically retry one at a time.
-- **Reliable 1×** generates views sequentially for accounts or prompts that behave better without parallel work.
-
-The selected mode changes elapsed time, not image-generation usage: four independent views still use four generations.
+Character Views and Multi Generate always use **Turbo 4×**: up to four independent jobs run through four isolated local Codex app-server workers. A batch with more than four jobs continues as workers become free. If Codex explicitly reports a concurrency or rate limit, failed jobs automatically retry one at a time.
 
 ## Asset workbench
 
@@ -44,12 +39,22 @@ Select any active Gallery assets to reveal the workbench. The selection can be e
 
 The **Trash** Gallery tab previews deleted assets without exposing the data directory. Assets can be restored to their original collection or permanently deleted after confirmation.
 
+## Unity send
+
+Image and model nodes have a Unity action next to Tripo. It copies the file into the current Unity project's `Assets/<Consept project name>/` folder, then brings the Editor to the front.
+
+- Images go into `Images/Source`, `Images/Generated`, `Images/Views/<title>`, `Images/Atlases`, or `Images/Materials/<title>`.
+- Models go into `Models/` and are instantiated on the currently open scene.
+- The HUD Unity chip picks the running Editor, a Hub recent, or the last used project.
+
+If the Unity project has no glTF importer, Consept adds `com.unity.cloud.gltfast` once so Tripo GLBs can import.
+
 ## Included quality-of-life features
 
 - Durable project autosave with revision-conflict protection and browser fallback.
-- Explicit save plus import/export of `.frameforge.json` project files.
+- Explicit save plus import/export of `.consept.json` project files.
 - Undo/redo, duplicate, fit-selection, and run-prompt keyboard shortcuts.
-- Persistent two-worker generation queue with per-node Fast/Reliable execution, cancellation, and retry controls.
+- Persistent four-worker generation queue with automatic Turbo 4× execution, cancellation, and retry controls.
 - Queue-to-node status reconciliation, including recovery after temporary backend polling failures.
 - Gallery search, source/generated/trash filters, and multi-selection.
 - Full-screen inspector with 1x/2x/4x zoom.
@@ -83,6 +88,8 @@ The **Trash** Gallery tab previews deleted assets without exposing the data dire
 | `data/generated/` | Generated results |
 | `data/metadata/assets.json` | Asset index, hashes, prompts, and metadata |
 | `data/projects/default/project.json` | Current graph project and revision |
+| `data/models/` | Captured Tripo GLB files |
+| `data/settings/unity.json` | Last Unity project target |
 | `data/jobs/` | Durable generation jobs |
 | `data/trash/` | Soft-deleted assets |
 
@@ -100,13 +107,12 @@ npm run build
 npm run test:server
 ```
 
-The server test suite covers project revision conflicts, asset indexing and multi-parent lineage, trash/restore/purge, safe ZIP selection and deduplication, two-worker leasing, queue lifecycle/recovery, and rejection of invalid image content.
+The server test suite covers project revision conflicts, asset indexing and multi-parent lineage, trash/restore/purge, safe ZIP selection and deduplication, worker leasing, queue lifecycle/recovery, and rejection of invalid image content.
 
-Set `FRAMEFORGE_CODEX_WORKERS=1` before `npm run dev` to force a single backend worker globally. The default is two, capped at two for the local MVP.
+Set `CONSEPT_CODEX_WORKERS=1` before `npm run dev` to force a single backend worker globally. The default is four, capped at four for the local app. `FRAMEFORGE_CODEX_WORKERS` is still accepted.
 
 ## Deliberate MVP limits
 
-- No Unity or Tripo integration yet.
 - No fake mask/inpainting control: it should appear only when the selected provider exposes a real mask capability.
 - Gemini Nano Banana is not enabled through scraped browser tokens or undocumented quota workarounds.
 - Batch-wide queue cancellation and reusable saved export recipes remain follow-up features.

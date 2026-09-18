@@ -3,7 +3,7 @@ import type { Edge, Node, Viewport } from '@xyflow/react';
 export type ProviderId = 'codex' | 'gemini';
 export type NodeStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 export type ViewKey = 'front' | 'left' | 'back' | 'right';
-export type CharacterPartKey = 'hat' | 'top' | 'pants' | 'shoes' | 'body';
+export type CharacterSubjectKind = 'character' | 'prop';
 export type MaterialMapKey = 'baseColor' | 'normal' | 'height' | 'roughness' | 'metallic' | 'ambientOcclusion' | 'orm';
 export type GenerationMode = 'reliable' | 'fast' | 'turbo';
 export type CharacterPose = 'a-pose' | 't-pose';
@@ -36,6 +36,7 @@ export type AssetRecord = {
     sourceAssetIds?: string[];
     parentAssetIds?: string[];
     jobId?: string;
+    graphNodeId?: string;
     view?: ViewKey;
     batchId?: string;
     slotKey?: string;
@@ -43,6 +44,15 @@ export type AssetRecord = {
     manifest?: Record<string, unknown>;
     [key: string]: unknown;
   };
+};
+
+export type GenerationRevision = {
+  id: string;
+  assetId: string;
+  outputUrl: string;
+  createdAt: string;
+  jobId?: string;
+  prompt?: string;
 };
 
 export type ImageNodeData = {
@@ -59,6 +69,8 @@ export type ImageNodeData = {
   onDelete?: (nodeId: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusy?: boolean;
+  onSendToUnity?: (url: string) => void;
+  unityBusy?: boolean;
   onOpen?: (url: string, title: string, sourceUrl?: string) => void;
 };
 
@@ -104,6 +116,7 @@ export type SmartSeparationItem = {
   jobId?: string;
   rawOutputUrl?: string;
   rawOutputAssetId?: string;
+  transparentBackground?: boolean;
   outputUrl?: string;
   outputAssetId?: string;
 };
@@ -179,6 +192,9 @@ export type GeneratorNodeData = {
   title: string;
   prompt: string;
   outputUrl?: string;
+  outputAssetId?: string;
+  revisions?: GenerationRevision[];
+  activeRevisionId?: string;
   sourceUrl?: string;
   sourceUrls?: string[];
   inputCount?: number;
@@ -203,9 +219,13 @@ export type GeneratorNodeData = {
   onBranch?: (nodeId: string, sourceHandle?: string) => void;
   onDownload?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
+  onRestoreRevision?: (nodeId: string, revisionId: string) => void;
+  onApplyRevisionPrompt?: (nodeId: string, prompt: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusy?: boolean;
-  onOpen?: (url: string, title: string, sourceUrl?: string) => void;
+  onSendToUnity?: (url: string) => void;
+  unityBusy?: boolean;
+  onOpen?: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => void;
 };
 
 export type CharacterViewOutput = {
@@ -225,6 +245,7 @@ export type CharacterViewsNodeData = {
   title: string;
   basePrompt: string;
   pose?: CharacterPose;
+  subjectKind?: CharacterSubjectKind;
   provider?: ProviderId | 'global';
   generationMode?: GenerationMode;
   views: Record<ViewKey, CharacterViewOutput>;
@@ -244,6 +265,8 @@ export type CharacterViewsNodeData = {
   tripoBusyUrl?: string;
   onOpenTripoMultiview?: (nodeId: string) => void;
   tripoMultiviewBusy?: boolean;
+  onSendToUnity?: (nodeId: string) => void;
+  unityBusy?: boolean;
   onExportViews?: (nodeId: string) => void;
   onBuildSpriteSheet?: (nodeId: string) => void;
   onUnpackToCanvas?: (nodeId: string) => void;
@@ -261,6 +284,8 @@ export type VariantOutput = {
   jobId?: string;
   progress?: string;
   error?: string;
+  revisions?: GenerationRevision[];
+  activeRevisionId?: string;
 };
 
 export type MultiGenerateNodeData = {
@@ -268,6 +293,8 @@ export type MultiGenerateNodeData = {
   title: string;
   prompt: string;
   variantCount: number;
+  selectedVariantKey?: string;
+  isConfigOpen?: boolean;
   provider?: ProviderId | 'global';
   generationMode?: GenerationMode;
   batchId?: string;
@@ -281,65 +308,60 @@ export type MultiGenerateNodeData = {
   onCountChange?: (nodeId: string, count: number) => void;
   onProviderChange?: (nodeId: string, provider: ProviderId | 'global') => void;
   onModeChange?: (nodeId: string, mode: GenerationMode) => void;
+  onSelectVariant?: (nodeId: string, key: string) => void;
+  onToggleConfig?: (nodeId: string, open?: boolean) => void;
   onRunAll?: (nodeId: string, onlyMissing?: boolean) => void;
   onRunVariant?: (nodeId: string, key: string) => void;
   onCancelVariant?: (nodeId: string, key: string) => void;
   onExtractVariant?: (nodeId: string, key: string) => void;
   onDownloadVariant?: (nodeId: string, key: string) => void;
   onDeleteVariant?: (nodeId: string, key: string) => void;
+  onRestoreVariantRevision?: (nodeId: string, key: string, revisionId: string) => void;
+  onApplyRevisionPrompt?: (nodeId: string, prompt: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusyUrl?: string;
-  onOpen?: (url: string, title: string, sourceUrl?: string) => void;
+  onSendToUnity?: (url: string) => void;
+  unityBusyUrl?: string;
+  onOpen?: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => void;
 };
 
-export type CharacterPartGeometry = {
-  canvasWidth: number;
-  canvasHeight: number;
-  anchorX: 0;
-  anchorY: 0;
-  bounds: { x: number; y: number; width: number; height: number };
-  normalizedBounds: { x: number; y: number; width: number; height: number };
-  backgroundRemoved: boolean;
-  hasTransparency: boolean;
-};
-
-export type CharacterPartOutput = {
-  key: CharacterPartKey;
-  title: string;
+export type CharacterPartCandidate = {
+  id: string;
+  name: string;
   description: string;
-  status: NodeStatus;
-  outputUrl?: string;
-  sourceUrl?: string;
-  assetId?: string;
-  jobId?: string;
-  progress?: string;
-  error?: string;
-  normalized?: boolean;
-  geometry?: CharacterPartGeometry;
+  enabled: boolean;
+  spawnedNodeId?: string;
+};
+
+export type CharacterPartsProgress = {
+  requestId: string;
+  stage: 'queued' | 'inspecting' | 'completed' | 'failed';
+  message: string;
+  startedAt: string;
+  updatedAt: string;
 };
 
 export type CharacterPartsNodeData = {
   [key: string]: unknown;
   title: string;
   notes: string;
+  status: 'idle' | 'analyzing' | 'review' | 'failed';
+  characterDescription: string;
   provider?: ProviderId | 'global';
-  generationMode?: GenerationMode;
-  batchId?: string;
   inputUrls?: string[];
   error?: string;
-  parts: Record<CharacterPartKey, CharacterPartOutput>;
+  analysisProgress?: CharacterPartsProgress;
+  parts: CharacterPartCandidate[];
   onNotesChange?: (nodeId: string, notes: string) => void;
+  onDescriptionChange?: (nodeId: string, description: string) => void;
   onProviderChange?: (nodeId: string, provider: ProviderId | 'global') => void;
-  onModeChange?: (nodeId: string, mode: GenerationMode) => void;
-  onRunAll?: (nodeId: string, onlyMissing?: boolean) => void;
-  onRunPart?: (nodeId: string, key: CharacterPartKey) => void;
-  onCancelPart?: (nodeId: string, key: CharacterPartKey) => void;
-  onExtractPart?: (nodeId: string, key: CharacterPartKey) => void;
-  onDownloadPart?: (nodeId: string, key: CharacterPartKey) => void;
-  onDeletePart?: (nodeId: string, key: CharacterPartKey) => void;
-  onExportParts?: (nodeId: string) => void;
-  onDownloadManifest?: (nodeId: string) => void;
-  onOpen?: (url: string, title: string, sourceUrl?: string) => void;
+  onAnalyze?: (nodeId: string) => void;
+  onGenerateSelected?: (nodeId: string) => void;
+  onPatchPart?: (nodeId: string, partId: string, patch: Partial<CharacterPartCandidate>) => void;
+  onTogglePart?: (nodeId: string, partId: string) => void;
+  onSelectAll?: (nodeId: string, enabled: boolean) => void;
+  onAddPart?: (nodeId: string) => void;
+  onRemovePart?: (nodeId: string, partId: string) => void;
 };
 
 export type SpriteAtlasSettings = {
@@ -369,6 +391,8 @@ export type SpriteAtlasNodeData = {
   onOpen?: (url: string, title: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusy?: boolean;
+  onSendToUnity?: (url: string) => void;
+  unityBusy?: boolean;
   onDownloadPng?: (nodeId: string) => void;
   onDownloadJson?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
@@ -398,6 +422,8 @@ export type RelativeAtlasNodeData = {
   onOpen?: (url: string, title: string) => void;
   onOpenTripo?: (url: string) => void;
   tripoBusy?: boolean;
+  onSendToUnity?: (url: string) => void;
+  unityBusy?: boolean;
   onDownloadPng?: (nodeId: string) => void;
   onDownloadJson?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
@@ -474,6 +500,8 @@ export type MaterialMapsNodeData = {
   onDeleteMap?: (nodeId: string, key: MaterialMapKey) => void;
   onExport?: (nodeId: string) => void;
   onDownloadManifest?: (nodeId: string) => void;
+  onSendToUnity?: (nodeId: string) => void;
+  unityBusy?: boolean;
 };
 
 export type TripoModelEvent = {
@@ -505,6 +533,8 @@ export type Model3DNodeData = {
   error?: string;
   onDownload?: (nodeId: string) => void;
   onRecover?: (nodeId: string) => void;
+  onSendToUnity?: (nodeId: string) => void;
+  unityBusy?: boolean;
 };
 
 export type StudioNode =
@@ -527,6 +557,45 @@ export type CodexStatus = {
   label: string;
 };
 
+export type UnityAssetGroup = 'source' | 'generated' | 'views' | 'atlases' | 'materials' | 'models';
+
+export type UnityProjectRef = {
+  path: string;
+  name: string;
+  source?: string;
+  running?: boolean;
+  pid?: number;
+};
+
+export type UnityStatus = {
+  ready: boolean;
+  target: UnityProjectRef | null;
+  running: UnityProjectRef[];
+  recents: UnityProjectRef[];
+};
+
+export type UnitySendItem = {
+  url?: string;
+  modelKey?: string;
+  group: UnityAssetGroup;
+  title?: string;
+  fileName?: string;
+  viewKey?: ViewKey;
+  mapKey?: MaterialMapKey;
+};
+
+export type UnitySendResult = {
+  ok: boolean;
+  projectPath: string;
+  projectName: string;
+  unityFolder: string;
+  copied: string[];
+  gltFastAdded: boolean;
+  launched: boolean;
+  focused: boolean;
+  message: string;
+};
+
 export type GenerationJob = {
   id: string;
   projectId: string;
@@ -539,18 +608,20 @@ export type GenerationJob = {
   sourceUrls?: string[];
   outputUrl?: string | null;
   error?: string | null;
+  graphNodeId?: string | null;
   viewKey?: ViewKey | null;
   batchId?: string | null;
   batchKind?: string | null;
   slotKey?: string | null;
   slotIndex?: number | null;
   outputAssetId?: string | null;
+  transparentBackground?: boolean | null;
   queuePosition?: number | null;
   createdAt?: string;
   updatedAt?: string;
 };
 
-export type FrameforgeProject = {
+export type ConseptProject = {
   schemaVersion: 1;
   id: string;
   name: string;
@@ -562,7 +633,7 @@ export type FrameforgeProject = {
   updatedAt?: string;
 };
 
-export type ProjectSummary = Pick<FrameforgeProject, 'id' | 'name' | 'revision' | 'createdAt' | 'updatedAt'> & {
+export type ProjectSummary = Pick<ConseptProject, 'id' | 'name' | 'revision' | 'createdAt' | 'updatedAt'> & {
   nodeCount: number;
 };
 

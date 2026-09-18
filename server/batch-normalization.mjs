@@ -16,8 +16,8 @@ export function normalizeBatchRequest(body = {}) {
 
   if (Array.isArray(body.views)) {
     return {
-      sourceUrl,
-      sourceUrls: sourceUrl ? [sourceUrl] : sourceUrls.slice(0, 1),
+      sourceUrl: sourceUrls[0] || sourceUrl,
+      sourceUrls: sourceUrls.length ? sourceUrls : (sourceUrl ? [sourceUrl] : []),
       provider,
       concurrency,
       batchKind: 'character-views',

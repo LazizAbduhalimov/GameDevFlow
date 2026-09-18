@@ -6,7 +6,7 @@ import path from 'node:path';
 import { resolveCodexCommand } from '../../server/codex-command.mjs';
 
 test('resolveCodexCommand prefers CODEX_CLI_PATH when the file exists', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'frameforge-codex-'));
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'consept-codex-'));
   const executable = path.join(directory, process.platform === 'win32' ? 'codex.exe' : 'codex');
   await writeFile(executable, '');
   const previous = process.env.CODEX_CLI_PATH;

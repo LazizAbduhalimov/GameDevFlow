@@ -14,3 +14,28 @@ export function detectRasterImage(buffer) {
   }
   return null;
 }
+
+// Checks the PNG container only. It deliberately does not try to infer a
+// silhouette from pixels: this is a native-transparency gate, not background
+// removal.
+export function hasPngTransparency(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 33 || !buffer.subarray(0, 8).equals(PNG)) return false;
+  const colorType = buffer[25];
+  if (colorType === 4 || colorType === 6) return true;
+  let offset = 8;
+  while (offset + 12 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const typeStart = offset + 4;
+    const dataStart = offset + 8;
+    const next = dataStart + length + 4;
+    if (next > buffer.length) return false;
+    const type = buffer.toString('ascii', typeStart, typeStart + 4);
+    if (type === 'tRNS') {
+      if (colorType !== 3) return true;
+      return buffer.subarray(dataStart, dataStart + length).some((alpha) => alpha < 255);
+    }
+    if (type === 'IEND') return false;
+    offset = next;
+  }
+  return false;
+}

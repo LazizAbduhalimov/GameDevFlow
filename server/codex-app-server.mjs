@@ -45,7 +45,7 @@ export class CodexAppServer extends EventEmitter {
       });
 
       this.request('initialize', {
-        clientInfo: { name: 'frameforge-local', title: 'Frameforge Local Image Lab', version: '0.1.0' },
+        clientInfo: { name: 'consept-local', title: 'Consept Local Image Lab', version: '0.1.0' },
         capabilities: {
           experimentalApi: true,
           requestAttestation: false,
@@ -76,7 +76,7 @@ export class CodexAppServer extends EventEmitter {
     this.#child = null;
   }
 
-  async generate({ cwd, sourcePath, sourcePaths, outputPath, prompt, onProgress }) {
+  async generate({ cwd, sourcePath, sourcePaths, outputPath, prompt, onProgress, requireTransparentBackground = false }) {
     await this.start(cwd);
     onProgress('Opening an ImageGen session');
     const references = (Array.isArray(sourcePaths) ? sourcePaths : [sourcePath]).filter(Boolean);
@@ -88,8 +88,11 @@ export class CodexAppServer extends EventEmitter {
       approvalPolicy: 'never',
       sandbox: 'workspace-write',
       ephemeral: true,
-      serviceName: 'Frameforge',
-      baseInstructions: 'You are the image generation engine for a local node-based art tool. Use image generation whenever the user requests a visual result. Do not write application code.',
+      serviceName: 'Consept',
+      baseInstructions: [
+        'You are the image generation engine for a local node-based art tool. Use image generation whenever the user requests a visual result. Do not write application code.',
+        requireTransparentBackground ? 'This request requires a native transparent background. Invoke image generation with its transparent-background option enabled; do not render or imitate a checkerboard. The returned PNG must have real alpha outside the asset.' : '',
+      ].filter(Boolean).join(' '),
     });
     const threadId = threadResponse.thread.id;
 
@@ -117,6 +120,7 @@ export class CodexAppServer extends EventEmitter {
           try {
             const item = message.params.item;
             if (item.failure) throw new Error(item.failure.type === 'usageLimitExceeded' ? 'Image generation usage limit exceeded.' : 'Image generation failed.');
+            if (requireTransparentBackground && item.transparentBackground !== true) throw new Error('ImageGen returned an opaque background instead of native alpha transparency. No sprite was saved; retry the generation.');
             if (item.savedPath && existsSync(item.savedPath)) {
               await copyFile(item.savedPath, outputPath);
             } else if (item.result) {
@@ -135,7 +139,7 @@ export class CodexAppServer extends EventEmitter {
         }
 
         if (message.method === 'turn/completed') {
-          if (imageReceived || existsSync(outputPath)) finish(resolve, outputPath);
+          if (imageReceived || existsSync(outputPath)) finish(resolve, { outputPath, transparentBackground: requireTransparentBackground ? true : null });
           else finish(reject, new Error('Codex finished without an image result. Image generation may be unavailable for this account or model.'));
         }
       };
@@ -175,7 +179,7 @@ export class CodexAppServer extends EventEmitter {
       approvalPolicy: 'never',
       sandbox: 'read-only',
       ephemeral: true,
-      serviceName: 'Frameforge Prompt Enhance',
+      serviceName: 'Consept Prompt Enhance',
       baseInstructions: [
         'You are a prompt editor inside a local image-generation tool.',
         'Rewrite the user draft into one precise, production-ready image-generation prompt.',
@@ -227,6 +231,32 @@ export class CodexAppServer extends EventEmitter {
     });
   }
 
+  async analyzeCharacterProps({ cwd, imagePaths = [], userHint = '', outputSchema }) {
+    const paths = Array.isArray(imagePaths) ? imagePaths.filter(Boolean) : [];
+    const viewHint = paths.length === 4
+      ? 'These four images are front, back, left and right views of the same character. Propose one unified list of extractable parts, not a duplicate list per view.'
+      : 'Inspect this character image and propose extractable parts and wearable props.';
+    const prompt = [
+      'Identify distinct character parts and wearable props that can be isolated as standalone 4-view assets.',
+      viewHint,
+      'Prefer concrete visible items: head, hair, armor plates, belts, gloves, boots, weapons, pouches, or unique accessories.',
+      'Use short human-readable names. Do not merge left and right copies unless they are clearly one object. Ignore the studio background.',
+      userHint ? `User guidance: ${userHint}` : '',
+    ].filter(Boolean).join('\n');
+    return this.#runStructuredTurn({
+      cwd,
+      serviceName: 'Consept Props Extraction',
+      baseInstructions: 'You detect extractable character parts and props. Return only data matching the supplied JSON schema. Do not edit files or generate images.',
+      input: [
+        { type: 'text', text: prompt },
+        ...paths.map((imagePath) => ({ type: 'localImage', path: imagePath, detail: 'original' })),
+      ],
+      outputSchema,
+      timeoutMs: 180_000,
+      emptyMessage: 'Codex finished without character part data.',
+    });
+  }
+
   async analyzeUiSheet({ cwd, imagePath, sourceIndex = 0, userHint = '', outputSchema }) {
     const prompt = [
       `Inspect source image ${sourceIndex + 1} as a UI sheet, reference board, sprite sheet, or collection of game-art elements.`,
@@ -237,7 +267,7 @@ export class CodexAppServer extends EventEmitter {
     ].filter(Boolean).join('\n');
     return this.#runStructuredTurn({
       cwd,
-      serviceName: 'Frameforge Smart Separation',
+      serviceName: 'Consept Smart Separation',
       baseInstructions: 'You are a visual UI asset detector. Return only data matching the supplied JSON schema. Do not edit files or generate images.',
       input: [{ type: 'text', text: prompt }, { type: 'localImage', path: imagePath, detail: 'original' }],
       outputSchema,
@@ -256,7 +286,7 @@ export class CodexAppServer extends EventEmitter {
     ].filter(Boolean).join('\n\n');
     return this.#runStructuredTurn({
       cwd,
-      serviceName: 'Frameforge Smart Grouping',
+      serviceName: 'Consept Smart Grouping',
       baseInstructions: 'You organize detected game-art and UI elements. Return only data matching the supplied JSON schema.',
       input: [{ type: 'text', text: prompt }],
       outputSchema,
@@ -337,7 +367,7 @@ export class CodexAppServer extends EventEmitter {
           continue;
         }
         if (Object.prototype.hasOwnProperty.call(message, 'id') && message.method) {
-          this.#write({ id: message.id, error: { code: -32601, message: `Frameforge cannot handle server request ${message.method}` } });
+          this.#write({ id: message.id, error: { code: -32601, message: `Consept cannot handle server request ${message.method}` } });
           continue;
         }
         if (message.method) this.emit('notification', message);

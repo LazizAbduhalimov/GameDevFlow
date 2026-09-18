@@ -2,19 +2,27 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReactFlow, useViewport } from '@xyflow/react';
 import {
   AlignHorizontalSpaceAround,
-  ArrowLeft, Check, ChevronDown, CircleDot, CloudOff, Download, Expand,
+  ArrowLeft, Check, ChevronDown, CircleDot, CloudOff, Component, Download, Expand,
   GalleryHorizontalEnd, Grid2X2, Hand, Import, Keyboard, Layers3, ListTodo,
   LoaderCircle, Map, MoreHorizontal, MousePointer2, Palette, Plus, Redo2,
   Save, Sparkles, Trash2, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import type { CodexStatus, ProjectSaveState } from '../types';
+import type { CodexStatus, ProjectSaveState, UnityStatus } from '../types';
 import { canvasDuration } from '../workspace-display';
+import { homePath, shouldHandleAppLink } from '../app-route';
 import '../shell.css';
 
-function ToolButton({ label, active, children, ...props }: {
-  label: string; active?: boolean; children: ReactNode;
+function ToolButton({ label, active, href, children, onClick, disabled, ...props }: {
+  label: string; active?: boolean; href?: string; children: ReactNode;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className={`shell-tool ${active ? 'is-active' : ''}`} title={label} aria-label={label} aria-pressed={active} {...props}>{children}</button>;
+  const className = `shell-tool ${active ? 'is-active' : ''}`;
+  if (href) {
+    return <a href={href} className={className} title={label} aria-label={label} aria-disabled={disabled || undefined} onClick={(event) => {
+      if (disabled || !shouldHandleAppLink(event)) return;
+      onClick?.(event as unknown as React.MouseEvent<HTMLButtonElement>);
+    }}>{children}</a>;
+  }
+  return <button type="button" className={className} title={label} aria-label={label} aria-pressed={active} disabled={disabled} onClick={onClick} {...props}>{children}</button>;
 }
 
 function useDismiss(open: boolean, close: () => void, ref: React.RefObject<HTMLDivElement | null>) {
@@ -32,26 +40,40 @@ type WorkspaceChromeProps = {
   projectName: string; saveState: ProjectSaveState; busy: boolean;
   activePanel: 'gallery' | 'jobs' | 'appearance' | null; activeJobs: number;
   codex: CodexStatus; authBusy: boolean; providerDetail?: string;
+  unity: UnityStatus; unityBusy: boolean;
   onHome: () => void; onPanel: (panel: 'gallery' | 'jobs' | 'appearance') => void;
   onRename: (name: string) => void; onSave: () => void; onImport: () => void;
   onExport: () => void; onClear: () => void; onConnect: () => void;
+  onUnityTarget: (projectPath: string) => void;
 };
 
 export function WorkspaceChrome(props: WorkspaceChromeProps) {
   const [projectOpen, setProjectOpen] = useState(false);
   const [providerOpen, setProviderOpen] = useState(false);
+  const [unityOpen, setUnityOpen] = useState(false);
   const projectRef = useRef<HTMLDivElement>(null);
   const providerRef = useRef<HTMLDivElement>(null);
+  const unityRef = useRef<HTMLDivElement>(null);
   useDismiss(projectOpen, () => setProjectOpen(false), projectRef);
   useDismiss(providerOpen, () => setProviderOpen(false), providerRef);
+  useDismiss(unityOpen, () => setUnityOpen(false), unityRef);
   const run = (action: () => void) => { action(); setProjectOpen(false); };
   const saveLabels: Record<ProjectSaveState, string> = {
     loading: 'Loading project', saving: 'Saving changes', saved: 'All changes saved',
     offline: 'Offline · backup kept in this browser', conflict: 'Save conflict · backup kept in this browser',
   };
+  const unityProjects = [
+    ...props.unity.running,
+    ...props.unity.recents.filter((project) => !props.unity.running.some((item) => item.path === project.path)),
+  ];
+  const unityLabel = props.unity.target?.name || 'No project';
   return <>
     <nav className="workspace-rail" aria-label="Workspace navigation">
-      <ToolButton label="Back to projects" onClick={props.onHome} disabled={props.busy}><ArrowLeft size={20} /></ToolButton>
+      <ToolButton label="Back to projects" href={homePath()} onClick={(event) => {
+        if (!shouldHandleAppLink(event)) return;
+        event.preventDefault();
+        props.onHome();
+      }}><ArrowLeft size={20} /></ToolButton>
       <span className="rail-rule" />
       <ToolButton label="Open gallery" active={props.activePanel === 'gallery'} onClick={() => props.onPanel('gallery')}><GalleryHorizontalEnd size={19} /></ToolButton>
       <ToolButton label="Open generation queue" active={props.activePanel === 'jobs'} onClick={() => props.onPanel('jobs')}><ListTodo size={19} />{props.activeJobs > 0 && <span className="rail-count">{props.activeJobs}</span>}</ToolButton>
@@ -60,7 +82,7 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
     </nav>
     <div className="workspace-hud">
       <div className="hud-project" ref={projectRef}>
-        <button type="button" className="hud-project-trigger" onClick={() => { setProjectOpen(!projectOpen); setProviderOpen(false); }} aria-expanded={projectOpen} aria-label="Project menu">
+        <button type="button" className="hud-project-trigger" onClick={() => { setProjectOpen(!projectOpen); setProviderOpen(false); setUnityOpen(false); }} aria-expanded={projectOpen} aria-label="Project menu">
           <strong>{props.projectName}</strong>
           <span className={`hud-save ${props.saveState}`} title={saveLabels[props.saveState]} aria-label={saveLabels[props.saveState]}>{props.saveState === 'saving' || props.saveState === 'loading' ? <LoaderCircle size={13} className="spin" /> : props.saveState === 'saved' ? <Check size={13} /> : <CloudOff size={14} />}</span>
           <ChevronDown size={13} />
@@ -74,8 +96,29 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
           <button className="danger" onClick={() => run(props.onClear)}><Trash2 size={16} />Clear canvas</button>
         </div>}
       </div>
+      <div className="hud-tools">
+      <div className="hud-unity" ref={unityRef}>
+        <button type="button" className="hud-provider-trigger" onClick={() => { setUnityOpen(!unityOpen); setProviderOpen(false); setProjectOpen(false); }} aria-expanded={unityOpen} aria-label="Unity project target">
+          <Component size={14} className={props.unity.ready ? 'is-ready' : ''} /><span>Unity</span><small>{unityLabel}</small><ChevronDown size={12} />
+        </button>
+        {unityOpen && <div className="shell-menu connection-settings unity-settings" role="dialog" aria-label="Unity project">
+          <div className="connection-title"><Component size={18} /><strong>Unity Editor</strong></div>
+          <p>{props.unity.ready ? `Sends images and models into Assets/${props.projectName || 'Consept'}.` : 'Open a Unity project, or pick one from Hub recents.'}</p>
+          {unityProjects.length === 0 && <p className="menu-note">No running Editor or Hub recents were found on this computer.</p>}
+          {unityProjects.map((project) => (
+            <button key={project.path} type="button" disabled={props.unityBusy} onClick={() => { props.onUnityTarget(project.path); setUnityOpen(false); }}>
+              <CircleDot size={16} className={project.running ? 'is-ready' : ''} />
+              <span>
+                <strong>{project.name}</strong>
+                <small>{project.running ? 'Open in Editor' : 'Hub recent'}</small>
+              </span>
+              {props.unity.target?.path === project.path && <Check size={15} />}
+            </button>
+          ))}
+        </div>}
+      </div>
       <div className="hud-provider" ref={providerRef}>
-        <button type="button" className="hud-provider-trigger" onClick={() => { setProviderOpen(!providerOpen); setProjectOpen(false); }} aria-expanded={providerOpen} aria-label="Codex connection settings">
+        <button type="button" className="hud-provider-trigger" onClick={() => { setProviderOpen(!providerOpen); setUnityOpen(false); setProjectOpen(false); }} aria-expanded={providerOpen} aria-label="Codex connection settings">
           <CircleDot size={14} className={props.codex.connected ? 'is-ready' : ''} /><span>Codex</span><small>{props.codex.connected ? 'Ready' : 'Offline'}</small><ChevronDown size={12} />
         </button>
         {providerOpen && <div className="shell-menu connection-settings" role="dialog" aria-label="Codex connection">
@@ -83,6 +126,7 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
           <p>{props.providerDetail || props.codex.label}</p>
           <button className="shell-primary" disabled={props.authBusy} onClick={props.onConnect}>{props.authBusy ? <LoaderCircle className="spin" size={16} /> : <CircleDot size={16} />}{props.codex.connected ? 'Refresh connection' : 'Connect ChatGPT'}</button>
         </div>}
+      </div>
       </div>
     </div>
   </>;

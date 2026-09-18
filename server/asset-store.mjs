@@ -88,7 +88,7 @@ export class AssetStore {
     return publicAsset(asset);
   }
 
-  async createGeneratedFromFile({ temporaryPath, name, prompt, sourceAssetId, sourceAssetIds, provider, jobId, projectId = 'default' }) {
+  async createGeneratedFromFile({ temporaryPath, name, prompt, sourceAssetId, sourceAssetIds, provider, jobId, projectId = 'default', graphNodeId, slotKey, view }) {
     const buffer = await readFile(temporaryPath);
     const image = detectRasterImage(buffer);
     if (!image) throw new Error('The provider returned an unsupported or invalid raster image.');
@@ -102,6 +102,9 @@ export class AssetStore {
       provider,
       jobId,
       parentAssetIds: Array.isArray(sourceAssetIds) ? [...new Set(sourceAssetIds.filter(Boolean))] : sourceAssetId ? [sourceAssetId] : [],
+      ...(graphNodeId ? { graphNodeId } : {}),
+      ...(slotKey ? { slotKey } : {}),
+      ...(view ? { view } : {}),
     }, sha256: hash(buffer), projectId: cleanProjId, projectIds: [cleanProjId] });
     await this.#enqueue(async () => {
       await rename(temporaryPath, this.filePath(asset));
@@ -147,7 +150,7 @@ export class AssetStore {
   async trashByUrl(url) {
     const resolved = await this.resolveDataUrl(url);
     if (!resolved?.asset) {
-      const error = new Error('Only tracked Frameforge assets can be moved to trash.');
+      const error = new Error('Only tracked Consept assets can be moved to trash.');
       error.code = 'ASSET_NOT_FOUND';
       throw error;
     }

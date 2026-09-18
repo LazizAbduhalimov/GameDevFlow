@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { Edge, Node } from '@xyflow/react';
 import {
   applySmartSeparationLayout,
+  CHARACTER_PARTS_SIZE,
   downloadFileName,
   IMAGE_CARD_SIZE,
   layoutGroupedColumns,
+  layoutPropViewStack,
+  nextPropViewPosition,
+  PROP_VIEW_GAP,
+  PROP_VIEW_PARENT_GAP,
+  PROP_VIEW_SIZE,
   SMART_SEPARATION_SIZE,
   unpackSmartSeparationCards,
 } from '../../src/graph-layout';
@@ -58,6 +64,19 @@ describe('grouped card layout', () => {
     expect(layout[2].position.x - layout[0].position.x).toBe(IMAGE_CARD_SIZE.width + 36);
   });
 
+  it('stacks cards by measured height instead of a fixed slot', () => {
+    const layout = layoutGroupedColumns({
+      origin: { x: 100, y: 200 },
+      groups: [{ id: 'frames' }],
+      cards: [
+        { id: 'a', groupId: 'frames', height: 420 },
+        { id: 'b', groupId: 'frames', height: 180 },
+      ],
+    });
+    expect(layout[0].position.y).toBe(200);
+    expect(layout[1].position.y - layout[0].position.y).toBe(420 + 32);
+  });
+
   it('wraps a long group into extra columns instead of one tall stack', () => {
     const layout = layoutGroupedColumns({
       origin: { x: 0, y: 0 },
@@ -89,7 +108,7 @@ describe('smart separation unpack layout', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0].position.x).toBeLessThan(cards[1].position.x);
     expect(result.edges.map((edge) => edge.sourceHandle)).toEqual(['group:frames', 'group:ranks']);
-    expect(result.edges.every((edge) => edge.type === 'smoothstep')).toBe(true);
+    expect(result.edges.every((edge) => edge.type === 'default')).toBe(true);
   });
 
   it('rearranges already unpacked cards instead of duplicating them', () => {
@@ -128,6 +147,50 @@ describe('smart separation unpack layout', () => {
       { target: 'image-b', handle: 'group:ranks' },
     ]);
     expect(result.nodes.find((node) => node.id === 'image-a')?.position.x).toBeLessThan(result.nodes.find((node) => node.id === 'image-b')?.position.x || 0);
+  });
+
+  it('stacks already unpacked cards using each node measured height', () => {
+    const groups = [{ id: 'frames', name: 'Frames' }];
+    const items = [item('item-a', 'Blue frame', 'frames'), item('item-b', 'Red frame', 'frames')];
+    const parent = parentNode(groups, items);
+    const cards: Node[] = [
+      {
+        id: 'image-a',
+        type: 'image',
+        position: { x: 800, y: 0 },
+        measured: { width: 304, height: 400 },
+        data: { title: 'Blue frame', imageUrl: '/data/generated/item-a', fileName: 'blue-frame.png' },
+      },
+      {
+        id: 'image-b',
+        type: 'image',
+        position: { x: 800, y: 270 },
+        measured: { width: 304, height: 180 },
+        data: { title: 'Red frame', imageUrl: '/data/generated/item-b', fileName: 'red-frame.png' },
+      },
+    ];
+    const edges: Edge[] = [
+      { id: 'edge-smart-1-item-a-image-a', source: 'smart-1', target: 'image-a' },
+      { id: 'edge-smart-1-item-b-image-b', source: 'smart-1', target: 'image-b' },
+    ];
+    const result = applySmartSeparationLayout(parent, [parent, ...cards], edges);
+    const first = result.nodes.find((node) => node.id === 'image-a');
+    const second = result.nodes.find((node) => node.id === 'image-b');
+    expect(first?.position.y).toBe(200);
+    expect((second?.position.y || 0) - (first?.position.y || 0)).toBe(400 + 32);
+  });
+});
+
+describe('prop view layout', () => {
+  it('stacks spawned views to the right of Character Parts', () => {
+    const layout = layoutPropViewStack({ x: 100, y: 80 }, 2);
+    expect(layout[0]).toEqual({ x: 100 + CHARACTER_PARTS_SIZE.width + PROP_VIEW_PARENT_GAP, y: 80 });
+    expect(layout[1].y - layout[0].y).toBe(PROP_VIEW_SIZE.height + PROP_VIEW_GAP);
+  });
+
+  it('continues below existing spawned views instead of overlapping', () => {
+    const next = nextPropViewPosition({ position: { x: 40, y: 20 } }, [{ position: { x: 500, y: 200 } }]);
+    expect(next).toEqual({ x: 500, y: 200 + PROP_VIEW_SIZE.height + PROP_VIEW_GAP });
   });
 });
 

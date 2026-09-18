@@ -6,16 +6,17 @@
 .editor-canvas { position: absolute; inset: 0 0 0 52px; background: var(--background); }
 .editor-canvas .react-flow { background: var(--background); }
 .workspace-rail { position: absolute; z-index: var(--z-rail); inset: 0 auto 0 0; width: 52px; display: flex; align-items: center; flex-direction: column; gap: 9px; padding: 15px 5px; border-right: 1px solid var(--border); background: var(--surface); }
-.shell-tool { position: relative; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
+.shell-tool { position: relative; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; text-decoration: none; transition: background .15s, color .15s; }
 .shell-tool:hover { color: var(--text); background: var(--surface-hover); }
 .shell-tool.is-active { color: var(--accent-ink); background: var(--accent-soft); }
-.shell-tool:disabled { opacity: .35; cursor: default; }
+.shell-tool:disabled, .shell-tool[aria-disabled="true"] { opacity: .35; cursor: default; }
 .shell-tool:focus-visible, .canvas-dock button:focus-visible, .shell-menu button:focus-visible, .hud-project-trigger:focus-visible, .hud-provider-trigger:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .rail-rule { width: 23px; height: 1px; background: var(--border); margin: 6px 0; }
 .rail-spacer { flex: 1; }
 .rail-count { position: absolute; right: -2px; top: 0; min-width: 16px; height: 16px; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accent-text); font-size: 9px; font-weight: 700; }
 .workspace-hud { position: absolute; z-index: var(--z-hud); top: 18px; left: 72px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; pointer-events: none; }
 .workspace-hud > div { pointer-events: auto; position: relative; min-width: 0; }
+.hud-tools { display: flex; align-items: flex-start; gap: 8px; }
 .hud-project-trigger, .hud-provider-trigger { height: 44px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 14px; padding: 0 14px; background: var(--surface); color: var(--text); cursor: pointer; box-shadow: 0 3px 12px #0000000a; }
 .hud-project-trigger { max-width: min(450px, 50vw); }
 .hud-project-trigger strong { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -40,6 +41,10 @@
 .connection-title { display: flex; align-items: center; gap: 9px; font-size: 13px; }
 .connection-title svg { color: var(--accent-ink); }
 .connection-settings p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 10px 0 16px; }
+.unity-settings { width: 320px; }
+.unity-settings button span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.unity-settings button small { color: var(--muted); font-size: 10px; }
+.unity-settings button > svg:last-child:not(:first-child) { margin-left: auto; color: var(--accent-ink); }
 .shell-menu .shell-primary { background: var(--accent); color: var(--accent-text); justify-content: center; font-weight: 600; }
 .shell-menu .shell-primary svg { color: inherit; }
 .shell-menu .shell-primary:disabled { opacity: .6; cursor: wait; }

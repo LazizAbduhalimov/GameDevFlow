@@ -12,7 +12,8 @@ export interface ThemePreset extends ThemePreferences {
   name: string;
 }
 
-export const THEME_STORAGE_KEY = 'frameforge-appearance';
+export const THEME_STORAGE_KEY = 'consept-appearance';
+const LEGACY_THEME_STORAGE_KEY = 'frameforge-appearance';
 export const THEME_PRESETS: readonly ThemePreset[] = [
   { preset: 'blue', name: 'Soft blue', accent: '#A6D9F5', background: '#111111', surface: '#1B1B1D' },
   { preset: 'orange', name: 'Orange', accent: '#FF6B18', background: '#111111', surface: '#1B1B1D' },
@@ -52,7 +53,9 @@ export function parseThemePreferences(serialized: string | null): ThemePreferenc
 
 export function readThemePreferences(): ThemePreferences {
   try {
-    return parseThemePreferences(window.localStorage.getItem(THEME_STORAGE_KEY));
+    return parseThemePreferences(
+      window.localStorage.getItem(THEME_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY),
+    );
   } catch {
     return presetPreferences();
   }

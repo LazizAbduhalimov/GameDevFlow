@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Edge, Node, Viewport } from '@xyflow/react';
-import type { FrameforgeProject } from './types';
+import type { ConseptProject } from './types';
 
 export type GraphSnapshot = { nodes: Node[]; edges: Edge[] };
 
@@ -34,7 +34,7 @@ export function projectPayload(
   nodes: Node[],
   edges: Edge[],
   viewport: Viewport,
-): Omit<FrameforgeProject, 'updatedAt' | 'createdAt'> {
+): Omit<ConseptProject, 'updatedAt' | 'createdAt'> {
   return {
     schemaVersion: 1,
     id,
@@ -46,19 +46,19 @@ export function projectPayload(
   };
 }
 
-export function exportProject(project: FrameforgeProject) {
+export function exportProject(project: ConseptProject) {
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `${slug(project.name || 'frameforge-project')}.frameforge.json`;
+  link.download = `${slug(project.name || 'consept-project')}.consept.json`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(link.href), 1_000);
 }
 
-export async function importProject(file: File): Promise<FrameforgeProject> {
-  const parsed = JSON.parse(await file.text()) as FrameforgeProject;
+export async function importProject(file: File): Promise<ConseptProject> {
+  const parsed = JSON.parse(await file.text()) as ConseptProject;
   if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-    throw new Error('This is not a supported Frameforge project file.');
+    throw new Error('This is not a supported Consept project file.');
   }
   return parsed;
 }
@@ -130,5 +130,5 @@ function stripFunctions(value: unknown): unknown {
 }
 
 function slug(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'frameforge-project';
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'consept-project';
 }

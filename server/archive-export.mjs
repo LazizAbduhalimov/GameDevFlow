@@ -32,8 +32,8 @@ export async function resolveExportAssets(assetStore, payload = {}) {
   return [...assets.values()];
 }
 
-export async function streamAssetArchive({ response, assetStore, assets, name = 'frameforge-assets', descriptor = undefined }) {
-  const archiveName = `${slugify(name, 'frameforge-assets')}.zip`;
+export async function streamAssetArchive({ response, assetStore, assets, name = 'consept-assets', descriptor = undefined }) {
+  const archiveName = `${slugify(name, 'consept-assets')}.zip`;
   response.status(200);
   response.setHeader('Content-Type', 'application/zip');
   response.setHeader('Content-Disposition', `attachment; filename="${archiveName}"`);

@@ -13,9 +13,9 @@ describe('themed graph presentation', () => {
     expect(themed[0]).not.toBe(edges[0]);
   });
 
-  it('keeps explicit edge geometry such as smoothstep', () => {
+  it('renders saved smoothstep links as flexible bezier edges', () => {
     const edges: Edge[] = [{ id: 'link', source: 'smart', target: 'card', type: 'smoothstep' }];
-    expect(themeEdges(edges, '#29719b')[0].type).toBe('smoothstep');
+    expect(themeEdges(edges, '#29719b')[0].type).toBe('default');
   });
 });
 

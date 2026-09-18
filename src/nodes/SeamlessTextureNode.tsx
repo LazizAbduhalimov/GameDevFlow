@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { AlertTriangle, Check, Download, Expand, Grid3X3, LoaderCircle, Play, Plus, RefreshCw, Square, Trash2 } from 'lucide-react';
+import { InspectablePreview } from '../components/InspectablePreview';
 import { PromptEnhanceButton } from '../components/PromptEnhanceButton';
 import type { SeamlessTextureNodeData } from '../types';
 
@@ -18,10 +19,15 @@ export default function SeamlessTextureNode({ id, data, selected }: NodeProps) {
 
       {nodeData.outputUrl ? (
         <div className="seamless-preview">
-          <button type="button" className="seamless-preview-main nodrag" onClick={() => nodeData.onOpen?.(nodeData.outputUrl!, nodeData.title, nodeData.sourceUrl)} aria-label="Inspect seamless texture">
+          <InspectablePreview
+            className="seamless-preview-main"
+            ariaLabel="Inspect seamless texture"
+            title="Drag to move, click to inspect"
+            onInspect={() => nodeData.onOpen?.(nodeData.outputUrl!, nodeData.title, nodeData.sourceUrl)}
+          >
             <img src={nodeData.outputUrl} alt="Seamless texture" draggable={false} />
             <Expand size={13} />
-          </button>
+          </InspectablePreview>
           <div className="tile-repeat-preview" style={{ backgroundImage: `url(${nodeData.outputUrl})` }} title="3 by 3 repeat preview" />
           <span className="seam-score"><Check size={10} /> Edge match {nodeData.seamScore ?? 100}%</span>
         </div>

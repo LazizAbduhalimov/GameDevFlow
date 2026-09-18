@@ -44,8 +44,27 @@ export function imageExtension(value, fallback = '.png') {
 
 export function safeDownloadName(value, extension = '.png') {
   const ext = imageExtension(extension, '.png');
-  const cleaned = String(value || 'frameforge-image').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 180) || 'frameforge-image';
+  const cleaned = String(value || 'consept-image').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 180) || 'consept-image';
   const currentExt = path.extname(cleaned);
   const base = IMAGE_EXTENSION.test(currentExt) ? cleaned.slice(0, -currentExt.length) : cleaned.replace(/\.+$/, '');
-  return `${base || 'frameforge-image'}${ext}`;
+  return `${base || 'consept-image'}${ext}`;
+}
+
+export function unityFolderName(value, fallback = 'Consept') {
+  const cleaned = String(value || '')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[. ]+$/g, '')
+    .trim()
+    .slice(0, 80);
+  return cleaned || fallback;
+}
+
+export function safeUnityFileName(value, extension = '.png') {
+  const rawExt = String(extension || '').toLowerCase();
+  const ext = rawExt.startsWith('.') ? rawExt : `.${rawExt || 'png'}`;
+  const source = path.basename(String(value || 'asset'));
+  const currentExt = path.extname(source);
+  const stem = currentExt ? source.slice(0, -currentExt.length) : source;
+  return `${unityFolderName(stem, 'asset')}${ext}`;
 }
