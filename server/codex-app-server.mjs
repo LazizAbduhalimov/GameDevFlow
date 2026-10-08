@@ -23,8 +23,7 @@ export class CodexAppServer extends EventEmitter {
       const child = spawn(codexCommand, [
         'app-server',
         '--stdio',
-        '-c',
-        'mcp_servers.unityMCP.enabled=false',
+        ...(process.platform === 'win32' ? ['-c', 'mcp_servers.unityMCP.enabled=false'] : []),
       ], {
         cwd,
         shell: false,
