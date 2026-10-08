@@ -13,6 +13,44 @@ npm run dev
 
 Open `http://127.0.0.1:8080`.
 
+## Shared LAN server
+
+After `npm run build`, `npm start` serves the frontend and API on the same port.
+`CONSEPT_HOST` defaults to `127.0.0.1`; set the server's LAN address to allow
+other devices on the same network to connect. Direct `/project/<id>` links work.
+This is a shared workspace for trusted LAN users; all users share the same
+projects, assets, queue, and server-side Codex account. Do not forward this port
+to the public Internet. Unity and Tripo desktop actions still require their
+desktop environments and do not connect to a visitor's computer.
+
+Deployment on Shokhjahon's server:
+
+- Checkout: `/home/shokhjahon/consept`, repository `LazizAbduhalimov/GameDevFlow`,
+  branch `cursor/smart-separation-layout-downloads` (HTTPS clone).
+- Node.js 22 runtime: `~/.local/share/consept-node`; the system Node is unchanged.
+- Runtime settings: `~/.config/consept/server.env` with
+  `CONSEPT_HOST=192.168.12.231`, `CONSEPT_PORT=8083`,
+  `CODEX_CLI_PATH=/usr/local/bin/codex`, and `CONSEPT_CODEX_WORKERS=4`.
+- Service: `deploy/user/consept.service`, installed into `~/.config/systemd/user/`.
+- Open `http://192.168.12.231:8083` from the same LAN.
+- The existing server Codex login is used; login credentials are never copied
+  from the development computer or committed to Git.
+- `data/` stays on the server and is preserved across Git updates. The initial
+  server workspace is separate from this computer's existing projects.
+
+Update over SSH after pushing changes to the deployment branch:
+
+```bash
+cd /home/shokhjahon/consept
+bash deploy/update.sh
+```
+
+The script refuses a dirty checkout, pulls with `--ff-only`, installs locked
+dependencies, runs tests, builds, restarts the service, and checks `/api/health`.
+User lingering must be enabled for autostart without an SSH session (already
+enabled on this server). Inspect with `systemctl --user status consept.service`
+or `journalctl --user -u consept.service`.
+
 ## MVP workflow
 
 1. Upload or drag a PNG, JPG, or WEBP image onto the canvas.

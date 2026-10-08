@@ -3,11 +3,11 @@ import { useReactFlow, useViewport } from '@xyflow/react';
 import {
   AlignHorizontalSpaceAround,
   ArrowLeft, Check, ChevronDown, CircleDot, CloudOff, Component, Download, Expand,
-  GalleryHorizontalEnd, Grid2X2, Hand, Import, Keyboard, Layers3, ListTodo,
+  GalleryHorizontalEnd, Grid2X2, Hand, ImagePlus, Import, Keyboard, Layers3, ListTodo,
   LoaderCircle, Map, MoreHorizontal, MousePointer2, Palette, Plus, Redo2,
   Save, Sparkles, Trash2, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import type { CodexStatus, ProjectSaveState, UnityStatus } from '../types';
+import type { CodexStatus, ProjectDesignReference, ProjectSaveState, UnityStatus } from '../types';
 import { canvasDuration } from '../workspace-display';
 import { homePath, shouldHandleAppLink } from '../app-route';
 import '../shell.css';
@@ -38,12 +38,14 @@ function useDismiss(open: boolean, close: () => void, ref: React.RefObject<HTMLD
 
 type WorkspaceChromeProps = {
   projectName: string; saveState: ProjectSaveState; busy: boolean;
+  designReference: ProjectDesignReference | null; designReferenceBusy: boolean;
   activePanel: 'gallery' | 'jobs' | 'appearance' | null; activeJobs: number;
   codex: CodexStatus; authBusy: boolean; providerDetail?: string;
   unity: UnityStatus; unityBusy: boolean;
   onHome: () => void; onPanel: (panel: 'gallery' | 'jobs' | 'appearance') => void;
   onRename: (name: string) => void; onSave: () => void; onImport: () => void;
   onExport: () => void; onClear: () => void; onConnect: () => void;
+  onDesignReferenceChange: (file: File) => void | Promise<void>; onDesignReferenceRemove: () => void | Promise<void>;
   onUnityTarget: (projectPath: string) => void;
 };
 
@@ -52,6 +54,7 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
   const [providerOpen, setProviderOpen] = useState(false);
   const [unityOpen, setUnityOpen] = useState(false);
   const projectRef = useRef<HTMLDivElement>(null);
+  const designReferenceInputRef = useRef<HTMLInputElement>(null);
   const providerRef = useRef<HTMLDivElement>(null);
   const unityRef = useRef<HTMLDivElement>(null);
   useDismiss(projectOpen, () => setProjectOpen(false), projectRef);
@@ -89,6 +92,26 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
         </button>
         {projectOpen && <div className="shell-menu project-actions" role="dialog" aria-label="Project actions">
           <label>Project name<input autoFocus value={props.projectName} maxLength={100} aria-label="Project name" onChange={(event) => props.onRename(event.target.value)} /></label>
+          <section className="project-design-reference" aria-label="Project design reference">
+            <div className="project-design-reference-copy">
+              <strong>Design reference</strong>
+              <span>Used automatically when a prompt contains <code>сохрани наш дизайн</code>.</span>
+            </div>
+            {props.designReference && <div className="project-design-reference-preview">
+              <img src={props.designReference.url} alt="Current project design reference" />
+              <span title={props.designReference.name}>{props.designReference.name}</span>
+            </div>}
+            <input ref={designReferenceInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void props.onDesignReferenceChange(file);
+              event.target.value = '';
+            }} />
+            <div className="project-design-reference-actions">
+              <button type="button" disabled={props.designReferenceBusy} onClick={() => designReferenceInputRef.current?.click()}>{props.designReferenceBusy ? <LoaderCircle className="spin" size={15} /> : <ImagePlus size={15} />}{props.designReference ? 'Replace' : 'Choose image'}</button>
+              {props.designReference && <button type="button" className="danger" disabled={props.designReferenceBusy} onClick={() => void props.onDesignReferenceRemove()}><X size={15} />Remove</button>}
+            </div>
+          </section>
+          <div className="shell-menu-rule" />
           <button onClick={() => run(props.onSave)}><Save size={16} />Save project<kbd>Ctrl S</kbd></button>
           <button onClick={() => run(props.onImport)}><Import size={16} />Import project</button>
           <button onClick={() => run(props.onExport)}><Download size={16} />Export project</button>

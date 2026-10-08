@@ -12,7 +12,9 @@ import { AssetStore } from './asset-store.mjs';
 import { resolveExportAssets, streamAssetArchive } from './archive-export.mjs';
 import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest } from './batch-normalization.mjs';
 import { parseDerivedAssetMetadata } from './derived-asset.mjs';
+import { preserveProjectDesignTrigger, promptUsesProjectDesign, withProjectDesignReference } from './design-reference.mjs';
 import { detectRasterImage, hasPngTransparency } from './image-validation.mjs';
+import { serveFrontend } from './frontend.mjs';
 import { JobQueue } from './job-queue.mjs';
 import { JobStore } from './job-store.mjs';
 import { safeDownloadName, slugify } from './path-safety.mjs';
@@ -24,6 +26,7 @@ import { parseModelKey, UnityBridge } from './unity-bridge.mjs';
 
 const app = express();
 const port = Number(process.env.CONSEPT_PORT || process.env.FRAMEFORGE_PORT || 4317);
+const host = process.env.CONSEPT_HOST || process.env.FRAMEFORGE_HOST || '127.0.0.1';
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(serverDir, '..');
 const dataDir = path.join(rootDir, 'data');
@@ -126,7 +129,7 @@ app.post('/api/prompts/enhance', async (request, response) => {
   if (!prompt) return response.status(400).json({ message: 'Write a draft prompt before enhancing it.' });
   try {
     const enhancedPrompt = await codexWorkerPool.run((worker) => worker.enhancePrompt({ cwd: rootDir, prompt, context }));
-    response.json({ prompt: enhancedPrompt });
+    response.json({ prompt: preserveProjectDesignTrigger(prompt, enhancedPrompt) });
   } catch (error) {
     console.error('Prompt enhancement failed:', error);
     response.status(502).json({ message: error instanceof Error ? error.message : 'Codex could not enhance the prompt.' });
@@ -604,7 +607,7 @@ app.post('/api/generate', async (request, response, next) => {
     const graphNodeId = typeof request.body?.graphNodeId === 'string' ? request.body.graphNodeId.trim().slice(0, 80) : '';
     const slotKey = typeof request.body?.slotKey === 'string' ? request.body.slotKey.trim().slice(0, 32) : '';
     const viewKey = typeof request.body?.view === 'string' ? request.body.view.trim().slice(0, 32) : '';
-    await projectStore.get(projectId);
+    const project = await projectStore.get(projectId);
     if (requestedUrls.length > MAX_REFERENCE_IMAGES) return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
     if (!prompt || !requestedUrls.length) return response.status(400).json({ message: 'At least one input image and a prompt are required.' });
     if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
@@ -614,7 +617,9 @@ app.post('/api/generate', async (request, response, next) => {
       if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, projectId)) return response.status(400).json({ message: 'Every input image must belong to the active local project.' });
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
-    const job = createJob({ prompt, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, outputName, projectId, graphNodeId: graphNodeId || null, slotKey: slotKey || null, viewKey: viewKey || null });
+    const projectDesignSource = promptUsesProjectDesign(prompt) ? resolveProjectDesignSource(project, projectId) : null;
+    const generationSources = withProjectDesignReference(sources, projectDesignSource, prompt, MAX_REFERENCE_IMAGES);
+    const job = createJob({ prompt, sourceUrls: generationSources.sources.map((source) => source.url), sourceAssetIds: generationSources.sources.map((source) => source.assetId).filter(Boolean), usesProjectDesignReference: generationSources.usesProjectDesignReference, provider, outputName, projectId, graphNodeId: graphNodeId || null, slotKey: slotKey || null, viewKey: viewKey || null });
     await jobStore.create(job);
     jobQueue.enqueue(job.id);
     response.status(202).json({ jobId: job.id });
@@ -626,7 +631,7 @@ app.post('/api/batches', async (request, response, next) => {
     const batch = normalizeBatchRequest(request.body);
     const { provider } = batch;
     const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
-    await projectStore.get(projectId);
+    const project = await projectStore.get(projectId);
     if (!batch.sourceUrls.length || !batch.slots.length) return response.status(400).json({ message: 'At least one source image and one batch slot are required.' });
     if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
     const sources = [];
@@ -635,11 +640,14 @@ app.post('/api/batches', async (request, response, next) => {
       if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, projectId)) return response.status(400).json({ message: 'Every input image must belong to the active local project.' });
       sources.push({ url: sourceUrl, assetId: source.asset?.id || null });
     }
+    const needsProjectDesign = batch.slots.some((slot) => promptUsesProjectDesign(slot.prompt));
+    const projectDesignSource = needsProjectDesign ? resolveProjectDesignSource(project, projectId) : null;
     const batchId = randomUUID();
     const graphNodeId = typeof request.body?.graphNodeId === 'string' ? request.body.graphNodeId.trim().slice(0, 80) : '';
     const jobs = [];
     for (const slot of batch.slots) {
-      jobs.push(createJob({ ...slot, sourceUrls: sources.map((source) => source.url), sourceAssetIds: sources.map((source) => source.assetId).filter(Boolean), provider, batchId, batchConcurrency: batch.concurrency, projectId, graphNodeId: graphNodeId || null }));
+      const generationSources = withProjectDesignReference(sources, projectDesignSource, slot.prompt, MAX_REFERENCE_IMAGES);
+      jobs.push(createJob({ ...slot, sourceUrls: generationSources.sources.map((source) => source.url), sourceAssetIds: generationSources.sources.map((source) => source.assetId).filter(Boolean), usesProjectDesignReference: generationSources.usesProjectDesignReference, provider, batchId, batchConcurrency: batch.concurrency, projectId, graphNodeId: graphNodeId || null }));
     }
     for (const job of jobs) await jobStore.create(job);
     for (const job of jobs) jobQueue.enqueue(job.id);
@@ -689,16 +697,20 @@ app.delete('/api/files', async (request, response, next) => {
   }
 });
 
+serveFrontend(app, path.join(rootDir, 'dist'));
+
 app.use((error, _request, response, _next) => {
   if (error?.code === 'LIMIT_FILE_SIZE') return response.status(413).json({ message: 'Image files must be 20 MB or smaller.' });
   if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
   if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
+  if (error?.code === 'PROJECT_DESIGN_REFERENCE_REQUIRED' || error?.code === 'PROJECT_DESIGN_REFERENCE_UNAVAILABLE') return response.status(409).json({ message: error.message });
+  if (error?.code === 'PROJECT_DESIGN_REFERENCE_LIMIT') return response.status(400).json({ message: error.message });
   console.error(error);
   response.status(500).json({ message: 'Unexpected local server error.' });
 });
 
-const httpServer = app.listen(port, '127.0.0.1', () => {
-  console.log(`Consept backend listening at http://127.0.0.1:${port}`);
+const httpServer = app.listen(port, host, () => {
+  console.log(`Consept listening at http://${host}:${port}`);
   void codexWorkerPool.warm(rootDir).then((results) => {
     const failed = results.filter((result) => result.status === 'rejected').length;
     if (failed) console.warn(`${failed} Codex worker${failed === 1 ? '' : 's'} could not be prewarmed and will retry on demand.`);
@@ -733,7 +745,10 @@ async function executeImageJob(job) {
   const preservationConstraint = job.batchKind === 'smart-separation'
     ? 'Preserve the requested target, not the source-sheet canvas. Use nearby sheet content only to understand the design language.'
     : 'Preserve the main subject identity, silhouette, material language, and palette unless the instruction explicitly changes them.';
-  const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
+  const projectDesignConstraint = job.usesProjectDesignReference
+    ? 'The final attached image is this project\'s design reference. Use it as the primary visual direction for style, shape language, palette, typography, spacing, and finish. Preserve that design approximately while following the requested content; do not copy unrelated subject matter or composition unless explicitly asked.'
+    : '';
+  const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, projectDesignConstraint, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
   const generation = await codexWorkerPool.run(async (worker, workerIndex) => {
     return worker.generate({
       cwd: rootDir,
@@ -744,20 +759,32 @@ async function executeImageJob(job) {
       onProgress: (progress) => { void jobStore.update(job.id, { progress: `Worker ${workerIndex + 1} · ${progress}` }); },
     });
   });
-  if (job.batchKind === 'smart-separation' && !hasPngTransparency(await readFile(temporaryPath))) {
-    await unlink(temporaryPath).catch(() => {});
-    throw new Error('ImageGen reported transparency, but the PNG has no native alpha channel. No sprite was saved; retry the generation.');
-  }
+  const transparentBackground = job.batchKind === 'smart-separation'
+    ? hasPngTransparency(await readFile(temporaryPath))
+    : generation.transparentBackground;
   const sourceAssetIds = Array.isArray(job.sourceAssetIds) && job.sourceAssetIds.length ? job.sourceAssetIds : [job.sourceAssetId].filter(Boolean);
   const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id, projectId: job.projectId || 'default', graphNodeId: job.graphNodeId, slotKey: job.slotKey, view: job.viewKey });
-  await jobStore.update(job.id, { status: 'completed', progress: 'Ready', outputUrl: asset.url, outputAssetId: asset.id, transparentBackground: generation.transparentBackground, error: null });
+  const progress = job.batchKind === 'smart-separation' && !transparentBackground ? 'Ready · opaque background kept' : 'Ready';
+  await jobStore.update(job.id, { status: 'completed', progress, outputUrl: asset.url, outputAssetId: asset.id, transparentBackground, error: null });
 }
 
-function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null, projectId = 'default', graphNodeId = null }) {
+function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetIds, usesProjectDesignReference = false, provider, outputName, batchId = null, batchConcurrency = 1, batchKind = null, slotKey = null, slotIndex = null, viewKey = null, projectId = 'default', graphNodeId = null }) {
   const id = randomUUID();
   const normalizedUrls = Array.isArray(sourceUrls) && sourceUrls.length ? sourceUrls : [sourceUrl].filter(Boolean);
   const normalizedAssetIds = Array.isArray(sourceAssetIds) && sourceAssetIds.length ? sourceAssetIds : [sourceAssetId].filter(Boolean);
-  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, graphNodeId: graphNodeId || null, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, graphNodeId: graphNodeId || null, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, usesProjectDesignReference: Boolean(usesProjectDesignReference), provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+}
+
+function resolveProjectDesignSource(project, projectId) {
+  const assetId = project?.designReference?.assetId;
+  const asset = assetId ? assetStore.get(assetId) : null;
+  if (!assetId) return null;
+  if (!asset || !assetBelongsToProject(asset, projectId) || !existsSync(assetStore.filePath(asset))) {
+    const error = new Error('The saved project design reference is unavailable. Replace it in the project menu.');
+    error.code = 'PROJECT_DESIGN_REFERENCE_UNAVAILABLE';
+    throw error;
+  }
+  return { url: assetStore.urlFor(asset), assetId: asset.id };
 }
 
 function assetBelongsToProject(asset, projectId) {

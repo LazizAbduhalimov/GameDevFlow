@@ -616,9 +616,16 @@ export type GenerationJob = {
   slotIndex?: number | null;
   outputAssetId?: string | null;
   transparentBackground?: boolean | null;
+  usesProjectDesignReference?: boolean;
   queuePosition?: number | null;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type ProjectDesignReference = {
+  assetId: string;
+  url: string;
+  name: string;
 };
 
 export type ConseptProject = {
@@ -629,6 +636,7 @@ export type ConseptProject = {
   nodes: Array<Node<Record<string, unknown>>>;
   edges: Edge[];
   viewport: Viewport;
+  designReference?: ProjectDesignReference | null;
   createdAt?: string;
   updatedAt?: string;
 };

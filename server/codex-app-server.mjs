@@ -98,6 +98,7 @@ export class CodexAppServer extends EventEmitter {
 
     return new Promise(async (resolve, reject) => {
       let imageReceived = false;
+      let transparentBackground = null;
       let settled = false;
       const finish = (callback, value) => {
         if (settled) return;
@@ -120,7 +121,7 @@ export class CodexAppServer extends EventEmitter {
           try {
             const item = message.params.item;
             if (item.failure) throw new Error(item.failure.type === 'usageLimitExceeded' ? 'Image generation usage limit exceeded.' : 'Image generation failed.');
-            if (requireTransparentBackground && item.transparentBackground !== true) throw new Error('ImageGen returned an opaque background instead of native alpha transparency. No sprite was saved; retry the generation.');
+            transparentBackground = item.transparentBackground === true;
             if (item.savedPath && existsSync(item.savedPath)) {
               await copyFile(item.savedPath, outputPath);
             } else if (item.result) {
@@ -128,7 +129,7 @@ export class CodexAppServer extends EventEmitter {
               await writeFile(outputPath, Buffer.from(encoded, 'base64'));
             }
             imageReceived = existsSync(outputPath);
-            if (imageReceived) onProgress('Saving generated image');
+            if (imageReceived) onProgress(transparentBackground ? 'Saving transparent image' : 'Saving image with opaque background');
           } catch (error) {
             finish(reject, error);
           }
@@ -139,7 +140,7 @@ export class CodexAppServer extends EventEmitter {
         }
 
         if (message.method === 'turn/completed') {
-          if (imageReceived || existsSync(outputPath)) finish(resolve, { outputPath, transparentBackground: requireTransparentBackground ? true : null });
+          if (imageReceived || existsSync(outputPath)) finish(resolve, { outputPath, transparentBackground });
           else finish(reject, new Error('Codex finished without an image result. Image generation may be unavailable for this account or model.'));
         }
       };

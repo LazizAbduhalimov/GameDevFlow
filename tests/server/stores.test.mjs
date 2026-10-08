@@ -10,6 +10,7 @@ import { resolveExportAssets } from '../../server/archive-export.mjs';
 import { normalizeBatchRequest } from '../../server/batch-normalization.mjs';
 import { CodexWorkerPool } from '../../server/codex-worker-pool.mjs';
 import { parseDerivedAssetMetadata } from '../../server/derived-asset.mjs';
+import { preserveProjectDesignTrigger, promptUsesProjectDesign, withProjectDesignReference } from '../../server/design-reference.mjs';
 import { JobQueue } from '../../server/job-queue.mjs';
 import { JobStore } from '../../server/job-store.mjs';
 import { resolveWithin, safeDownloadName, slugify } from '../../server/path-safety.mjs';
@@ -64,6 +65,21 @@ test('batch normalization preserves Character Views and supports six variant slo
   assert.throws(() => normalizeBatchRequest({ sourceUrl: '/data/assets/source', concurrency: 5, views: [{ key: 'front', prompt: 'Front' }] }), { code: 'BATCH_CONCURRENCY' });
 });
 
+test('project design trigger is explicit and appends the saved reference last', () => {
+  assert.equal(promptUsesProjectDesign('Сохрани   наш дизайн, но сделай новый экран'), true);
+  assert.equal(promptUsesProjectDesign('сделай похожий дизайн'), false);
+  assert.equal(preserveProjectDesignTrigger('сохрани наш дизайн', 'Create a polished dashboard.'), 'сохрани наш дизайн. Create a polished dashboard.');
+  assert.equal(preserveProjectDesignTrigger('New dashboard', 'Create a polished dashboard.'), 'Create a polished dashboard.');
+  const base = [{ url: '/data/assets/source', assetId: 'source' }];
+  const reference = { url: '/data/assets/design', assetId: 'design' };
+  const result = withProjectDesignReference(base, reference, 'Сохрани наш дизайн', 16);
+  assert.equal(result.usesProjectDesignReference, true);
+  assert.deepEqual(result.sources, [base[0], reference]);
+  assert.deepEqual(withProjectDesignReference([reference, base[0]], reference, 'сохрани наш дизайн', 16).sources, [base[0], reference]);
+  assert.throws(() => withProjectDesignReference(base, null, 'сохрани наш дизайн', 16), { code: 'PROJECT_DESIGN_REFERENCE_REQUIRED' });
+  assert.throws(() => withProjectDesignReference(Array.from({ length: 16 }, (_, index) => ({ url: `/data/assets/${index}`, assetId: String(index) })), reference, 'сохрани наш дизайн', 16), { code: 'PROJECT_DESIGN_REFERENCE_LIMIT' });
+});
+
 test('derived asset metadata retains atlas provenance and rejects invalid parent fields', () => {
   const metadata = parseDerivedAssetMetadata({ parentAssetIds: '["source-1", "source-1", "source-2"]', assetRole: 'sprite-atlas', atlas: '{"columns":4,"rows":2}', manifest: '{"frames":["idle","walk"]}' });
   assert.deepEqual(metadata, { parentAssetIds: ['source-1', 'source-2'], assetRole: 'sprite-atlas', atlas: { columns: 4, rows: 2 }, manifest: { frames: ['idle', 'walk'] } });
@@ -98,11 +114,14 @@ test('project store preserves default while creating, listing, duplicating, and 
   const store = new ProjectStore(path.join(root, 'projects'));
   const original = await store.getDefault();
   const created = await store.create({ name: 'Character Pack' });
-  const saved = await store.save(created.id, { revision: 0, name: created.name, nodes: [{ id: 'hero' }], edges: [], viewport: { x: 20, y: 30, zoom: 0.8 } });
+  const designReference = { assetId: '11111111-1111-1111-1111-111111111111', url: '/data/assets/11111111-1111-1111-1111-111111111111', name: 'ui-direction.png' };
+  const saved = await store.save(created.id, { revision: 0, name: created.name, nodes: [{ id: 'hero' }], edges: [], viewport: { x: 20, y: 30, zoom: 0.8 }, designReference });
   const duplicate = await store.duplicate(saved.id, 'Character Pack Copy');
   assert.equal(saved.id, created.id);
   assert.equal(saved.revision, 1);
   assert.equal(duplicate.nodes.length, 1);
+  assert.deepEqual(saved.designReference, designReference);
+  assert.deepEqual(duplicate.designReference, designReference);
   const fromGraph = await store.create({
     name: 'Seamless material',
     nodes: [{ id: 'seamless-texture', type: 'seamlessTexture', position: { x: 80, y: 160 }, data: { title: 'Seamless Texture', status: 'idle' } }],

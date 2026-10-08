@@ -123,6 +123,7 @@ import type {
   MaterialMapsNodeData,
   MultiGenerateNodeData,
   ProjectSaveState,
+  ProjectDesignReference,
   ProjectSummary,
   ReferenceSetItem,
   ReferenceSetNodeData,
@@ -277,6 +278,8 @@ function Studio() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [activeProjectId, setActiveProjectId] = useState('default');
   const [projectName, setProjectName] = useState('Untitled pipeline');
+  const [projectDesignReference, setProjectDesignReference] = useState<ProjectDesignReference | null>(null);
+  const [designReferenceBusy, setDesignReferenceBusy] = useState(false);
   const [projectBusy, setProjectBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [saveState, setSaveState] = useState<ProjectSaveState>('loading');
@@ -415,9 +418,10 @@ function Studio() {
         setNodes(hydrateProjectNodes(project.nodes as Node[]));
         setEdges(project.edges);
         setProjectName(project.name);
+        setProjectDesignReference(project.designReference || null);
         revisionRef.current = project.revision;
         projectRevisionsRef.current.set(project.id, project.revision);
-        lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges);
+        lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
         writeLocal('active-project-id', project.id);
         window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
         setScreen(openWorkspace ? 'workspace' : 'home');
@@ -435,9 +439,10 @@ function Studio() {
           setNodes(hydrateProjectNodes(project.nodes as Node[]));
           setEdges(project.edges);
           setProjectName(project.name);
+          setProjectDesignReference(project.designReference || null);
           revisionRef.current = project.revision || 0;
           projectRevisionsRef.current.set(activeProjectIdRef.current, revisionRef.current);
-          lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges);
+          lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
           setProjects([{ id: activeProjectIdRef.current, name: project.name, revision: project.revision || 0, nodeCount: project.nodes.length, updatedAt: project.updatedAt }]);
           if (project.viewport) window.setTimeout(() => reactFlow.setViewport(project!.viewport, { duration: 0 }), 0);
           showToast('Backend project was unavailable. Restored the browser backup.');
@@ -459,11 +464,11 @@ function Studio() {
     return () => { cancelled = true; };
   }, [reactFlow, refreshAssets, refreshCodex, refreshJobs, refreshUnity, setEdges, setNodes, showToast]);
 
-  const persistProject = useCallback((manual = false, notify = manual) => {
+  const persistProject = useCallback((manual = false, notify = manual, designReference = projectDesignReference) => {
     if (!projectReady) return Promise.resolve();
     const projectId = activeProjectIdRef.current;
-    const payload = projectPayload(projectId, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport());
-    const hash = projectHash(projectName, nodes, edges);
+    const payload = projectPayload(projectId, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), designReference);
+    const hash = projectHash(projectName, nodes, edges, designReference);
     if (!manual && hash === lastSavedHashRef.current) return saveSequenceRef.current;
     writeLocal(`project-backup:${projectId}`, JSON.stringify(payload));
     if (projectId === 'default') writeLocal('project-backup', JSON.stringify(payload));
@@ -500,13 +505,13 @@ function Studio() {
       }
     });
     return saveSequenceRef.current;
-  }, [edges, nodes, projectName, projectReady, reactFlow, showToast]);
+  }, [edges, nodes, projectDesignReference, projectName, projectReady, reactFlow, showToast]);
 
   useEffect(() => {
     if (!projectReady) return;
     const timer = window.setTimeout(() => persistProject(false), 720);
     return () => window.clearTimeout(timer);
-  }, [nodes, edges, projectName, projectReady, persistProject]);
+  }, [nodes, edges, projectDesignReference, projectName, projectReady, persistProject]);
 
   function closeWorkspacePanels() {
     setGalleryOpen(false); setJobsOpen(false); setAppearanceOpen(false);
@@ -532,12 +537,12 @@ function Studio() {
     setActiveProjectId(project.id);
     setProjects(projectList);
     const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
-    setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name);
+    setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null);
     setAssets(projectAssets); setJobs(projectJobs); setCompare([null, null]);
     closeWorkspacePanels();
     revisionRef.current = project.revision;
     projectRevisionsRef.current.set(project.id, project.revision);
-    lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges);
+    lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
     writeLocal('active-project-id', project.id);
     history.reset({ nodes: restoredNodes, edges: project.edges });
     window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
@@ -615,7 +620,7 @@ function Studio() {
       if (projectId === 'default') writeLocal('project-backup', JSON.stringify(saved));
       if (projectId === activeProjectIdRef.current) {
         setProjectName(saved.name); revisionRef.current = saved.revision;
-        lastSavedHashRef.current = projectHash(saved.name, nodes, edges);
+        lastSavedHashRef.current = projectHash(saved.name, nodes, edges, saved.designReference || null);
         setSaveState('saved');
       }
       setProjects(await getProjects());
@@ -2580,7 +2585,7 @@ function Studio() {
       workingItems = workingItems.map((item) => item.id === itemId ? { ...item, ...patch } : item);
       if (activeProjectIdRef.current === projectId) patchSmartNode(nodeId, { items: [...workingItems] });
     };
-    const generationTargets = enabledItems.filter((item) => item.generationMethod !== 'imagegen' || !item.rawOutputUrl || item.transparentBackground !== true);
+    const generationTargets = enabledItems.filter((item) => item.generationMethod !== 'imagegen' || !item.rawOutputUrl);
     patchSmartNode(nodeId, {
       status: 'extracting',
       error: undefined,
@@ -2626,7 +2631,8 @@ function Studio() {
           failures = 0;
           patchWorkingItem(itemId, { generationStatus: job.status, generationProgress: job.progress, generationError: job.error || undefined });
           if (job.status === 'completed' && job.outputUrl) {
-            patchWorkingItem(itemId, { generationMethod: 'imagegen', generationStatus: 'completed', generationProgress: 'Native transparent PNG ready', rawOutputUrl: job.outputUrl, rawOutputAssetId: job.outputAssetId || undefined, transparentBackground: job.transparentBackground === true, outputUrl: job.outputUrl, outputAssetId: job.outputAssetId || undefined, generationError: undefined });
+            const transparentBackground = job.transparentBackground === true;
+            patchWorkingItem(itemId, { generationMethod: 'imagegen', generationStatus: 'completed', generationProgress: transparentBackground ? 'Transparent PNG ready' : 'Image saved with opaque background', rawOutputUrl: job.outputUrl, rawOutputAssetId: job.outputAssetId || undefined, transparentBackground, outputUrl: job.outputUrl, outputAssetId: job.outputAssetId || undefined, generationError: undefined });
             return;
           }
           if (['failed', 'cancelled', 'interrupted'].includes(job.status)) return;
@@ -2647,8 +2653,8 @@ function Studio() {
     for (const original of enabledItems) {
       if (activeProjectIdRef.current !== projectId) return;
       const item = workingItems.find((entry) => entry.id === original.id);
-      if (!item || (item.outputUrl && item.generationMethod === 'imagegen' && item.transparentBackground === true)) continue;
-      if (item.generationStatus !== 'failed') patchWorkingItem(item.id, { generationStatus: 'failed', generationError: 'ImageGen did not produce a native transparent PNG.' });
+      if (!item || (item.outputUrl && item.generationMethod === 'imagegen')) continue;
+      if (item.generationStatus !== 'failed') patchWorkingItem(item.id, { generationStatus: 'failed', generationError: 'ImageGen did not produce an image.' });
     }
 
     if (activeProjectIdRef.current !== projectId) return;
@@ -2665,6 +2671,12 @@ function Studio() {
       }
       if (groupItems.length !== expectedItems.length) {
         workingGroups[groupIndex] = { ...group, status: 'error', outputUrl: undefined, outputAssetId: undefined, previewUrl: undefined, manifest: undefined, error: `${expectedItems.length - groupItems.length} element${expectedItems.length - groupItems.length === 1 ? '' : 's'} could not be regenerated.` };
+        patchSmartNode(nodeId, { groups: [...workingGroups] });
+        continue;
+      }
+      const opaqueItems = groupItems.filter((item) => item.transparentBackground !== true);
+      if (opaqueItems.length) {
+        workingGroups[groupIndex] = { ...group, status: 'error', outputUrl: undefined, outputAssetId: undefined, previewUrl: undefined, manifest: undefined, error: `${opaqueItems.length} generated image${opaqueItems.length === 1 ? ' was' : 's were'} saved with an opaque background. Remove the background before building this atlas.` };
         patchSmartNode(nodeId, { groups: [...workingGroups] });
         continue;
       }
@@ -2972,6 +2984,31 @@ function Studio() {
     finally { if (uploadRef.current) uploadRef.current.value = ''; }
   }
 
+  async function handleProjectDesignReference(file: File) {
+    const projectId = activeProjectIdRef.current;
+    setDesignReferenceBusy(true);
+    try {
+      const asset = await uploadImage(file, projectId);
+      if (activeProjectIdRef.current !== projectId) return;
+      const nextReference: ProjectDesignReference = { assetId: asset.id, url: asset.url, name: asset.name };
+      setProjectDesignReference(nextReference);
+      setAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+      await persistProject(true, false, nextReference);
+      showToast('Project design reference saved. Use “сохрани наш дизайн” in a prompt to apply it.');
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
+    finally { setDesignReferenceBusy(false); }
+  }
+
+  async function removeProjectDesignReference() {
+    setDesignReferenceBusy(true);
+    try {
+      setProjectDesignReference(null);
+      await persistProject(true, false, null);
+      showToast('Project design reference removed. The image remains in the local gallery.');
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
+    finally { setDesignReferenceBusy(false); }
+  }
+
   async function handleImageFiles(files: File[], position: { x: number; y: number }, source: 'drop' | 'paste') {
     const images = files.filter((file) => file.type.startsWith('image/'));
     if (!images.length) return showToast('Drop or paste a PNG, JPG, WEBP, GIF, or BMP image.');
@@ -3182,14 +3219,14 @@ function Studio() {
     try {
       const project = await importProject(file);
       const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
-      setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); reactFlow.setViewport(project.viewport);
+      setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null); reactFlow.setViewport(project.viewport);
       history.reset({ nodes: restoredNodes, edges: project.edges }); showToast('Project imported. Autosave will update the local workspace.');
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
     finally { if (importRef.current) importRef.current.value = ''; }
   }
 
   function exportCurrentProject() {
-    exportProject({ ...projectPayload(activeProjectIdRef.current, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport()), updatedAt: new Date().toISOString() });
+    exportProject({ ...projectPayload(activeProjectIdRef.current, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), projectDesignReference), updatedAt: new Date().toISOString() });
     showToast('Portable project JSON exported.');
   }
 
@@ -3209,12 +3246,14 @@ function Studio() {
       <input ref={importRef} type="file" accept="application/json,.json" hidden onChange={(event) => { void importGraph(event.target.files?.[0]); event.target.value = ''; }} />
       <div className={`editor-screen ${screen === 'home' ? 'is-hidden' : ''}`} inert={screen !== 'workspace' || projectBusy} aria-hidden={screen !== 'workspace'}>
         <WorkspaceChrome key={screen} projectName={projectName} saveState={saveState} busy={projectBusy}
+          designReference={projectDesignReference} designReferenceBusy={designReferenceBusy}
           activePanel={galleryOpen ? 'gallery' : jobsOpen ? 'jobs' : appearanceOpen ? 'appearance' : null}
           activeJobs={activeJobs} codex={codex} authBusy={authBusy}
           providerDetail={codexProvider?.reason || `${codex.label} · ${codexWorkers} workers`}
           onHome={() => void goHome()} onPanel={togglePanel} onRename={setProjectName}
           onSave={() => void persistProject(true)} onImport={() => importRef.current?.click()}
           onExport={exportCurrentProject} onClear={clearCanvas}
+          onDesignReferenceChange={handleProjectDesignReference} onDesignReferenceRemove={removeProjectDesignReference}
           onConnect={codex.connected ? refreshCodex : handleConnectAccount}
           unity={unity} unityBusy={Boolean(unityBusyKey)} onUnityTarget={(path) => void chooseUnityTarget(path)} />
         <section
@@ -3295,9 +3334,10 @@ function Studio() {
   );
 }
 
-function projectHash(name: string, nodes: Node[], edges: Edge[]) {
+function projectHash(name: string, nodes: Node[], edges: Edge[], designReference: ProjectDesignReference | null) {
   return JSON.stringify({
     name,
+    designReference,
     nodes: nodes.map((node) => ({ id: node.id, type: node.type, position: node.position, data: node.data })),
     edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle })),
   }, (_key, value) => typeof value === 'function' ? undefined : value);

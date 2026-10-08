@@ -51,6 +51,7 @@ export class ProjectStore {
       if (Array.isArray(input?.nodes)) project.nodes = JSON.parse(JSON.stringify(input.nodes));
       if (Array.isArray(input?.edges)) project.edges = JSON.parse(JSON.stringify(input.edges));
       if (validViewport(input?.viewport)) project.viewport = { ...input.viewport };
+      project.designReference = cleanDesignReference(input?.designReference);
       await writeJsonAtomic(this.filePath(id), project);
       return project;
     });
@@ -75,6 +76,9 @@ export class ProjectStore {
         nodes: Array.isArray(input?.nodes) ? input.nodes : [],
         edges: Array.isArray(input?.edges) ? input.edges : [],
         viewport: validViewport(input?.viewport) ? input.viewport : current.viewport,
+        designReference: Object.prototype.hasOwnProperty.call(input || {}, 'designReference')
+          ? cleanDesignReference(input.designReference)
+          : cleanDesignReference(current.designReference),
         createdAt: current.createdAt || current.updatedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -93,6 +97,7 @@ export class ProjectStore {
       copy.nodes = JSON.parse(JSON.stringify(source.nodes || []));
       copy.edges = JSON.parse(JSON.stringify(source.edges || []));
       copy.viewport = validViewport(source.viewport) ? { ...source.viewport } : copy.viewport;
+      copy.designReference = cleanDesignReference(source.designReference);
       await writeJsonAtomic(this.filePath(copy.id), copy);
       return copy;
     });
@@ -153,6 +158,7 @@ function createProject(id, name) {
     nodes: [],
     edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
+    designReference: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -186,4 +192,13 @@ function cleanName(value, fallback) {
 
 function validViewport(value) {
   return value && ['x', 'y', 'zoom'].every((key) => Number.isFinite(value[key]));
+}
+
+function cleanDesignReference(value) {
+  if (!value || typeof value !== 'object') return null;
+  const assetId = typeof value.assetId === 'string' ? value.assetId.trim().slice(0, 80) : '';
+  const url = typeof value.url === 'string' ? value.url.trim().slice(0, 240) : '';
+  const name = typeof value.name === 'string' ? value.name.trim().slice(0, 180) : '';
+  if (!assetId || !/^\/data\/(assets|generated)\/[A-Za-z0-9-]+$/.test(url)) return null;
+  return { assetId, url, name: name || 'Project design reference' };
 }

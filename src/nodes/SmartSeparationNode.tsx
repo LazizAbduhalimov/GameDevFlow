@@ -24,6 +24,7 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
   const selectedCount = nodeData.items.filter((item) => item.enabled).length;
   const regenerateCount = nodeData.items.filter((item) => item.enabled && (item.generationMethod !== 'imagegen' || !item.rawOutputUrl)).length;
   const regeneratedCount = nodeData.items.filter((item) => item.enabled && item.generationMethod === 'imagegen' && Boolean(item.outputUrl)).length;
+  const opaqueCount = nodeData.items.filter((item) => item.enabled && item.generationMethod === 'imagegen' && Boolean(item.outputUrl) && item.transparentBackground !== true).length;
   const populatedGroups = nodeData.groups.filter((group) => nodeData.items.some((item) => item.enabled && item.groupId === group.id));
   const readyGroups = populatedGroups.filter((group) => group.status === 'ready').length;
   const analysisProgress = nodeData.analysisProgress;
@@ -168,7 +169,7 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
                 <input aria-label="Element name" value={item.name} onChange={(event) => nodeData.onPatchItem?.(id, item.id, { name: event.target.value })} />
                 <select aria-label="Element group" value={item.groupId || ''} onChange={(event) => nodeData.onPatchItem?.(id, item.id, { groupId: event.target.value })}>{nodeData.groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select>
                 <span className={`smart-item-state status-${item.generationStatus || 'idle'}`} title={item.generationError || item.generationProgress || 'Will be regenerated with ImageGen'}>
-                  {item.generationStatus === 'queued' || item.generationStatus === 'running' ? <LoaderCircle className="spin" size={12} /> : item.generationStatus === 'failed' ? <AlertTriangle size={12} /> : item.generationMethod === 'imagegen' && item.outputUrl ? <Check size={12} /> : <Sparkles size={11} />}
+                  {item.generationStatus === 'queued' || item.generationStatus === 'running' ? <LoaderCircle className="spin" size={12} /> : item.generationStatus === 'failed' || (item.generationMethod === 'imagegen' && item.outputUrl && item.transparentBackground !== true) ? <AlertTriangle size={12} /> : item.generationMethod === 'imagegen' && item.outputUrl ? <Check size={12} /> : <Sparkles size={11} />}
                 </span>
               </div>)}
               {!visibleItems.length && <div className="smart-list-empty">No elements match this view.</div>}
@@ -192,8 +193,8 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
       {nodeData.error && <p className="smart-error"><AlertTriangle size={11} /> {nodeData.error}</p>}
       {reviewReady && <div className="smart-build-bar nodrag">
         <div>
-          <strong>{regeneratedCount}/{selectedCount} transparent sprites ready</strong>
-          <span>{regenerateCount ? `${regenerateCount} ImageGen call${regenerateCount === 1 ? '' : 's'} · source pixels are never packed directly` : 'All sprites are regenerated · atlas rebuild only'}</span>
+          <strong>{regeneratedCount}/{selectedCount} generated sprites saved</strong>
+          <span>{regenerateCount ? `${regenerateCount} ImageGen call${regenerateCount === 1 ? '' : 's'} · source pixels are never packed directly` : opaqueCount ? `${opaqueCount} opaque result${opaqueCount === 1 ? '' : 's'} saved · remove backgrounds before atlas build` : 'All sprites are transparent · atlas rebuild only'}</span>
         </div>
         <button type="button" className="node-action primary" disabled={busy || !selectedCount} onClick={() => nodeData.onBuildAll?.(id)}>{busy ? <LoaderCircle className="spin" size={13} /> : <Sparkles size={13} />} Regenerate &amp; build {populatedGroups.length}</button>
       </div>}

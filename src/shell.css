@@ -33,10 +33,22 @@
 .shell-menu button.danger, .shell-menu button.danger > svg { color: var(--danger); }
 .shell-menu-rule { height: 1px; background: var(--border); margin: 6px 4px; }
 .shell-menu kbd { margin-left: auto; color: var(--muted); font: 10px 'Manrope', sans-serif; }
-.project-actions { top: 53px; left: 0; width: 280px; }
+.project-actions { top: 53px; left: 0; width: 320px; }
 .project-actions label { display: block; padding: 7px 8px 12px; color: var(--muted); font-size: 11px; }
 .project-actions input { display: block; width: 100%; height: 37px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-inset); color: var(--text); padding: 0 10px; margin-top: 7px; font-size: 12px; }
+.project-actions input[hidden] { display: none; }
 .project-actions input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.project-design-reference { padding: 5px 8px 8px; }
+.project-design-reference-copy { display: grid; gap: 4px; }
+.project-design-reference-copy strong { color: var(--text); font-size: 12px; }
+.project-design-reference-copy span { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.project-design-reference-copy code { padding: 1px 4px; border-radius: 5px; background: var(--surface-inset); color: var(--accent-ink); font: 500 10px 'IBM Plex Mono', monospace; }
+.project-design-reference-preview { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 9px; margin-top: 9px; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-inset); }
+.project-design-reference-preview img { width: 52px; height: 42px; display: block; object-fit: cover; border-radius: 7px; background: var(--background); }
+.project-design-reference-preview span { min-width: 0; overflow: hidden; color: var(--text); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.project-design-reference-actions { display: flex; gap: 6px; margin-top: 8px; }
+.project-design-reference-actions button { min-height: 32px; justify-content: center; border: 1px solid var(--border); background: var(--surface-inset); }
+.project-design-reference-actions button:disabled { opacity: .5; cursor: wait; }
 .connection-settings { top: 53px; right: 0; width: 275px; padding: 16px; }
 .connection-title { display: flex; align-items: center; gap: 9px; font-size: 13px; }
 .connection-title svg { color: var(--accent-ink); }

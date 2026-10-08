@@ -1,0 +1,19 @@
+[Unit]
+Description=Consept image workspace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/consept
+Environment=NODE_ENV=production
+Environment=PATH=%h/.local/share/consept-node/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=%h/.config/consept/server.env
+ExecStart=%h/.local/share/consept-node/bin/node %h/consept/server/server.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+
+[Install]
+WantedBy=default.target

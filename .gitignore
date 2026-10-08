@@ -12,6 +12,9 @@ data/models/*
 data/settings/
 data/tripo-browser-profile/
 *.log
+.env
+.env.*
+!.env.example
 .DS_Store
 .playwright-cli/
 output/playwright/
