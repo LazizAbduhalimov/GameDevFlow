@@ -523,6 +523,11 @@ export type Model3DNodeData = {
   [key: string]: unknown;
   title: string;
   watcherId: string;
+  importMode?: 'manual';
+  referenceUrls?: string[];
+  importBusy?: boolean;
+  onImport?: (nodeId: string, file?: File) => void;
+  onDownloadReference?: (nodeId: string, index: number) => void;
   sourceNodeId?: string | null;
   taskId?: string | null;
   status: 'waiting' | 'running' | 'ready' | 'failed';

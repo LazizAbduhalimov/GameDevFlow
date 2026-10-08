@@ -61,6 +61,13 @@ export async function getUnityStatus(): Promise<UnityStatus> {
   return request('/api/integrations/unity/status');
 }
 
+export async function uploadModel(file: File, projectId: string): Promise<{ projectId: string; fileName: string; modelUrl: string; downloadUrl: string }> {
+  const body = new FormData();
+  body.append('model', file);
+  body.append('projectId', projectId);
+  return request('/api/models', { method: 'POST', body });
+}
+
 export async function setUnityTarget(projectPath: string): Promise<UnityStatus> {
   return request('/api/integrations/unity/target', {
     method: 'POST',

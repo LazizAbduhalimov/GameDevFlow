@@ -45,6 +45,7 @@ type WorkspaceChromeProps = {
   unity: UnityStatus; unityBusy: boolean;
   onHome: () => void; onPanel: (panel: 'gallery' | 'jobs' | 'appearance') => void;
   onRename: (name: string) => void; onSave: () => void; onImport: () => void;
+  onImportModel: () => void;
   onExport: () => void; onClear: () => void; onConnect: () => void;
   onDesignReferenceChange: (file: File) => void | Promise<void>; onDesignReferenceRemove: () => void | Promise<void>;
   onUnityTarget: (projectPath: string) => void;
@@ -117,6 +118,7 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
           <div className="shell-menu-rule" />
           <button onClick={() => run(props.onSave)}><Save size={16} />Save project<kbd>Ctrl S</kbd></button>
           <button onClick={() => run(props.onImport)}><Import size={16} />Import project</button>
+          <button onClick={() => run(props.onImportModel)}><Import size={16} />Import GLB model</button>
           <button onClick={() => run(props.onExport)}><Download size={16} />Export project</button>
           <div className="shell-menu-rule" />
           <button className="danger" onClick={() => run(props.onClear)}><Trash2 size={16} />Clear canvas</button>

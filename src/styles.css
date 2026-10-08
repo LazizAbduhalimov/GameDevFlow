@@ -1145,6 +1145,8 @@ button:disabled { cursor: not-allowed; }
 .model-waiting strong { color: #eeeef2; font: 600 13px 'Manrope'; letter-spacing: 0; }
 .model-waiting span { max-width: 250px; color: #b2b2bb; font-size: 12px; line-height: 1.5; }
 .model-waiting button { min-height: 27px; padding: 0 9px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.12); color: #f0f0f2; font: 600 11px 'Manrope'; cursor: pointer; }
+.model-waiting button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.model-reference-downloads { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .model-view-toggles { position: absolute; top: 9px; right: 9px; z-index: 2; display: flex; gap: 5px; pointer-events: none; }
 .model-view-toggles button { pointer-events: auto; min-height: 26px; padding: 0 7px; display: flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.15); background: rgba(18,18,20,.90); color: #b9b9c2; font: 600 11px 'Manrope'; cursor: pointer; }
 .model-view-toggles button:hover { color: #f0f0f2; border-color: rgba(255,255,255,.28); }

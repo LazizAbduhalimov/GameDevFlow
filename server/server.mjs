@@ -16,6 +16,7 @@ import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest }
 import { parseDerivedAssetMetadata } from './derived-asset.mjs';
 import { preserveProjectDesignTrigger, promptUsesProjectDesign, withProjectDesignReference } from './design-reference.mjs';
 import { detectRasterImage, hasPngTransparency } from './image-validation.mjs';
+import { saveUploadedModel } from './model-upload.mjs';
 import { serveFrontend } from './frontend.mjs';
 import { JobQueue } from './job-queue.mjs';
 import { JobStore } from './job-store.mjs';
@@ -90,6 +91,7 @@ const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concur
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
+const modelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 128 * 1024 * 1024, files: 1 } });
 
 app.get('/api/health', (_request, response) => response.json({ ok: true, service: 'consept-local', queue: jobQueue.snapshot(), workers: codexWorkerPool.snapshot(), imageWorkers: codexImageWorkers.snapshot() }));
 
@@ -409,6 +411,30 @@ app.post('/api/assets/derived', upload.single('image'), async (request, response
     next(error);
   }
 });
+app.post('/api/models', (request, response, next) => {
+  modelUpload.single('model')(request, response, (error) => {
+    if (error?.code === 'LIMIT_FILE_SIZE') return response.status(413).json({ message: 'GLB files must be 128 MB or smaller.' });
+    if (error) return next(error);
+    next();
+  });
+}, async (request, response, next) => {
+  try {
+    if (!request.file?.buffer) return response.status(400).json({ message: 'Choose a GLB model.' });
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    await projectStore.get(projectId);
+    let saved;
+    try { saved = await saveUploadedModel({ buffer: request.file.buffer, originalName: request.file.originalname, projectId, modelsDir }); }
+    catch (error) {
+      if (error.code) throw error;
+      return response.status(415).json({ message: error.message });
+    }
+    response.status(201).json(saved);
+  } catch (error) {
+    if (['PROJECT_NOT_FOUND', 'INVALID_PROJECT_ID'].includes(error?.code)) return response.status(400).json({ message: 'Choose an existing project before importing a model.' });
+    next(error);
+  }
+});
+
 app.post('/api/integrations/tripo/open', async (request, response) => {
   const url = typeof request.body?.url === 'string' ? request.body.url : '';
   const sourceNodeId = typeof request.body?.sourceNodeId === 'string' ? request.body.sourceNodeId : '';

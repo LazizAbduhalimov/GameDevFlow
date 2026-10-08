@@ -46,10 +46,7 @@ import {
   getProjects,
   getProviders,
   getUnityStatus,
-  openCharacterViewsInTripo,
-  openImageInTripo,
   purgeAsset,
-  recoverTripoModel,
   retryJob,
   restoreAsset,
   saveDerivedAsset,
@@ -60,9 +57,9 @@ import {
   startGeneration,
   startGenerationBatch,
   startSlotBatch,
-  subscribeToTripoEvents,
   trashAsset,
   uploadImage,
+  uploadModel,
 } from './api';
 import { parseAppPath, readAppRoute, writeAppRoute, type AppRouteWriteMode } from './app-route';
 import { WorkspaceChrome, CanvasDock } from './components/WorkspaceChrome';
@@ -143,7 +140,6 @@ import type {
   RelativeAtlasSettings,
   SeamlessTextureNodeData,
   SeamlessTextureSettings,
-  TripoModelEvent,
   UnitySendItem,
   UnityStatus,
   ViewKey,
@@ -286,8 +282,10 @@ function Studio() {
   const [dragActive, setDragActive] = useState(false);
   const [saveState, setSaveState] = useState<ProjectSaveState>('loading');
   const [promptEnhancements, setPromptEnhancements] = useState<Record<string, { busy: boolean; error?: string }>>({});
-  const [tripoBusyUrl, setTripoBusyUrl] = useState<string | null>(null);
-  const [tripoMultiviewBusyNodeId, setTripoMultiviewBusyNodeId] = useState<string | null>(null);
+  const [modelImports, setModelImports] = useState<Record<string, boolean>>({});
+  const modelImportBusyRef = useRef(new Set<string>());
+  const modelInputRef = useRef<HTMLInputElement>(null);
+  const modelTargetRef = useRef<{ projectId: string; nodeId?: string } | null>(null);
   const [unity, setUnity] = useState<UnityStatus>({ ready: false, target: null, running: [], recents: [] });
   const [unityBusyKey, setUnityBusyKey] = useState<string | null>(null);
   const revisionRef = useRef(0);
@@ -303,10 +301,6 @@ function Studio() {
   const connectionSourceRef = useRef<{ nodeId: string | null; handleId?: string | null }>({ nodeId: null });
   const enhanceControllersRef = useRef(new Map<string, AbortController>());
   const seamlessFinalizersRef = useRef(new Set<string>());
-  const tripoControllerRef = useRef<AbortController | null>(null);
-  const seenTripoEventsRef = useRef(new Set<string>());
-  const attemptedTripoRecoveryRef = useRef(new Set<string>());
-  const tripoRecoveryBusyRef = useRef(new Set<string>());
   const reactFlow = useReactFlow();
 
   const applyGraph = useCallback((snapshot: { nodes: Node[]; edges: Edge[] }) => {
@@ -322,49 +316,6 @@ function Studio() {
     sourceUrl?: string,
     history?: { revisions?: GenerationRevision[]; activeRevisionId?: string; onRestoreRevision?: (revisionId: string) => void },
   ) => setPreview({ primary: { url, title, sourceUrl }, ...history }), []);
-
-  const handleTripoEvent = useCallback((event: TripoModelEvent) => {
-    if (!event.watcherId || !event.id || seenTripoEventsRef.current.has(event.id)) return;
-    seenTripoEventsRef.current.add(event.id);
-    if (seenTripoEventsRef.current.size > 300) seenTripoEventsRef.current.clear();
-    if (!['generation-started', 'generation-progress', 'generation-failed', 'model-ready', 'watcher-disconnected'].includes(event.type)) {
-      if (event.type === 'capture-warning' && event.message) showToast(event.message);
-      return;
-    }
-    const modelNodeId = `model3d-${event.watcherId}`;
-    setNodes((current) => {
-      const existing = current.find((node) => node.id === modelNodeId);
-      const source = event.sourceNodeId ? current.find((node) => node.id === event.sourceNodeId) : undefined;
-      const previous = existing?.data as Model3DNodeData | undefined;
-      const failed = event.type === 'generation-failed' || event.type === 'watcher-disconnected';
-      const ready = event.type === 'model-ready';
-      const status: Model3DNodeData['status'] = ready ? 'ready' : failed ? 'failed' : event.type === 'generation-started' ? 'running' : previous?.status || 'running';
-      const data: Model3DNodeData = {
-        title: ready ? 'Tripo 3D model' : previous?.title || 'Tripo generation',
-        watcherId: event.watcherId!,
-        sourceNodeId: event.sourceNodeId ?? previous?.sourceNodeId,
-        taskId: event.taskId ?? previous?.taskId,
-        status,
-        progress: event.progress ?? previous?.progress ?? 0,
-        modelUrl: event.modelUrl || previous?.modelUrl,
-        downloadUrl: event.downloadUrl || previous?.downloadUrl,
-        fileName: event.fileName || previous?.fileName,
-        error: failed ? event.message || 'Tripo generation stopped before a model was received.' : previous?.error,
-      };
-      if (existing) return current.map((node) => node.id === modelNodeId ? { ...node, data } : node);
-      const position = source ? { x: source.position.x + (source.type === 'characterParts' ? 610 : source.type === 'characterViews' ? 380 : 430), y: source.position.y + 24 } : { x: 420, y: 240 };
-      const node: StudioNode = { id: modelNodeId, type: 'model3d', position, data };
-      return [...current, node];
-    });
-    if (event.sourceNodeId) {
-      setEdges((current) => current.some((edge) => edge.target === modelNodeId)
-        ? current
-        : addEdge({ id: `edge-${event.sourceNodeId}-tripo-${modelNodeId}`, source: event.sourceNodeId!, target: modelNodeId, ...edgeDefaults }, current));
-    }
-    if (event.type === 'generation-started') showToast('Tripo generation detected · listening for the model.');
-    if (event.type === 'model-ready') showToast('Tripo model imported locally and added to the canvas.');
-    if ((event.type === 'generation-failed' || event.type === 'watcher-disconnected') && event.message) showToast(event.message);
-  }, [setEdges, setNodes, showToast]);
 
   const refreshCodex = useCallback(async () => {
     try {
@@ -674,21 +625,7 @@ function Studio() {
   useEffect(() => () => {
     for (const controller of enhanceControllersRef.current.values()) controller.abort();
     enhanceControllersRef.current.clear();
-    tripoControllerRef.current?.abort();
   }, []);
-
-  useEffect(() => {
-    if (!projectReady) return;
-    return subscribeToTripoEvents(handleTripoEvent);
-  }, [handleTripoEvent, projectReady]);
-
-  useEffect(() => {
-    if (!projectReady) return;
-    const suspect = nodes.find((node) => node.type === 'model3d' && !node.data.taskId && !attemptedTripoRecoveryRef.current.has(node.id));
-    if (!suspect) return;
-    attemptedTripoRecoveryRef.current.add(suspect.id);
-    void recoverTripoPreview(suspect.id);
-  }, [nodes, projectReady]);
 
   useEffect(() => {
     const hasActiveJobs = jobs.some((job) => job.status === 'queued' || job.status === 'running');
@@ -900,7 +837,7 @@ function Studio() {
             setEdges((current) => current.filter((e) => e.source !== nodeId && e.target !== nodeId));
           },
           onOpenTripo: (url: string) => openInTripo(url, node.id),
-          tripoBusy: tripoBusyUrl === node.data.imageUrl,
+          tripoBusy: false,
           onSendToUnity: (url: string) => sendImageToUnity(url, url.includes('/data/assets/') ? 'source' : 'generated', { title: node.data.title, fileName: node.data.fileName }),
           unityBusy: unityBusyKey === node.data.imageUrl,
         } as ImageNodeData,
@@ -949,9 +886,9 @@ function Studio() {
           onDownloadView: downloadTurnaroundView,
           onDeleteView: deleteTurnaroundView,
           onOpenTripo: (url: string) => openInTripo(url, node.id),
-          tripoBusyUrl,
+          tripoBusyUrl: undefined,
           onOpenTripoMultiview: openTurnaroundInTripo,
-          tripoMultiviewBusy: tripoMultiviewBusyNodeId === node.id,
+          tripoMultiviewBusy: false,
           onSendToUnity: sendCharacterViewsToUnity,
           unityBusy: unityBusyKey === node.id,
           onExportViews: exportTurnaroundViews,
@@ -1004,7 +941,7 @@ function Studio() {
           onRestoreVariantRevision: restoreMultiVariantRevision,
           onApplyRevisionPrompt: (nodeId: string, prompt: string) => { updatePrompt(nodeId, prompt); showToast('Using the prompt from this version.'); },
           onOpenTripo: (url: string) => openInTripo(url, node.id),
-          tripoBusyUrl,
+          tripoBusyUrl: undefined,
           onSendToUnity: (url: string) => sendImageToUnity(url, 'generated', { title: node.data.title }),
           unityBusyUrl: unityBusyKey,
           onOpen: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => openPreview(url, title, sourceUrl, history ? {
@@ -1025,7 +962,7 @@ function Studio() {
           onBuild: buildAtlas,
           onOpen: (url: string, title: string) => openPreview(url, title),
           onOpenTripo: (url: string) => openInTripo(url, node.id),
-          tripoBusy: tripoBusyUrl === node.data.outputUrl,
+          tripoBusy: false,
           onSendToUnity: (url: string) => sendImageToUnity(url, 'atlases', { title: node.data.title }),
           unityBusy: unityBusyKey === node.data.outputUrl,
           onDownloadPng: downloadAtlasPng,
@@ -1036,7 +973,7 @@ function Studio() {
     }
     if (node.type === 'relativeAtlas') {
       const connectedInput = findInput(node.id);
-      return { ...node, data: { ...node.data, inputUrls: connectedInput.sourceUrls, onSettingsChange: updateRelativeAtlasSettings, onBuild: buildRelativeAtlasNode, onOpen: (url: string, title: string) => openPreview(url, title), onOpenTripo: (url: string) => openInTripo(url, node.id), tripoBusy: tripoBusyUrl === node.data.outputUrl, onSendToUnity: (url: string) => sendImageToUnity(url, 'atlases', { title: node.data.title }), unityBusy: unityBusyKey === node.data.outputUrl, onDownloadPng: downloadRelativeAtlasPng, onDownloadJson: downloadRelativeAtlasJson, onDelete: deleteRelativeAtlas } as RelativeAtlasNodeData };
+      return { ...node, data: { ...node.data, inputUrls: connectedInput.sourceUrls, onSettingsChange: updateRelativeAtlasSettings, onBuild: buildRelativeAtlasNode, onOpen: (url: string, title: string) => openPreview(url, title), onOpenTripo: (url: string) => openInTripo(url, node.id), tripoBusy: false, onSendToUnity: (url: string) => sendImageToUnity(url, 'atlases', { title: node.data.title }), unityBusy: unityBusyKey === node.data.outputUrl, onDownloadPng: downloadRelativeAtlasPng, onDownloadJson: downloadRelativeAtlasJson, onDelete: deleteRelativeAtlas } as RelativeAtlasNodeData };
     }
     if (node.type === 'seamlessTexture') {
       return {
@@ -1079,7 +1016,7 @@ function Studio() {
       };
     }
     if (node.type === 'model3d') {
-      return { ...node, data: { ...node.data, onDownload: downloadTripoModel, onRecover: recoverTripoPreview, onSendToUnity: sendModelToUnity, unityBusy: unityBusyKey === node.id } as Model3DNodeData };
+      return { ...node, data: { ...node.data, importMode: 'manual', importBusy: Boolean(modelImports[node.id]), onImport: chooseModelFile, onDownloadReference: downloadModelReference, onDownload: downloadTripoModel, onSendToUnity: sendModelToUnity, unityBusy: unityBusyKey === node.id } as Model3DNodeData };
     }
     const input = findInput(node.id);
     const generatorData = node.data as GeneratorNodeData;
@@ -1116,7 +1053,7 @@ function Studio() {
         onRestoreRevision: restoreGeneratorRevision,
         onApplyRevisionPrompt: (nodeId: string, prompt: string) => { updatePrompt(nodeId, prompt); showToast('Using the prompt from this version.'); },
         onOpenTripo: (url: string) => openInTripo(url, node.id),
-        tripoBusy: tripoBusyUrl === node.data.outputUrl,
+        tripoBusy: false,
         onSendToUnity: (url: string) => sendImageToUnity(url, 'generated', { title: node.data.title }),
         unityBusy: unityBusyKey === node.data.outputUrl,
         onOpen: (url: string, title: string, sourceUrl?: string, history?: { revisions?: GenerationRevision[]; activeRevisionId?: string }) => openPreview(url, title, sourceUrl, history ? {
@@ -1192,50 +1129,76 @@ function Studio() {
     }
   }
 
-  async function openInTripo(url: string, sourceNodeId: string) {
-    if (!url || tripoBusyUrl || tripoMultiviewBusyNodeId) return;
-    tripoControllerRef.current?.abort();
-    const controller = new AbortController();
-    tripoControllerRef.current = controller;
-    setTripoBusyUrl(url);
-    showToast('Opening Tripo Studio and attaching the image…');
-    try {
-      const result = await openImageInTripo(url, sourceNodeId, controller.signal);
-      if (!controller.signal.aborted) showToast(`Image attached · Tripo listener armed · ${result.browser}`);
-    } catch (tripoError) {
-      if (!controller.signal.aborted) showToast(tripoError instanceof Error ? tripoError.message : String(tripoError));
-    } finally {
-      if (tripoControllerRef.current === controller) {
-        tripoControllerRef.current = null;
-        setTripoBusyUrl(null);
-      }
-    }
+  function openInTripo(url: string, sourceNodeId: string) {
+    if (url) openManualTripo(sourceNodeId, [url]);
   }
 
-  async function openTurnaroundInTripo(nodeId: string) {
-    if (tripoBusyUrl || tripoMultiviewBusyNodeId) return;
+  function openTurnaroundInTripo(nodeId: string) {
     const data = reactFlow.getNode(nodeId)?.data as CharacterViewsNodeData | undefined;
     const views = data?.views;
     if (!views || viewKeys.some((key) => !views[key]?.outputUrl)) {
       showToast('Generate all four Character Views before opening Tripo Multiview.');
       return;
     }
-    const urls = Object.fromEntries(viewKeys.map((key) => [key, views[key].outputUrl!])) as Record<ViewKey, string>;
-    tripoControllerRef.current?.abort();
-    const controller = new AbortController();
-    tripoControllerRef.current = controller;
-    setTripoMultiviewBusyNodeId(nodeId);
-    showToast('Opening Tripo Multiview and attaching four views…');
+    openManualTripo(nodeId, ['front', 'left', 'back', 'right'].map((key) => views[key as ViewKey].outputUrl!));
+  }
+
+  function openManualTripo(sourceNodeId: string, referenceUrls: string[]) {
+    window.open('https://studio.tripo3d.ai/ru/workspace/generate', '_blank', 'noopener,noreferrer');
+    const source = reactFlow.getNode(sourceNodeId);
+    const sourceHandle = source?.type === 'characterViews'
+      ? referenceUrls.length === 4 ? 'all' : viewKeys.find((key) => (source.data as CharacterViewsNodeData).views?.[key]?.outputUrl === referenceUrls[0])
+      : undefined;
+    const existing = reactFlow.getNodes().find((node) => node.type === 'model3d' && node.data.sourceNodeId === sourceNodeId && node.data.status !== 'ready');
+    const id = existing?.id || `model3d-${randomUUID()}`;
+    const node: StudioNode = {
+      id, type: 'model3d',
+      position: existing?.position || (source ? { x: source.position.x + 440, y: source.position.y + 24 } : pastePosition()),
+      data: { title: 'Tripo model', watcherId: id, importMode: 'manual', sourceNodeId, referenceUrls, status: 'waiting' },
+    };
+    setNodes((current) => existing ? current.map((item) => item.id === id ? node : item) : [...current, node]);
+    setEdges((current) => current.some((edge) => edge.target === id) ? current : addEdge({ id: `edge-${sourceNodeId}-tripo-${id}`, source: sourceNodeId, sourceHandle, target: id, ...edgeDefaults }, current));
+    window.setTimeout(() => reactFlow.fitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }), 80);
+    showToast('Tripo opened in your browser. Download the reference images from the model card, then import the exported GLB.');
+  }
+
+  function downloadModelReference(nodeId: string, index: number) {
+    const data = reactFlow.getNode(nodeId)?.data as Model3DNodeData | undefined;
+    const url = data?.referenceUrls?.[index];
+    if (url) downloadUrl(url, data!.referenceUrls!.length === 4 ? `tripo-${['front', 'left', 'back', 'right'][index]}` : 'tripo-reference');
+  }
+
+  function chooseModelFile(nodeId?: string, file?: File) {
+    if (file) { dragDepthRef.current = 0; setDragActive(false); void handleModelUpload(file, nodeId); return; }
+    modelTargetRef.current = { projectId: activeProjectIdRef.current, nodeId };
+    modelInputRef.current?.click();
+  }
+
+  async function handleModelUpload(file: File, targetId?: string, position?: { x: number; y: number }) {
+    const projectId = activeProjectIdRef.current;
+    const busyKey = targetId || 'new';
+    if (modelImportBusyRef.current.has(busyKey)) return;
+    if (!/\.glb$/i.test(file.name)) return showToast('Choose a .glb model exported from Tripo.');
+    if (file.size > 128 * 1024 * 1024) return showToast('GLB files must be 128 MB or smaller.');
+    modelImportBusyRef.current.add(busyKey);
+    setModelImports((current) => ({ ...current, [busyKey]: true }));
     try {
-      const result = await openCharacterViewsInTripo(urls, nodeId, controller.signal);
-      if (!controller.signal.aborted) showToast(`Four views attached · Tripo listener armed · ${result.browser}`);
-    } catch (tripoError) {
-      if (!controller.signal.aborted) showToast(tripoError instanceof Error ? tripoError.message : String(tripoError));
-    } finally {
-      if (tripoControllerRef.current === controller) {
-        tripoControllerRef.current = null;
-        setTripoMultiviewBusyNodeId(null);
-      }
+      const saved = await uploadModel(file, projectId);
+      if (activeProjectIdRef.current !== projectId) return;
+      const id = targetId || `model3d-${randomUUID()}`;
+      setNodes((current) => {
+        const existing = current.find((node) => node.id === id);
+        const data: Model3DNodeData = { ...existing?.data, ...saved, title: file.name, watcherId: id, taskId: null, importMode: 'manual', status: 'ready', progress: 100, error: undefined };
+        if (targetId) return current.map((node) => node.id === id ? { ...node, data } : node);
+        return [...current, { id, type: 'model3d', position: position || pastePosition(), data }];
+      });
+      window.setTimeout(() => reactFlow.fitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }), 80);
+      showToast('GLB imported into this project.');
+      return saved;
+    } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
+    finally {
+      modelImportBusyRef.current.delete(busyKey);
+      setModelImports((current) => ({ ...current, [busyKey]: false }));
     }
   }
 
@@ -2917,25 +2880,6 @@ function Studio() {
     showToast('GLB sent to Downloads.');
   }
 
-  async function recoverTripoPreview(nodeId: string) {
-    const data = reactFlow.getNode(nodeId)?.data as Model3DNodeData | undefined;
-    if (!data?.watcherId || tripoRecoveryBusyRef.current.has(nodeId)) return;
-    tripoRecoveryBusyRef.current.add(nodeId);
-    setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, status: 'running', progress: 99, error: undefined } } : node));
-    showToast('Checking the completed model in the open Tripo tab…');
-    try {
-      const result = await recoverTripoModel(data.sourceNodeId, data.watcherId);
-      if (result.event) handleTripoEvent(result.event);
-      else if (!result.recovered) throw new Error('The open Tripo tab does not contain a completed GLB result yet.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setNodes((current) => current.map((node) => node.id === nodeId ? { ...node, data: { ...node.data, status: 'failed', error: message } } : node));
-      showToast(message);
-    } finally {
-      tripoRecoveryBusyRef.current.delete(nodeId);
-    }
-  }
-
   function downloadResult(nodeId: string) {
     const url = String(reactFlow.getNode(nodeId)?.data.outputUrl || '');
     if (url) { downloadUrl(url); showToast('PNG sent to Downloads.'); }
@@ -3008,8 +2952,12 @@ function Studio() {
   }
 
   async function handleImageFiles(files: File[], position: { x: number; y: number }, source: 'drop' | 'paste') {
+    const models = files.filter((file) => /\.glb$/i.test(file.name));
+    for (const [index, file] of models.entries()) {
+      await handleModelUpload(file, undefined, { x: position.x + index * 34, y: position.y + index * 34 });
+    }
     const images = files.filter((file) => file.type.startsWith('image/'));
-    if (!images.length) return showToast('Drop or paste a PNG, JPG, WEBP, GIF, or BMP image.');
+    if (!images.length) { if (!models.length) showToast('Drop an image or a GLB model.'); return; }
     let added = 0;
     for (const [index, file] of images.entries()) {
       const placed = await handleUpload(file, { x: position.x + index * 34, y: position.y + index * 34 }, false);
@@ -3241,6 +3189,12 @@ function Studio() {
         uploadPositionRef.current = undefined; event.target.value = '';
       }} />
       <input ref={importRef} type="file" accept="application/json,.json" hidden onChange={(event) => { void importGraph(event.target.files?.[0]); event.target.value = ''; }} />
+      <input ref={modelInputRef} type="file" accept=".glb,model/gltf-binary" aria-label="Import GLB file" hidden onChange={(event) => {
+        const file = event.target.files?.[0];
+        const target = modelTargetRef.current;
+        if (file && target?.projectId === activeProjectIdRef.current) void handleModelUpload(file, target.nodeId);
+        modelTargetRef.current = null; event.target.value = '';
+      }} />
       <div className={`editor-screen ${screen === 'home' ? 'is-hidden' : ''}`} inert={screen !== 'workspace' || projectBusy} aria-hidden={screen !== 'workspace'}>
         <WorkspaceChrome key={screen} projectName={projectName} saveState={saveState} busy={projectBusy}
           designReference={projectDesignReference} designReferenceBusy={designReferenceBusy}
@@ -3250,6 +3204,7 @@ function Studio() {
           providerDetail={codexProvider?.reason || `${codex.label} · one worker per image`}
           onHome={() => void goHome()} onPanel={togglePanel} onRename={setProjectName}
           onSave={() => void persistProject(true)} onImport={() => importRef.current?.click()}
+          onImportModel={() => chooseModelFile()}
           onExport={exportCurrentProject} onClear={clearCanvas}
           onDesignReferenceChange={handleProjectDesignReference} onDesignReferenceRemove={removeProjectDesignReference}
           onConnect={globalProvider !== 'codex' || codex.connected ? refreshCodex : handleConnectAccount}
@@ -3270,7 +3225,7 @@ function Studio() {
             void handleImageFiles([...event.dataTransfer.files], reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), 'drop');
           }}
         >
-          {dragActive && <div className="canvas-drop-overlay"><ImagePlus size={30} /><strong>Drop images into this project</strong><span>They will appear exactly here</span></div>}
+          {dragActive && <div className="canvas-drop-overlay"><ImagePlus size={30} /><strong>Drop images or GLB models into this project</strong><span>They will appear exactly here</span></div>}
           {!projectReady && <div className="workspace-loading"><LoaderCircle className="spin" size={24} /><span>Restoring local project</span></div>}
           <ReactFlow
             nodes={displayedNodes}
@@ -3299,7 +3254,7 @@ function Studio() {
             {canCreateReferenceSet && <Panel position="top-center" className="selection-toolbar"><span>{selectedReferenceCount} images selected</span><button type="button" onClick={groupSelectionAsReferences}><Layers3 size={14} /> Create Reference Set <kbd>Ctrl G</kbd></button></Panel>}
           </ReactFlow>
 
-          {projectReady && nodes.length === 0 && !connectionMenu && <div className="editor-empty"><p>Your next idea starts here</p><small>Add a node below, or drop an image onto the canvas.</small></div>}
+          {projectReady && nodes.length === 0 && !connectionMenu && <div className="editor-empty"><p>Your next idea starts here</p><small>Add a node below, or drop an image or GLB onto the canvas.</small></div>}
           <CanvasDock key={screen} mode={canvasMode} onMode={setCanvasMode} canUndo={history.canUndo} canRedo={history.canRedo}
             onUndo={history.undo} onRedo={history.redo} minimap={minimapOpen} onMinimap={() => setMinimapOpen(!minimapOpen)}
             onArrange={arrangeCanvasLayout}

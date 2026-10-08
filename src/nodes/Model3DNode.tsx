@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Blend, Box, Check, Component, Download, Grid3X3, LoaderCircle, Rotate3D, Sun, TriangleAlert } from 'lucide-react';
+import { Blend, Box, Check, Component, Download, Grid3X3, Import, LoaderCircle, Rotate3D, Sun, TriangleAlert } from 'lucide-react';
 import type { Model3DNodeData } from '../types';
 
 type ViewerState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -219,6 +219,7 @@ function TripoModelPreview({
 export default function Model3DNode({ id, data, selected }: NodeProps) {
   const nodeData = data as Model3DNodeData;
   const ready = nodeData.status === 'ready' && Boolean(nodeData.modelUrl);
+  const manual = nodeData.importMode === 'manual';
   const [viewerState, setViewerState] = useState<ViewerState>('idle');
   const [wireframe, setWireframe] = useState(false);
   const [shadedSmooth, setShadedSmooth] = useState(true);
@@ -230,7 +231,13 @@ export default function Model3DNode({ id, data, selected }: NodeProps) {
   }, [ready]);
 
   return (
-    <article className={`studio-node model-3d-node status-${nodeData.status} ${selected ? 'is-selected' : ''}`}>
+    <article className={`studio-node model-3d-node status-${nodeData.status} ${selected ? 'is-selected' : ''}`} aria-busy={nodeData.importBusy || undefined}
+      onDragOver={(event) => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); }}
+      onDrop={(event) => {
+        const file = [...event.dataTransfer.files].find((item) => /\.glb$/i.test(item.name));
+        if (!file) return;
+        event.preventDefault(); event.stopPropagation(); nodeData.onImport?.(id, file);
+      }}>
       <Handle type="target" position={Position.Left} className="flow-handle input-handle model-input-handle" aria-label="Tripo source" />
       <div className="node-cap model-cap">
         <span className="node-kind"><Box size={13} /> Tripo model</span>
@@ -239,13 +246,16 @@ export default function Model3DNode({ id, data, selected }: NodeProps) {
 
       <div className="model-stage nodrag nowheel">
         {ready ? <TripoModelPreview modelUrl={nodeData.modelUrl!} display={display} onStateChange={setViewerState} /> : <div className="model-waiting">
-          {nodeData.status === 'failed' ? <TriangleAlert size={28} /> : <LoaderCircle className="spin" size={28} />}
-          <strong>{nodeData.status === 'failed' ? 'Import failed' : 'Waiting for Tripo'}</strong>
-          <span>{nodeData.status === 'waiting' ? 'Press Generate in Tripo Studio' : nodeData.error || 'Generating and copying the GLB locally…'}</span>
-          <button type="button" onClick={() => nodeData.onRecover?.(id)}>Check ready model</button>
+          {nodeData.importBusy ? <LoaderCircle className="spin" size={28} /> : manual ? <Box size={28} /> : nodeData.status === 'failed' ? <TriangleAlert size={28} /> : <LoaderCircle className="spin" size={28} />}
+          <strong>{nodeData.importBusy ? 'Importing GLB…' : manual ? 'Bring your Tripo model here' : nodeData.status === 'failed' ? 'Import failed' : 'Waiting for Tripo'}</strong>
+          <span>{manual ? 'Upload the reference images in Tripo, generate and export GLB. Then choose the file below or drop it onto this card.' : nodeData.status === 'waiting' ? 'Press Generate in Tripo Studio' : nodeData.error || 'Generating and copying the GLB locally…'}</span>
+          {manual && nodeData.referenceUrls?.length ? <div className="model-reference-downloads">
+            {nodeData.referenceUrls.map((_, index) => <button key={index} type="button" onClick={() => nodeData.onDownloadReference?.(id, index)}><Download size={12} />{nodeData.referenceUrls!.length === 4 ? ['Front', 'Left', 'Back', 'Right'][index] : 'Download image'}</button>)}
+          </div> : null}
+          {manual ? <button type="button" disabled={nodeData.importBusy} onClick={() => nodeData.onImport?.(id)}><Import size={12} /> Import GLB</button> : <button type="button" onClick={() => nodeData.onRecover?.(id)}>Check ready model</button>}
         </div>}
         {ready && viewerState === 'loading' && <div className="model-viewer-message"><LoaderCircle className="spin" size={18} /><span>Loading local GLB…</span></div>}
-        {ready && viewerState === 'error' && <div className="model-viewer-message error"><TriangleAlert size={18} /><span>Preview could not open this GLB.</span><button type="button" onClick={() => nodeData.onRecover?.(id)}>Recover from Tripo</button></div>}
+        {ready && viewerState === 'error' && <div className="model-viewer-message error"><TriangleAlert size={18} /><span>Preview could not open this GLB.</span><button type="button" onClick={() => manual ? nodeData.onImport?.(id) : nodeData.onRecover?.(id)}>{manual ? 'Choose another GLB' : 'Recover from Tripo'}</button></div>}
         {ready && <div className="model-view-toggles nodrag" role="toolbar" aria-label="Model display">
           <button type="button" className={wireframe ? 'is-on' : ''} aria-pressed={wireframe} title="Wireframe overlay" onClick={() => setWireframe((value) => !value)}>
             <Grid3X3 size={12} /> Wire
@@ -261,13 +271,13 @@ export default function Model3DNode({ id, data, selected }: NodeProps) {
       </div>
 
       <div className="model-meta">
-        <span className={`model-status ${nodeData.status}`}>{ready ? <Check size={11} /> : nodeData.status === 'failed' ? <TriangleAlert size={11} /> : <LoaderCircle className="spin" size={11} />}{ready ? 'Local model ready' : nodeData.status === 'failed' ? 'Capture failed' : `${Math.round(nodeData.progress || 0)}% · listening`}</span>
+        <span className={`model-status ${nodeData.status}`}>{ready ? <Check size={11} /> : manual && !nodeData.importBusy ? <Box size={11} /> : nodeData.status === 'failed' ? <TriangleAlert size={11} /> : <LoaderCircle className="spin" size={11} />}{nodeData.importBusy ? 'Importing GLB…' : ready ? 'Model ready' : manual ? 'Waiting for GLB import' : nodeData.status === 'failed' ? 'Capture failed' : `${Math.round(nodeData.progress || 0)}% · listening`}</span>
         {nodeData.taskId && <small title={nodeData.taskId}>{nodeData.taskId}</small>}
       </div>
       {ready && <div className="model-actions nodrag">
         <button type="button" onClick={() => nodeData.onDownload?.(id)}><Download size={12} /> Download GLB</button>
         <button type="button" disabled={nodeData.unityBusy} onClick={() => nodeData.onSendToUnity?.(id)}>{nodeData.unityBusy ? <LoaderCircle className="spin" size={12} /> : <Component size={12} />} Unity</button>
-        <button type="button" onClick={() => nodeData.onRecover?.(id)}><Rotate3D size={12} /> Refresh from Tripo</button>
+        <button type="button" disabled={nodeData.importBusy} onClick={() => manual ? nodeData.onImport?.(id) : nodeData.onRecover?.(id)}>{manual ? <Import size={12} /> : <Rotate3D size={12} />}{manual ? 'Replace GLB' : 'Refresh from Tripo'}</button>
         <span title={nodeData.fileName}>{nodeData.fileName || 'Tripo model.glb'}</span>
       </div>}
       <Handle type="source" position={Position.Right} className="flow-handle output-handle model-output-handle" aria-label="3D model output" />

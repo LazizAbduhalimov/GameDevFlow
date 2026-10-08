@@ -35,8 +35,8 @@ After `npm run build`, `npm start` serves the frontend and API on the same port.
 other devices on the same network to connect. Direct `/project/<id>` links work.
 This is a shared workspace for trusted LAN users; all users share the same
 projects, assets, queue, and server-side Codex account. Do not forward this port
-to the public Internet. Unity and Tripo desktop actions still require their
-desktop environments and do not connect to a visitor's computer.
+to the public Internet. Unity actions require a desktop environment on the
+server. Tripo opens in the visitor's browser and uses manual GLB import.
 
 Deployment on Shokhjahon's server:
 
@@ -71,7 +71,7 @@ or `journalctl --user -u consept.service`.
 
 Deployment verification on 2026-10-08: frontend, uploads, autosave, direct project
 links, and four Codex workers work over LAN HTTP. Native image generation has
-not succeeded with the server account. In the smoke test Codex attempted a Canva
+not succeeded with the server Codex account. In the smoke test Codex attempted a Canva
 connector, which rejected the call because it required approval. A signed-in
 Codex account alone does not verify native ImageGen availability. The image
 worker now reports provider failures and refuses to substitute third-party apps;
@@ -94,6 +94,20 @@ with more than four outputs and Smart Separation regeneration. The app applies
 no fixed worker or batch concurrency cap to image jobs. Each Codex image worker
 is closed after success or failure. If the provider reports a concurrency or
 rate limit, Character Views and Multi Generate retry failed items one at a time.
+
+## Tripo in your browser
+
+The Tripo button opens Studio in the user's own browser. It also adds a linked
+model card to the canvas. Download its reference image (or the four named views),
+upload those images in Tripo, generate the model, and export a self-contained GLB.
+Choose **Import GLB** on the card or drop the GLB onto it. The existing card and
+its source connection are retained, and the model is saved with the project.
+Use **Replace GLB** to update an imported model.
+
+Drop a GLB on empty canvas or use **Project menu → Import GLB model** to add a
+standalone model. Imports support embedded textures and meshopt-compressed GLBs
+up to 128 MB. External texture/buffer files must be embedded when exporting.
+This workflow requires no VNC connection, browser extension, or Tripo API key.
 
 ## Asset workbench
 
