@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import type { AssetRecord, CharacterPartCandidate, CharacterPartsProgress, CodexStatus, ConseptProject, GenerationJob, ProjectSummary, ProviderId, ProviderStatus, SmartSeparationGroup, SmartSeparationItem, SmartSeparationProgress, SmartSeparationSource, TripoModelEvent, UnitySendItem, UnitySendResult, UnityStatus } from './types';
 
 export class ApiError extends Error {
@@ -94,7 +95,7 @@ export async function analyzeSmartSeparation(
   sourceUrls: string[],
   options: { projectId: string; userHint?: string; onProgress?: (progress: SmartSeparationProgress) => void },
 ): Promise<{ analysisId: string; sources: SmartSeparationSource[]; items: SmartSeparationItem[]; groups: SmartSeparationGroup[]; warnings: string[] }> {
-  const requestId = crypto.randomUUID();
+  const requestId = randomUUID();
   let stopped = false;
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   const poll = async () => {
@@ -128,7 +129,7 @@ export async function analyzeCharacterParts(
   sourceUrls: string[],
   options: { projectId: string; userHint?: string; onProgress?: (progress: CharacterPartsProgress) => void },
 ): Promise<{ analysisId: string; characterDescription: string; parts: CharacterPartCandidate[] }> {
-  const requestId = crypto.randomUUID();
+  const requestId = randomUUID();
   let stopped = false;
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   const poll = async () => {

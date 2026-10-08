@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import type { GenerationRevision, GeneratorNodeData, MultiGenerateNodeData, VariantOutput } from './types';
 
 export const GENERATION_HISTORY_CAP = 24;
@@ -39,7 +40,7 @@ export function createGenerationRevision(input: {
 }): GenerationRevision {
   const prompt = input.prompt?.trim();
   return {
-    id: input.id || crypto.randomUUID(),
+    id: input.id || randomUUID(),
     assetId: input.assetId || assetIdFromOutputUrl(input.outputUrl),
     outputUrl: input.outputUrl,
     createdAt: input.createdAt || new Date().toISOString(),

@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import type { Edge, Node, Viewport } from '@xyflow/react';
 import { serializeEdges, serializeNodes } from './graph';
 import { CHARACTER_IDENTITY_PROMPT, CHARACTER_VIEW_KEYS, CHARACTER_VIEW_SPECS } from './character-views';
@@ -266,13 +267,13 @@ export function instantiateTemplate(id: string): WorkflowTemplateInstance {
   const idMap = new Map<string, string>();
   const nodes = template.nodes.map((source) => {
     const prefix = NODE_ID_PREFIX[source.type || ''] || source.type || 'node';
-    const nextId = `${prefix}-${crypto.randomUUID()}`;
+    const nextId = `${prefix}-${randomUUID()}`;
     idMap.set(source.id, nextId);
     return { ...structuredClone(source), id: nextId };
   });
   const edges = template.edges.map((source) => ({
     ...structuredClone(source),
-    id: `edge-${crypto.randomUUID()}`,
+    id: `edge-${randomUUID()}`,
     source: idMap.get(source.source) || source.source,
     target: idMap.get(source.target) || source.target,
   }));

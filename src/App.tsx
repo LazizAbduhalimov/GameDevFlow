@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
@@ -1410,7 +1411,7 @@ function Studio() {
   }
 
   function addGenerator(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null, prompt = '') {
-    const id = `generator-${crypto.randomUUID()}`;
+    const id = `generator-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 });
     const node: StudioNode = { id, type: 'generator', position: position || viewportCenter, data: { title: 'Generate image', prompt, provider: 'global', status: 'idle' } };
     setNodes((current) => [...current, node]);
@@ -1431,7 +1432,7 @@ function Studio() {
   }
 
   function addCharacterViews(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `character-views-${crypto.randomUUID()}`;
+    const id = `character-views-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
     const node: StudioNode = { id, type: 'characterViews', position: position || viewportCenter, data: createTurnaroundData() };
     setNodes((current) => [...current, node]);
@@ -1445,7 +1446,7 @@ function Studio() {
   }
 
   function addCharacterParts(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `character-parts-${crypto.randomUUID()}`;
+    const id = `character-parts-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
     const node: StudioNode = { id, type: 'characterParts', position: position || viewportCenter, data: createCharacterPartsDataNode() };
     setNodes((current) => [...current, node]);
@@ -1455,7 +1456,7 @@ function Studio() {
   }
 
   function addMultiGenerate(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `multi-generate-${crypto.randomUUID()}`;
+    const id = `multi-generate-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
     const node: StudioNode = {
       id,
@@ -1478,7 +1479,7 @@ function Studio() {
   }
 
   function addSmartSeparation(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `smart-separation-${crypto.randomUUID()}`;
+    const id = `smart-separation-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.54, y: window.innerHeight * 0.44 });
     const node: StudioNode = {
       id,
@@ -1503,7 +1504,7 @@ function Studio() {
   }
 
   function addSpriteAtlas(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `sprite-atlas-${crypto.randomUUID()}`;
+    const id = `sprite-atlas-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.58, y: window.innerHeight * 0.5 });
     const node: StudioNode = {
       id,
@@ -1522,7 +1523,7 @@ function Studio() {
   }
 
   function addRelativeAtlas(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `relative-atlas-${crypto.randomUUID()}`;
+    const id = `relative-atlas-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.58, y: window.innerHeight * 0.5 });
     const node: StudioNode = { id, type: 'relativeAtlas', position: position || viewportCenter, data: { title: 'Relative Atlas', status: 'idle', settings: { canvasSize: 1024, padding: 8, outerMargin: 12, pixelArt: false } } };
     setNodes((current) => [...current, node]);
@@ -1532,7 +1533,7 @@ function Studio() {
   }
 
   function addSeamlessTexture(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `seamless-texture-${crypto.randomUUID()}`;
+    const id = `seamless-texture-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
     const node: StudioNode = {
       id,
@@ -1553,7 +1554,7 @@ function Studio() {
   }
 
   function addMaterialMaps(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
-    const id = `material-maps-${crypto.randomUUID()}`;
+    const id = `material-maps-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.58, y: window.innerHeight * 0.5 });
     const node: StudioNode = {
       id,
@@ -2049,7 +2050,7 @@ function Studio() {
       const view = data.views[key];
       const alreadyConnected = existingEdges.some((e) => e.source === nodeId && e.sourceHandle === key);
       if (alreadyConnected) return;
-      const childId = `image-${crypto.randomUUID()}`;
+      const childId = `image-${randomUUID()}`;
       newNodes.push({
         id: childId,
         type: 'image',
@@ -2389,7 +2390,7 @@ function Studio() {
     const newNodes: StudioNode[] = [];
     const newEdges: Edge[] = [];
     toSpawn.forEach((part, index) => {
-      const viewsId = `character-views-${crypto.randomUUID()}`;
+      const viewsId = `character-views-${randomUUID()}`;
       spawnedIds.push({ partId: part.id, nodeId: viewsId });
       newNodes.push({ id: viewsId, type: 'characterViews', position: positions[index], data: createPropViewsData(part, data.notes, data.provider) });
       newEdges.push({
@@ -2490,7 +2491,7 @@ function Studio() {
       const source = data.sources.find((item) => item.sourceIndex === sourceIndex);
       const group = data.groups.find((item) => item.id === data.activeGroupId) || data.groups[0];
       if (!source || !group) return node;
-      const item: SmartSeparationItem = { id: `item-manual-${crypto.randomUUID()}`, sourceIndex, sourceUrl: source.sourceUrl, sourceAssetId: source.sourceAssetId, name: `Element ${data.items.length + 1}`, role: 'Manual selection', description: '', bounds, enabled: true, groupId: group.id };
+      const item: SmartSeparationItem = { id: `item-manual-${randomUUID()}`, sourceIndex, sourceUrl: source.sourceUrl, sourceAssetId: source.sourceAssetId, name: `Element ${data.items.length + 1}`, role: 'Manual selection', description: '', bounds, enabled: true, groupId: group.id };
       return { ...node, data: { ...data, status: 'review', items: [...data.items, item], groups: data.groups.map((entry) => entry.id === group.id ? { ...entry, status: 'idle', outputUrl: undefined, outputAssetId: undefined, previewUrl: undefined, manifest: undefined, error: undefined } : entry) } };
     }));
   }
@@ -2513,7 +2514,7 @@ function Studio() {
     setNodes((current) => current.map((node) => {
       if (node.id !== nodeId || node.type !== 'smartSeparation') return node;
       const data = node.data as SmartSeparationNodeData;
-      const id = `group-${crypto.randomUUID()}`;
+      const id = `group-${randomUUID()}`;
       return { ...node, data: { ...data, activeGroupId: id, groups: [...data.groups, { id, name: `Group ${data.groups.length + 1}`, slug: `group-${data.groups.length + 1}`, status: 'idle' }] } };
     }));
   }
@@ -3034,7 +3035,7 @@ function Studio() {
   }
 
   function addAssetNode(asset: AssetRecord, position?: { x: number; y: number }, options: { title?: string; hasInput?: boolean; fit?: boolean } = {}) {
-    const id = `image-${crypto.randomUUID()}`;
+    const id = `image-${randomUUID()}`;
     const node: StudioNode = {
       id,
       type: 'image',
@@ -3093,7 +3094,7 @@ function Studio() {
   function duplicateSelection() {
     const selected = nodes.filter((node) => node.selected);
     if (!selected.length) return;
-    const copies = selected.map((node) => ({ ...structuredClone(node), id: `${node.type}-${crypto.randomUUID()}`, selected: false, position: { x: node.position.x + 36, y: node.position.y + 36 } }));
+    const copies = selected.map((node) => ({ ...structuredClone(node), id: `${node.type}-${randomUUID()}`, selected: false, position: { x: node.position.x + 36, y: node.position.y + 36 } }));
     setNodes((current) => [...current.map((node) => ({ ...node, selected: false })), ...copies]);
     showToast(`${copies.length} node${copies.length === 1 ? '' : 's'} duplicated.`);
   }
@@ -3106,7 +3107,7 @@ function Studio() {
     const items = uniqueReferenceItems(sourceNodes);
     if (items.length < 2) return showToast('The selected nodes need at least two different ready images.');
     if (items.length > maxReferenceImages) return showToast(`A Reference Set can use up to ${maxReferenceImages} images at once.`);
-    const id = `reference-set-${crypto.randomUUID()}`;
+    const id = `reference-set-${randomUUID()}`;
     const position = {
       x: Math.max(...sourceNodes.map((node) => node.position.x)) + 390,
       y: Math.min(...sourceNodes.map((node) => node.position.y)),

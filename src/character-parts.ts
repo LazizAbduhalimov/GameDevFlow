@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import type { CharacterPartCandidate, CharacterPartsNodeData } from './types';
 
 export const MAX_CHARACTER_PARTS = 24;
@@ -15,7 +16,7 @@ export function parseCharacterPartHandle(handle?: string | null) {
 export function createCharacterPart(input: { name?: string; description?: string; enabled?: boolean; id?: string } = {}): CharacterPartCandidate {
   const name = cleanPartName(input.name, 'Part');
   return {
-    id: input.id || `part-${crypto.randomUUID()}`,
+    id: input.id || `part-${randomUUID()}`,
     name,
     description: cleanPartText(input.description, 400),
     enabled: input.enabled !== false,

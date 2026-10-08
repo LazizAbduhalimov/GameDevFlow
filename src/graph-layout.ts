@@ -1,3 +1,4 @@
+import { randomUUID } from './random-id';
 import type { Edge, Node } from '@xyflow/react';
 import type { ImageNodeData, SmartSeparationItem, SmartSeparationNodeData } from './types';
 
@@ -171,7 +172,7 @@ export function readySmartSeparationItems(data: SmartSeparationNodeData): SmartS
 export function createSmartSeparationCard(item: SmartSeparationItem, position: { x: number; y: number }): Node {
   const slug = String(item.name || 'element').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'element';
   return {
-    id: `image-${crypto.randomUUID()}`,
+    id: `image-${randomUUID()}`,
     type: 'image',
     position,
     data: {
