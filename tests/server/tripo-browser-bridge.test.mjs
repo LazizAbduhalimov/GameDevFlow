@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractTripoResult, isAllowedTripoDownloadUrl, looksLikeTripoModelUrl, looksLikeTripoResultModelUrl } from '../../server/tripo-browser-bridge.mjs';
+import { fileURLToPath } from 'node:url';
+import { extractTripoResult, findChromiumExecutable, isAllowedTripoDownloadUrl, looksLikeTripoModelUrl, looksLikeTripoResultModelUrl } from '../../server/tripo-browser-bridge.mjs';
+
+test('Tripo resolves a configured server browser wrapper without falling back to another profile', () => {
+  const wrapper = fileURLToPath(import.meta.url);
+  assert.equal(findChromiumExecutable({ CONSEPT_TRIPO_BROWSER_PATH: wrapper }, 'linux'), wrapper);
+  assert.equal(findChromiumExecutable({ FRAMEFORGE_TRIPO_BROWSER_PATH: wrapper }, 'linux'), wrapper);
+  assert.equal(findChromiumExecutable({ CONSEPT_TRIPO_BROWSER_PATH: `${wrapper}.missing` }, 'linux'), undefined);
+});
 
 test('Tripo task payload prefers the PBR GLB and retains progress metadata', () => {
   const result = extractTripoResult({

@@ -761,8 +761,10 @@ class CdpClient {
   }
 }
 
-function findChromiumExecutable() {
-  const candidates = process.platform === 'win32' ? [
+export function findChromiumExecutable(env = process.env, platform = process.platform) {
+  const configured = env.CONSEPT_TRIPO_BROWSER_PATH || env.FRAMEFORGE_TRIPO_BROWSER_PATH;
+  if (configured) return existsSync(configured) ? configured : undefined;
+  const candidates = platform === 'win32' ? [
     path.join(process.env.ProgramFiles || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
     path.join(process.env['ProgramFiles(x86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
     path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
