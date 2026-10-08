@@ -8,7 +8,7 @@ export function isSafeAssetId(value) {
 
 export function resolveWithin(rootDir, relativePath) {
   if (typeof relativePath !== 'string' || relativePath.includes('\0')) return null;
-  const resolved = path.resolve(rootDir, relativePath);
+  const resolved = path.resolve(rootDir, relativePath.replace(/\\/g, path.sep));
   const prefix = `${path.resolve(rootDir)}${path.sep}`;
   return resolved.startsWith(prefix) ? resolved : null;
 }

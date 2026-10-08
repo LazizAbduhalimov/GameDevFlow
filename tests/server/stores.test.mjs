@@ -91,6 +91,8 @@ test('path safety keeps asset paths inside their collection root', () => {
   assert.equal(resolveWithin(root, 'asset.png'), path.join(root, 'asset.png'));
   assert.equal(resolveWithin(root, '../outside.png'), null);
   assert.equal(resolveWithin(root, '..\\outside.png'), null);
+  assert.equal(resolveWithin(root, 'nested\\..\\..\\outside.png'), null);
+  assert.equal(resolveWithin(root, 'nested\\asset.png'), path.join(root, 'nested', 'asset.png'));
   assert.equal(slugify(' Front view: Character #1 '), 'front-view-character-1');
   assert.equal(safeDownloadName('smart-crown-doodle-3528a54b', '.png'), 'smart-crown-doodle-3528a54b.png');
   assert.equal(safeDownloadName('hero-front.png', '.png'), 'hero-front.png');

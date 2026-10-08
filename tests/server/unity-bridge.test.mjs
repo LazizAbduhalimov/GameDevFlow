@@ -56,7 +56,7 @@ test('Unity process and Hub parsers extract project paths', () => {
     },
   });
   assert.equal(projects[0].name, 'Arena');
-  assert.ok(projects[0].path.toLowerCase().endsWith(path.join('Games', 'Arena').toLowerCase()));
+  assert.ok(projects[0].path.toLowerCase().endsWith(path.win32.join('Games', 'Arena').toLowerCase()));
   const editors = parseHubEditors({
     official: [{ version: '6000.0.23f1', location: ['C:\\Program Files\\Unity\\Hub\\Editor\\6000.0.23f1\\Editor\\Unity.exe'] }],
   });
