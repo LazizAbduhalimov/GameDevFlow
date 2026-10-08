@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install an isolated, persistent Tripo Studio browser for the current Linux user."""
 import argparse
+import ipaddress
 import os
 from pathlib import Path
 import secrets
@@ -85,6 +86,19 @@ def main():
     password = password_file.read_text().strip()
     run(str(root / "usr/bin/x11vnc"), "-storepasswd", password, str(config / "vnc.pass"), env=runtime_env)
     (config / "vnc.pass").chmod(0o600)
+    cert = config / "viewer.crt"
+    key = config / "viewer.key"
+    if not cert.exists() or not key.exists():
+        try:
+            ipaddress.ip_address(args.host)
+            subject_alt_name = f"IP:{args.host}"
+        except ValueError:
+            subject_alt_name = f"DNS:{args.host}"
+        run("openssl", "req", "-x509", "-newkey", "rsa:3072", "-sha256", "-nodes",
+            "-days", "365", "-keyout", str(key), "-out", str(cert),
+            "-subj", f"/CN={args.host}", "-addext", f"subjectAltName={subject_alt_name}")
+        key.chmod(0o600)
+        cert.chmod(0o600)
     authority = config / "Xauthority"
     if not authority.exists():
         authority.touch(mode=0o600)
@@ -127,6 +141,7 @@ def main():
                   "\n[Service]\nType=simple\n"
                   f"Environment=PYTHONPATH={runtime_env['PYTHONPATH']}\n"
                   f"ExecStart=/usr/bin/python3 -m websockify --web {root}/noVNC --heartbeat 30 "
+                  f"--cert {cert} --key {key} --ssl-only --ssl-version tlsv1_2 "
                   f"{args.host}:{args.port} 127.0.0.1:5904" + common)
 
     server_env = home / ".config/consept/server.env"
@@ -139,7 +154,7 @@ def main():
     run("systemctl", "--user", "daemon-reload")
     run("systemctl", "--user", "enable", "--now", "consept-tripo-display.service",
         "consept-tripo-browser.service", "consept-tripo-vnc.service", "consept-tripo-web.service")
-    print(f"Browser viewer: http://{args.host}:{args.port}/vnc.html?autoconnect=1&resize=scale")
+    print(f"Browser viewer: https://{args.host}:{args.port}/vnc.html?autoconnect=1&resize=scale")
     print(f"Viewer password file: {password_file}")
     print("Sign in manually in the remote browser; the profile stays on this server.")
 
