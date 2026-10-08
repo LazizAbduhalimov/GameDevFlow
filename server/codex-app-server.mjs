@@ -90,6 +90,7 @@ export class CodexAppServer extends EventEmitter {
       serviceName: 'Consept',
       baseInstructions: [
         'You are the image generation engine for a local node-based art tool. Use image generation whenever the user requests a visual result. Do not write application code.',
+        'Use native ImageGen only. Do not substitute a third-party app or connector. If native image generation is unavailable, report that limitation.',
         requireTransparentBackground ? 'This request requires a native transparent background. Invoke image generation with its transparent-background option enabled; do not render or imitate a checkerboard. The returned PNG must have real alpha outside the asset.' : '',
       ].filter(Boolean).join(' '),
     });
@@ -98,6 +99,8 @@ export class CodexAppServer extends EventEmitter {
     return new Promise(async (resolve, reject) => {
       let imageReceived = false;
       let transparentBackground = null;
+      let providerError = null;
+      let assistantMessage = '';
       let settled = false;
       const finish = (callback, value) => {
         if (settled) return;
@@ -114,6 +117,13 @@ export class CodexAppServer extends EventEmitter {
         if (message.method === 'item/started') {
           const type = message.params?.item?.type;
           onProgress(type === 'imageGeneration' ? 'ImageGen is rendering' : 'Codex is preparing the image');
+        }
+
+        if (message.method === 'item/completed' && message.params?.item?.type === 'agentMessage') {
+          assistantMessage = String(message.params.item.text || '').trim().slice(0, 800);
+        }
+        if (message.method === 'item/completed' && message.params?.item?.type === 'mcpToolCall' && message.params.item.error?.message) {
+          providerError = `Codex tool ${message.params.item.tool || 'call'} failed: ${message.params.item.error.message}`;
         }
 
         if (message.method === 'item/completed' && message.params?.item?.type === 'imageGeneration') {
@@ -140,7 +150,7 @@ export class CodexAppServer extends EventEmitter {
 
         if (message.method === 'turn/completed') {
           if (imageReceived || existsSync(outputPath)) finish(resolve, { outputPath, transparentBackground });
-          else finish(reject, new Error('Codex finished without an image result. Image generation may be unavailable for this account or model.'));
+          else finish(reject, new Error(message.params?.turn?.error?.message || providerError || assistantMessage || 'Codex finished without an image result. Image generation may be unavailable for this account or model.'));
         }
       };
 

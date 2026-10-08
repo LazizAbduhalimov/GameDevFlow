@@ -30,7 +30,10 @@ Deployment on Shokhjahon's server:
 - Node.js 22 runtime: `~/.local/share/consept-node`; the system Node is unchanged.
 - Runtime settings: `~/.config/consept/server.env` with
   `CONSEPT_HOST=192.168.12.231`, `CONSEPT_PORT=8083`,
-  `CODEX_CLI_PATH=/usr/local/bin/codex`, and `CONSEPT_CODEX_WORKERS=4`.
+  `CODEX_CLI_PATH=/home/shokhjahon/.local/share/consept-codex/node_modules/.bin/codex`,
+  and `CONSEPT_CODEX_WORKERS=4`.
+- Consept uses its own Codex CLI 0.160.1 installation under
+  `~/.local/share/consept-codex`; the system CLI is unchanged.
 - Service: `deploy/user/consept.service`, installed into `~/.config/systemd/user/`.
 - Open `http://192.168.12.231:8083` from the same LAN.
 - The existing server Codex login is used; login credentials are never copied
@@ -50,6 +53,14 @@ dependencies, runs tests, builds, restarts the service, and checks `/api/health`
 User lingering must be enabled for autostart without an SSH session (already
 enabled on this server). Inspect with `systemctl --user status consept.service`
 or `journalctl --user -u consept.service`.
+
+Deployment verification on 2026-10-08: frontend, uploads, autosave, direct project
+links, and four Codex workers work over LAN HTTP. Native image generation has
+not succeeded with the server account. In the smoke test Codex attempted a Canva
+connector, which rejected the call because it required approval. A signed-in
+Codex account alone does not verify native ImageGen availability. The image
+worker now reports provider failures and refuses to substitute third-party apps;
+generation needs a supported account/client setup before it can be used here.
 
 ## MVP workflow
 
