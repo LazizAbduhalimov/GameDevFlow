@@ -39,17 +39,21 @@ test('smart-separation rejects slot 129 without changing other batch limits', ()
   }), { code: 'BATCH_SLOT_COUNT', message: 'Variants batches require one to 6 slots.' });
 });
 
-test('unknown batch kinds remain rejected and concurrency stays limited to four', () => {
+test('unknown batch kinds remain rejected and batches allow more than four workers', () => {
   assert.throws(() => normalizeBatchRequest({
     sourceUrl,
     kind: 'smart-separation-v2',
     slots: [{ prompt: 'Element' }],
   }), { code: 'UNSUPPORTED_BATCH_KIND' });
 
-  assert.throws(() => normalizeBatchRequest({
+  const batch = normalizeBatchRequest({
     sourceUrl,
     kind: 'smart-separation',
-    concurrency: 5,
+    concurrency: 128,
     slots: [{ prompt: 'Element' }],
-  }), { code: 'BATCH_CONCURRENCY' });
+  });
+  assert.equal(batch.concurrency, 128);
+  for (const concurrency of [0, -1, 1.5, 'invalid']) {
+    assert.throws(() => normalizeBatchRequest({ sourceUrl, kind: 'variants', concurrency, slots: [{ prompt: 'Element' }] }), { code: 'BATCH_CONCURRENCY' });
+  }
 });

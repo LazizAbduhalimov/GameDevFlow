@@ -40,8 +40,8 @@ export function normalizeBatchRequest(body = {}) {
 function normalizeConcurrency(value) {
   if (value === undefined || value === null || value === '') return 1;
   const concurrency = Number(value);
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
-    throw batchError('BATCH_CONCURRENCY', 'Batch concurrency must be a whole number from 1 to 4.');
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+    throw batchError('BATCH_CONCURRENCY', 'Batch concurrency must be a positive whole number.');
   }
   return concurrency;
 }

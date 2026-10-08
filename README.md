@@ -1,8 +1,23 @@
 # Consept Local
 
-Consept is a local node-based image lab for game concept workflows. It uses the signed-in Codex/ImageGen session on this computer, stores projects and images on disk, and binds only to `127.0.0.1`.
+Consept is a local node-based image lab for game concept workflows. It uses the signed-in Codex/ImageGen or Cursor Agent CLI session on this computer, stores projects and images on disk, and binds only to `127.0.0.1`.
 
 No OpenAI API key is required for the Codex provider. Gemini is represented in the provider layer, but remains disabled until Google exposes an official local/consumer-quota image-generation path suitable for this app.
+
+Select **Cursor CLI** in the image-provider menu above the canvas to use it for
+nodes set to the global provider, or select Cursor on an individual generator or
+Character Views node. Cursor is detected from its Windows installation or from
+`cursor-agent` on PATH on macOS/Linux. Sign in once with `agent login`, then click
+**Refresh connection** in Consept. No separate image API key is configured.
+Each generation runs in a temporary workspace containing copies of the selected
+references. Only an image produced by Cursor's native image tool is accepted;
+text-only responses and tool failures are reported as failed jobs. Generated
+assets keep the provider and source-reference metadata in the project gallery.
+Image generation must be available for your Cursor account/model.
+
+Optional settings: `CONSEPT_CURSOR_COMMAND` (path to a directly executable CLI),
+`CONSEPT_CURSOR_MODEL` (defaults to `auto`). Windows uses Cursor's bundled Node
+runtime directly, without passing user prompts through a shell.
 
 ## Run
 
@@ -73,7 +88,12 @@ generation needs a supported account/client setup before it can be used here.
 
 The **Character views** node accepts one source and owns four independent Front/Left/Back/Right outputs plus a distinct orange **All views** output. All views becomes usable when the complete set is ready and sends the four images together as references to a downstream ImageGen node. Portrait previews use contain sizing, so the entire generated frame remains visible.
 
-Character Views and Multi Generate always use **Turbo 4×**: up to four independent jobs run through four isolated local Codex app-server workers. A batch with more than four jobs continues as workers become free. If Codex explicitly reports a concurrency or rate limit, failed jobs automatically retry one at a time.
+Each output image gets its own worker: a dedicated Codex app-server process or
+Cursor CLI process. All requested images start independently, including batches
+with more than four outputs and Smart Separation regeneration. The app applies
+no fixed worker or batch concurrency cap to image jobs. Each Codex image worker
+is closed after success or failure. If the provider reports a concurrency or
+rate limit, Character Views and Multi Generate retry failed items one at a time.
 
 ## Asset workbench
 
@@ -103,7 +123,7 @@ If the Unity project has no glTF importer, Consept adds `com.unity.cloud.gltfast
 - Durable project autosave with revision-conflict protection and browser fallback.
 - Explicit save plus import/export of `.consept.json` project files.
 - Undo/redo, duplicate, fit-selection, and run-prompt keyboard shortcuts.
-- Persistent four-worker generation queue with automatic Turbo 4× execution, cancellation, and retry controls.
+- Persistent generation queue with one dedicated worker per output image, cancellation, and retry controls.
 - Queue-to-node status reconciliation, including recovery after temporary backend polling failures.
 - Gallery search, source/generated/trash filters, and multi-selection.
 - Full-screen inspector with 1x/2x/4x zoom.
@@ -158,7 +178,11 @@ npm run test:server
 
 The server test suite covers project revision conflicts, asset indexing and multi-parent lineage, trash/restore/purge, safe ZIP selection and deduplication, worker leasing, queue lifecycle/recovery, and rejection of invalid image content.
 
-Set `CONSEPT_CODEX_WORKERS=1` before `npm run dev` to force a single backend worker globally. The default is four, capped at four for the local app. `FRAMEFORGE_CODEX_WORKERS` is still accepted.
+`CONSEPT_CODEX_WORKERS` (or `FRAMEFORGE_CODEX_WORKERS`) controls only the shared
+Codex pool used for analysis and prompt enhancement, defaulting to four. Image
+generation uses dedicated processes and is independent of that pool. Provider
+capabilities report `workerMode: "per-image"` and `maxConcurrency: null`; the
+health endpoint exposes the active Codex image workers and their job IDs.
 
 ## Deliberate MVP limits
 

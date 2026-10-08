@@ -43,9 +43,10 @@ export default function CharacterPartsNode({ id, data, selected }: NodeProps) {
 
         <div className="node-cap parts-cap">
           <span className="node-kind"><Scissors size={13} /> Props extraction</span>
-          <select className="node-provider-select nodrag" aria-label="Image provider" value={nodeData.provider || 'global'} onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'gemini')}>
-            <option value="global">Auto · Codex</option>
+          <select className="node-provider-select nodrag" aria-label="Image provider" value={nodeData.provider || 'global'} onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'cursor' | 'gemini')}>
+            <option value="global">Default provider</option>
             <option value="codex">Codex</option>
+            <option value="cursor">Cursor CLI</option>
             <option value="gemini" disabled>Gemini · unavailable</option>
           </select>
         </div>

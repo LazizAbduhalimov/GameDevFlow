@@ -7,7 +7,7 @@ import {
   LoaderCircle, Map, MoreHorizontal, MousePointer2, Palette, Plus, Redo2,
   Save, Sparkles, Trash2, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import type { CodexStatus, ProjectDesignReference, ProjectSaveState, UnityStatus } from '../types';
+import type { CodexStatus, ProviderId, ProviderStatus, ProjectDesignReference, ProjectSaveState, UnityStatus } from '../types';
 import { canvasDuration } from '../workspace-display';
 import { homePath, shouldHandleAppLink } from '../app-route';
 import '../shell.css';
@@ -41,6 +41,7 @@ type WorkspaceChromeProps = {
   designReference: ProjectDesignReference | null; designReferenceBusy: boolean;
   activePanel: 'gallery' | 'jobs' | 'appearance' | null; activeJobs: number;
   codex: CodexStatus; authBusy: boolean; providerDetail?: string;
+  providers: ProviderStatus[]; globalProvider: ProviderId; onProviderChange: (provider: ProviderId) => void;
   unity: UnityStatus; unityBusy: boolean;
   onHome: () => void; onPanel: (panel: 'gallery' | 'jobs' | 'appearance') => void;
   onRename: (name: string) => void; onSave: () => void; onImport: () => void;
@@ -70,6 +71,8 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
     ...props.unity.recents.filter((project) => !props.unity.running.some((item) => item.path === project.path)),
   ];
   const unityLabel = props.unity.target?.name || 'No project';
+  const imageProvider = props.providers.find((provider) => provider.id === props.globalProvider);
+  const providerReady = props.globalProvider === 'codex' ? props.codex.connected : Boolean(imageProvider?.available);
   return <>
     <nav className="workspace-rail" aria-label="Workspace navigation">
       <ToolButton label="Back to projects" href={homePath()} onClick={(event) => {
@@ -141,13 +144,20 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
         </div>}
       </div>
       <div className="hud-provider" ref={providerRef}>
-        <button type="button" className="hud-provider-trigger" onClick={() => { setProviderOpen(!providerOpen); setUnityOpen(false); setProjectOpen(false); }} aria-expanded={providerOpen} aria-label="Codex connection settings">
-          <CircleDot size={14} className={props.codex.connected ? 'is-ready' : ''} /><span>Codex</span><small>{props.codex.connected ? 'Ready' : 'Offline'}</small><ChevronDown size={12} />
+        <button type="button" className="hud-provider-trigger" onClick={() => { setProviderOpen(!providerOpen); setUnityOpen(false); setProjectOpen(false); }} aria-expanded={providerOpen} aria-label="Image provider settings">
+          <CircleDot size={14} className={providerReady ? 'is-ready' : ''} /><span>{props.globalProvider === 'cursor' ? 'Cursor' : props.globalProvider === 'gemini' ? 'Gemini' : 'Codex'}</span><small>{providerReady ? 'Ready' : 'Offline'}</small><ChevronDown size={12} />
         </button>
-        {providerOpen && <div className="shell-menu connection-settings" role="dialog" aria-label="Codex connection">
-          <div className="connection-title"><Sparkles size={18} /><strong>Codex ImageGen</strong></div>
-          <p>{props.providerDetail || props.codex.label}</p>
-          <button className="shell-primary" disabled={props.authBusy} onClick={props.onConnect}>{props.authBusy ? <LoaderCircle className="spin" size={16} /> : <CircleDot size={16} />}{props.codex.connected ? 'Refresh connection' : 'Connect ChatGPT'}</button>
+        {providerOpen && <div className="shell-menu connection-settings" role="dialog" aria-label="Image provider connection">
+          <div className="connection-title"><Sparkles size={18} /><strong>{imageProvider?.label || 'Codex ImageGen'}</strong></div>
+          <label>Default image provider
+            <select className="node-provider-select" aria-label="Default image provider" value={props.globalProvider} onChange={(event) => props.onProviderChange(event.target.value as ProviderId)}>
+              <option value="codex">Codex</option>
+              <option value="cursor">Cursor CLI{props.providers.find((provider) => provider.id === 'cursor')?.available ? '' : ' · offline'}</option>
+              <option value="gemini" disabled>Gemini · unavailable</option>
+            </select>
+          </label>
+          <p>{props.globalProvider === 'codex' ? props.providerDetail || props.codex.label : imageProvider?.reason || (providerReady ? 'Cursor CLI connected. Each image runs in its own worker.' : 'Checking Cursor CLI connection…')}</p>
+          <button className="shell-primary" disabled={props.authBusy} onClick={props.onConnect}>{props.authBusy ? <LoaderCircle className="spin" size={16} /> : <CircleDot size={16} />}{props.globalProvider === 'codex' && !props.codex.connected ? 'Connect ChatGPT' : 'Refresh connection'}</button>
         </div>}
       </div>
       </div>

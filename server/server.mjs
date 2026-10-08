@@ -7,7 +7,9 @@ import { mkdir, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CodexWorkerPool } from './codex-worker-pool.mjs';
+import { CodexImageWorkers } from './codex-image-workers.mjs';
 import { codexSpawnEnv, resolveCodexCommand } from './codex-command.mjs';
+import { CursorCli } from './cursor-cli.mjs';
 import { AssetStore } from './asset-store.mjs';
 import { resolveExportAssets, streamAssetArchive } from './archive-export.mjs';
 import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest } from './batch-normalization.mjs';
@@ -39,6 +41,10 @@ const projectsDir = path.join(dataDir, 'projects');
 const modelsDir = path.join(dataDir, 'models');
 const settingsDir = path.join(dataDir, 'settings');
 const codexCommand = resolveCodexCommand();
+const cursorCli = new CursorCli();
+const codexImageWorkers = new CodexImageWorkers({
+  onDiagnostic: (message, jobId) => { if (message) console.log(`[codex image ${jobId}] ${message}`); },
+});
 const codexWorkerCount = Math.max(1, Math.min(4, Number(process.env.CONSEPT_CODEX_WORKERS || process.env.FRAMEFORGE_CODEX_WORKERS || 4)));
 const codexWorkerPool = new CodexWorkerPool({
   size: codexWorkerCount,
@@ -80,16 +86,18 @@ function finishCharacterPartsProgress(requestId, stage, message) {
 }
 
 await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(generatedDir, { recursive: true }), mkdir(modelsDir, { recursive: true }), mkdir(settingsDir, { recursive: true }), assetStore.initialize(), jobStore.initialize()]);
-const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concurrency: codexWorkerCount });
+const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concurrency: Infinity });
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
 
-app.get('/api/health', (_request, response) => response.json({ ok: true, service: 'consept-local', queue: jobQueue.snapshot(), workers: codexWorkerPool.snapshot() }));
+app.get('/api/health', (_request, response) => response.json({ ok: true, service: 'consept-local', queue: jobQueue.snapshot(), workers: codexWorkerPool.snapshot(), imageWorkers: codexImageWorkers.snapshot() }));
 
 app.get('/api/providers', async (_request, response) => {
+  const [codex, cursor] = await Promise.all([getCodexProviderStatus(), cursorCli.status()]);
   response.json([
-    await getCodexProviderStatus(),
+    codex,
+    cursor,
     { id: 'gemini', label: 'Gemini / Nano Banana', available: false, reason: 'Gemini CLI OAuth is not a supported image-provider integration. Configure an official Gemini API or Vertex AI provider before enabling it.', capabilities: { imageGeneration: false, imageEditing: false, cancellation: 'none', maxConcurrency: 0 } },
   ]);
 });
@@ -610,7 +618,8 @@ app.post('/api/generate', async (request, response, next) => {
     const project = await projectStore.get(projectId);
     if (requestedUrls.length > MAX_REFERENCE_IMAGES) return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
     if (!prompt || !requestedUrls.length) return response.status(400).json({ message: 'At least one input image and a prompt are required.' });
-    if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
+    const providerError = await imageProviderError(provider);
+    if (providerError) return response.status(409).json({ message: providerError });
     const sources = [];
     for (const sourceUrl of [...new Set(requestedUrls)]) {
       const source = await assetStore.resolveDataUrl(sourceUrl);
@@ -633,7 +642,8 @@ app.post('/api/batches', async (request, response, next) => {
     const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
     const project = await projectStore.get(projectId);
     if (!batch.sourceUrls.length || !batch.slots.length) return response.status(400).json({ message: 'At least one source image and one batch slot are required.' });
-    if (provider !== 'codex') return response.status(409).json({ message: 'The selected image provider is unavailable locally.' });
+    const providerError = await imageProviderError(provider);
+    if (providerError) return response.status(409).json({ message: providerError });
     const sources = [];
     for (const sourceUrl of batch.sourceUrls) {
       const source = await assetStore.resolveDataUrl(sourceUrl);
@@ -718,6 +728,8 @@ const httpServer = app.listen(port, host, () => {
 });
 function shutdown() {
   codexWorkerPool.stop();
+  codexImageWorkers.stop();
+  cursorCli.stop();
   httpServer.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 1_000).unref();
 }
@@ -749,16 +761,19 @@ async function executeImageJob(job) {
     ? 'The final attached image is this project\'s design reference. Use it as the primary visual direction for style, shape language, palette, typography, spacing, and finish. Preserve that design approximately while following the requested content; do not copy unrelated subject matter or composition unless explicitly asked.'
     : '';
   const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, projectDesignConstraint, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
-  const generation = await codexWorkerPool.run(async (worker, workerIndex) => {
-    return worker.generate({
-      cwd: rootDir,
-      sourcePaths: sources.map((source) => source.path),
-      outputPath: temporaryPath,
-      prompt: workerPrompt,
-      requireTransparentBackground: job.batchKind === 'smart-separation',
-      onProgress: (progress) => { void jobStore.update(job.id, { progress: `Worker ${workerIndex + 1} · ${progress}` }); },
-    });
-  });
+  const generationOptions = {
+    sourcePaths: sources.map((source) => source.path),
+    outputPath: temporaryPath,
+    prompt: workerPrompt,
+    requireTransparentBackground: job.batchKind === 'smart-separation',
+  };
+  const generation = job.provider === 'cursor'
+    ? await cursorCli.generate({ ...generationOptions, onProgress: (progress) => { void jobStore.update(job.id, { progress }); } })
+    : await codexImageWorkers.run(job.id, (worker) => worker.generate({
+        ...generationOptions,
+        cwd: rootDir,
+        onProgress: (progress) => { void jobStore.update(job.id, { progress: `Dedicated image worker · ${progress}` }); },
+      }));
   const transparentBackground = job.batchKind === 'smart-separation'
     ? hasPngTransparency(await readFile(temporaryPath))
     : generation.transparentBackground;
@@ -772,7 +787,7 @@ function createJob({ prompt, sourceUrl, sourceAssetId, sourceUrls, sourceAssetId
   const id = randomUUID();
   const normalizedUrls = Array.isArray(sourceUrls) && sourceUrls.length ? sourceUrls : [sourceUrl].filter(Boolean);
   const normalizedAssetIds = Array.isArray(sourceAssetIds) && sourceAssetIds.length ? sourceAssetIds : [sourceAssetId].filter(Boolean);
-  return { id, batchId, batchConcurrency: Math.max(1, Math.min(4, Number(batchConcurrency) || 1)), batchKind, slotKey, slotIndex, viewKey, graphNodeId: graphNodeId || null, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, usesProjectDesignReference: Boolean(usesProjectDesignReference), provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
+  return { id, batchId, batchConcurrency: Math.max(1, Number(batchConcurrency) || 1), batchKind, slotKey, slotIndex, viewKey, graphNodeId: graphNodeId || null, projectId: projectId || 'default', status: 'queued', progress: 'Waiting for local queue', prompt, sourceUrl: normalizedUrls[0] || null, sourceUrls: normalizedUrls, sourceAssetId: normalizedAssetIds[0] || null, sourceAssetIds: normalizedAssetIds, usesProjectDesignReference: Boolean(usesProjectDesignReference), provider, outputName: outputName || `${slugify(prompt, 'generated')}.png`, outputUrl: null, outputAssetId: null, error: null, attempt: 1, cancellationRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), log: [] };
 }
 
 function resolveProjectDesignSource(project, projectId) {
@@ -798,7 +813,16 @@ async function getCodexProviderStatus() {
   const installed = result.code !== null && !result.spawnError;
   const connected = result.code === 0 && /logged in/i.test(combined);
   const statusLabel = result.code === 0 ? combined : result.spawnError || combined || 'Codex is unavailable';
-  return { id: 'codex', label: 'Codex ImageGen', statusLabel, available: installed && connected, installed, connected, reason: installed && connected ? undefined : 'Sign in to Codex to enable ImageGen.', capabilities: { imageGeneration: true, imageEditing: true, cancellation: 'queued-only', maxConcurrency: codexWorkerCount } };
+  return { id: 'codex', label: 'Codex ImageGen', statusLabel, available: installed && connected, installed, connected, reason: installed && connected ? undefined : 'Sign in to Codex to enable ImageGen.', capabilities: { imageGeneration: true, imageEditing: true, cancellation: 'queued-only', workerMode: 'per-image', maxConcurrency: null } };
+}
+
+async function imageProviderError(provider) {
+  if (provider === 'codex') return null;
+  if (provider === 'cursor') {
+    const status = await cursorCli.status();
+    return status.available ? null : status.reason;
+  }
+  return 'The selected image provider is unavailable locally.';
 }
 
 function resolveLocalModelPath(directory, modelKey) {

@@ -293,7 +293,7 @@ export async function startGeneration(
 export async function startGenerationBatch(
   source: string | string[],
   views: Array<{ key: string; prompt: string; outputName: string }>,
-  options: { provider?: ProviderId; concurrency?: 1 | 2 | 3 | 4; projectId?: string } = {},
+  options: { provider?: ProviderId; concurrency?: number; projectId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; viewKey: string; status: string }> }> {
   const sourceUrls = Array.isArray(source) ? source : [source];
   return request('/api/batches', {
@@ -306,7 +306,7 @@ export async function startGenerationBatch(
 export async function startSlotBatch(
   sourceUrls: string[],
   slots: Array<{ key: string; prompt: string; outputName: string }>,
-  options: { provider?: ProviderId; kind?: string; concurrency?: 1 | 2 | 3 | 4; projectId?: string; graphNodeId?: string } = {},
+  options: { provider?: ProviderId; kind?: string; concurrency?: number; projectId?: string; graphNodeId?: string } = {},
 ): Promise<{ batchId: string; jobs: Array<{ id: string; slotKey: string; slotIndex: number; status: string }> }> {
   return request('/api/batches', {
     method: 'POST',

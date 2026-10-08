@@ -52,6 +52,9 @@
 .connection-settings { top: 53px; right: 0; width: 275px; padding: 16px; }
 .connection-title { display: flex; align-items: center; gap: 9px; font-size: 13px; }
 .connection-title svg { color: var(--accent-ink); }
+.connection-settings label { display: grid; gap: 7px; margin-top: 14px; color: var(--muted); font-size: 11px; }
+.connection-settings select { width: 100%; min-height: 37px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-inset); color: var(--text); font-size: 12px; }
+.connection-settings select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .connection-settings p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 10px 0 16px; }
 .unity-settings { width: 320px; }
 .unity-settings button span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

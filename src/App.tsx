@@ -1,4 +1,5 @@
 import { randomUUID } from './random-id';
+import { imageProviderError, resolveImageProvider } from './image-provider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
@@ -262,7 +263,7 @@ function Studio() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [codex, setCodex] = useState<CodexStatus>({ installed: true, connected: false, label: 'Checking Codex…' });
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
-  const [globalProvider] = useState<ProviderId>('codex');
+  const [globalProvider, setGlobalProvider] = useState<ProviderId>('codex');
   const [authBusy, setAuthBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [connectionMenu, setConnectionMenu] = useState<ConnectionMenu | null>(null);
@@ -1644,7 +1645,8 @@ function Studio() {
     return { sourceUrl: sourceUrls[0] || '', sourceUrls, error: sourceUrls.length ? '' : edge.sourceHandle === 'all' ? 'Complete every item before using this collection output.' : 'The connected output does not have an image yet.' };
   }
 
-  function resolveProvider(value: unknown): ProviderId { return value === 'gemini' ? 'gemini' : globalProvider; }
+  function resolveProvider(value: unknown): ProviderId { return resolveImageProvider(value, globalProvider); }
+  function providerError(provider: ProviderId): string { return imageProviderError(provider, providers, codex.connected); }
 
   async function runGenerator(nodeId: string) {
     const graphNode = reactFlow.getNode(nodeId);
@@ -1655,8 +1657,7 @@ function Studio() {
     if (input.error) return patchGenerator(nodeId, { status: 'failed', error: input.error });
     if (input.sourceUrls.length > maxReferenceImages) return patchGenerator(nodeId, { status: 'failed', error: `This collection contains ${input.sourceUrls.length} images. Generator accepts up to ${maxReferenceImages}; connect one group with fewer sprites or an atlas output.` });
     if (!prompt) return patchGenerator(nodeId, { status: 'failed', error: 'Write a prompt before running this node.' });
-    if (provider === 'gemini') return patchGenerator(nodeId, { status: 'failed', error: 'Gemini Nano Banana has no supported local OAuth image interface. Codex remains the active provider.' });
-    if (!codex.connected) return patchGenerator(nodeId, { status: 'failed', error: 'Connect Codex before running ImageGen.' });
+    if (providerError(provider)) return patchGenerator(nodeId, { status: 'failed', error: providerError(provider) });
     patchGenerator(nodeId, { status: 'queued', sourceUrl: input.sourceUrl, sourceUrls: input.sourceUrls, resolvedProvider: provider, progress: input.sourceUrls.length > 1 ? `${input.sourceUrls.length} references added to local queue` : 'Added to local queue', error: undefined });
     try {
       const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: String(graphNode.data.title || 'generated'), projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: 'output' });
@@ -1817,8 +1818,7 @@ function Studio() {
     if (input.error) return patchSeamless(nodeId, { status: 'failed', error: input.error });
     if (input.sourceUrls.length !== 1) return patchSeamless(nodeId, { status: 'failed', error: 'Seamless Texture requires one material reference, not a collection.' });
     if (!description) return patchSeamless(nodeId, { status: 'failed', error: 'Describe the material before running this node.' });
-    if (provider === 'gemini') return patchSeamless(nodeId, { status: 'failed', error: 'Gemini image generation is unavailable without an official API provider.' });
-    if (!codex.connected) return patchSeamless(nodeId, { status: 'failed', error: 'Connect Codex before generating a texture.' });
+    if (providerError(provider)) return patchSeamless(nodeId, { status: 'failed', error: providerError(provider) });
     const prompt = `${description}\n\nCreate exactly one square, perfectly tileable seamless BASE COLOR texture for a game material. Use flat neutral albedo with no directional lighting, no cast shadows, no highlights, no perspective, no objects, no borders, no text and no baked ambient occlusion. Preserve consistent texel density. Opposite left/right and top/bottom edges must wrap continuously. Fill the entire image.`;
     patchSeamless(nodeId, { status: 'queued', progress: 'Added seamless texture to local queue', sourceUrl: input.sourceUrl, jobId: undefined, rawOutputUrl: undefined, rawAssetId: undefined, outputUrl: undefined, outputAssetId: undefined, seamScore: undefined, processingSeams: false, error: undefined });
     try {
@@ -1921,8 +1921,7 @@ function Studio() {
     const sourceReady = isCharacterViewSourceReady(subjectKind, input.sourceUrls.length);
     if (input.error) { patchView(nodeId, viewKey, { status: 'failed', error: input.error }); return; }
     if (!sourceReady) { patchView(nodeId, viewKey, { status: 'failed', error: subjectKind === 'prop' ? 'Prop views need one image or a complete four-image All Views output.' : 'Character Views requires one source image. Connect an individual output instead of All.' }); return; }
-    if (provider === 'gemini') { patchView(nodeId, viewKey, { status: 'failed', error: 'Gemini image generation is unavailable without an official API provider.' }); return; }
-    if (!codex.connected) { patchView(nodeId, viewKey, { status: 'failed', error: 'Connect Codex before running ImageGen.' }); return; }
+    if (providerError(provider)) { patchView(nodeId, viewKey, { status: 'failed', error: providerError(provider) }); return; }
     const view = data.views[viewKey];
     const prompt = buildCharacterViewPrompt({
       view: viewKey,
@@ -1976,15 +1975,14 @@ function Studio() {
     const provider = resolveProvider(data.provider);
     const subjectKind = normalizeCharacterSubjectKind(data.subjectKind);
     const sourceReady = isCharacterViewSourceReady(subjectKind, input.sourceUrls.length);
-    if (input.error || !sourceReady || provider === 'gemini' || !codex.connected) {
-      const error = input.error || (!sourceReady ? (subjectKind === 'prop' ? 'Prop views need one image or a complete four-image All Views output.' : 'Character Views requires one source image. Connect an individual output instead of All.') : provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : 'Connect Codex before running ImageGen.');
+    if (input.error || !sourceReady || providerError(provider)) {
+      const error = input.error || (!sourceReady ? (subjectKind === 'prop' ? 'Prop views need one image or a complete four-image All Views output.' : 'Character Views requires one source image. Connect an individual output instead of All.') : providerError(provider));
       keys.forEach((key) => patchView(nodeId, key, { status: 'failed', error }));
       return;
     }
 
-    const workerLabel = 'Turbo';
-    const batchConcurrency = 4;
-    keys.forEach((key) => patchView(nodeId, key, { status: 'queued', progress: `Waiting for a ${workerLabel} worker`, sourceUrl: input.sourceUrl, error: undefined }));
+    const batchConcurrency = keys.length;
+    keys.forEach((key) => patchView(nodeId, key, { status: 'queued', progress: 'Starting a dedicated image worker', sourceUrl: input.sourceUrl, error: undefined }));
     try {
       const batch = await startGenerationBatch(input.sourceUrls, keys.map((key) => ({
         key,
@@ -2001,14 +1999,14 @@ function Studio() {
       for (const batchJob of batch.jobs) {
         const key = batchJob.viewKey as ViewKey;
         if (!viewKeys.includes(key)) continue;
-        patchView(nodeId, key, { jobId: batchJob.id, status: 'queued', progress: `Waiting for a ${workerLabel} worker` });
+        patchView(nodeId, key, { jobId: batchJob.id, status: 'queued', progress: 'Starting a dedicated image worker' });
         polling.push({ key, promise: pollTurnaroundView(nodeId, key, batchJob.id) });
       }
       void refreshJobs();
       const settled = await Promise.all(polling.map(async ({ key, promise }) => ({ key, job: await promise })));
       const fallbackKeys = settled.filter(({ job }) => job?.status === 'failed' && /concurr|too many|rate.?limit|resource exhausted|temporarily unavailable|\b429\b/i.test(`${job.error || ''} ${job.progress || ''}`)).map(({ key }) => key);
       if (fallbackKeys.length) {
-        showToast(`${workerLabel} mode was limited by Codex. Retrying failed views one at a time.`);
+        showToast('The image provider limited concurrent requests. Retrying failed views one at a time.');
         for (const key of fallbackKeys) await runTurnaroundView(nodeId, key, true);
       }
     } catch (error) {
@@ -2129,8 +2127,7 @@ function Studio() {
     const provider = resolveProvider(data.provider);
     if (input.error) { patchVariant(nodeId, key, { status: 'failed', error: input.error }); return; }
     if (!data.prompt.trim()) { patchVariant(nodeId, key, { status: 'failed', error: 'Write a shared variation prompt first.' }); return; }
-    if (provider === 'gemini') { patchVariant(nodeId, key, { status: 'failed', error: 'Gemini image generation is unavailable without an official API provider.' }); return; }
-    if (!codex.connected) { patchVariant(nodeId, key, { status: 'failed', error: 'Connect Codex before running ImageGen.' }); return; }
+    if (providerError(provider)) { patchVariant(nodeId, key, { status: 'failed', error: providerError(provider) }); return; }
 
     patchVariant(nodeId, key, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined });
     try {
@@ -2177,7 +2174,7 @@ function Studio() {
     if (!variants.length) return;
     const input = findInput(nodeId);
     const provider = resolveProvider(data.provider);
-    const error = input.error || (!data.prompt.trim() ? 'Write a shared variation prompt first.' : provider === 'gemini' ? 'Gemini image generation is unavailable without an official API provider.' : !codex.connected ? 'Connect Codex before running ImageGen.' : '');
+    const error = input.error || (!data.prompt.trim() ? 'Write a shared variation prompt first.' : providerError(provider));
     if (error) {
       patchMulti(nodeId, { error });
       variants.forEach((variant) => patchVariant(nodeId, variant.key, { status: 'failed', error }));
@@ -2185,9 +2182,8 @@ function Studio() {
     }
     patchMulti(nodeId, { error: undefined });
 
-    const multiConcurrency = 4;
-    const multiWorkerLabel = 'Turbo';
-    variants.forEach((variant) => patchVariant(nodeId, variant.key, { status: 'queued', progress: `Waiting for a ${multiWorkerLabel} worker`, sourceUrl: input.sourceUrl, error: undefined }));
+    const multiConcurrency = variants.length;
+    variants.forEach((variant) => patchVariant(nodeId, variant.key, { status: 'queued', progress: 'Starting a dedicated image worker', sourceUrl: input.sourceUrl, error: undefined }));
     try {
       const batch = await startSlotBatch(input.sourceUrls, variants.map((variant) => ({ key: variant.key, prompt: multiVariantPrompt(data, variant.index), outputName: `${data.title}-variant-${variant.index + 1}` })), { provider, kind: 'variants', concurrency: multiConcurrency, projectId: activeProjectIdRef.current, graphNodeId: nodeId });
       patchMulti(nodeId, { batchId: batch.batchId });
@@ -2195,14 +2191,14 @@ function Studio() {
       for (const batchJob of batch.jobs) {
         const key = batchJob.slotKey;
         if (!data.variants.some((variant) => variant.key === key)) continue;
-        patchVariant(nodeId, key, { jobId: batchJob.id, status: 'queued', progress: `Waiting for a ${multiWorkerLabel} worker` });
+        patchVariant(nodeId, key, { jobId: batchJob.id, status: 'queued', progress: 'Starting a dedicated image worker' });
         polling.push({ key, promise: pollMultiVariant(nodeId, key, batchJob.id) });
       }
       void refreshJobs();
       const settled = await Promise.all(polling.map(async ({ key, promise }) => ({ key, job: await promise })));
       const fallback = settled.filter(({ job }) => job?.status === 'failed' && /concurr|too many|rate.?limit|resource exhausted|temporarily unavailable|\b429\b/i.test(`${job.error || ''} ${job.progress || ''}`)).map(({ key }) => key);
       if (fallback.length) {
-        showToast(`${multiWorkerLabel} mode was limited by Codex. Retrying failed variants one at a time.`);
+        showToast('The image provider limited concurrent requests. Retrying failed variants one at a time.');
         for (const key of fallback) await runMultiVariant(nodeId, key, true);
       }
     } catch (batchError) {
@@ -2369,7 +2365,7 @@ function Studio() {
     const data = node.data as CharacterPartsNodeData;
     const selected = selectedCharacterParts(data.parts);
     const input = findInput(nodeId);
-    const error = partsInputError(input) || (!codex.connected ? 'Connect Codex before generating props.' : '');
+    const error = partsInputError(input) || providerError(resolveProvider(data.provider));
     if (error) return patchParts(nodeId, { error, inputUrls: input.sourceUrls });
     if (!selected.length) return patchParts(nodeId, { error: 'Select at least one prop before generating.' });
     patchParts(nodeId, { error: undefined, inputUrls: input.sourceUrls, status: 'review' });
@@ -2579,7 +2575,8 @@ function Studio() {
     };
     const enabledItems = data.items.filter((item) => item.enabled && item.groupId);
     if (!enabledItems.length) return patchSmartNode(nodeId, { status: 'failed', error: 'Select at least one detected element before regeneration.' });
-    if (!codex.connected) return patchSmartNode(nodeId, { status: 'failed', error: 'Connect Codex before regenerating Smart Separation assets.' });
+    const provider = globalProvider;
+    if (providerError(provider)) return patchSmartNode(nodeId, { status: 'failed', error: providerError(provider) });
 
     let workingItems = data.items.map((item) => item.enabled ? { ...item, generationError: undefined } : { ...item });
     const patchWorkingItem = (itemId: string, patch: Partial<SmartSeparationItem>) => {
@@ -2610,7 +2607,7 @@ function Studio() {
           key: `sprite-${index + 1}`,
           prompt: smartSeparationRegenerationPrompt(item, source.name),
           outputName: `smart-${fileSlug(item.name)}-${item.id.slice(-8)}.png`,
-        })), { provider: 'codex', kind: 'smart-separation', concurrency: 2, projectId });
+        })), { provider, kind: 'smart-separation', concurrency: sourceItems.length, projectId });
         for (const batchJob of batch.jobs) {
           const item = sourceItems[batchJob.slotIndex];
           if (!item) continue;
@@ -3236,7 +3233,6 @@ function Studio() {
   const selectedReferenceCount = uniqueReferenceItems(selectedReferenceNodes).length;
   const canCreateReferenceSet = selectedReferenceNodes.length >= 2 && selectedReferenceCount >= 2;
   const codexProvider = providers.find((provider) => provider.id === 'codex');
-  const codexWorkers = Number((codexProvider?.capabilities as { maxConcurrency?: number } | undefined)?.maxConcurrency || 1);
 
   return (
     <div className="app-shell">
@@ -3250,12 +3246,13 @@ function Studio() {
           designReference={projectDesignReference} designReferenceBusy={designReferenceBusy}
           activePanel={galleryOpen ? 'gallery' : jobsOpen ? 'jobs' : appearanceOpen ? 'appearance' : null}
           activeJobs={activeJobs} codex={codex} authBusy={authBusy}
-          providerDetail={codexProvider?.reason || `${codex.label} · ${codexWorkers} workers`}
+          providers={providers} globalProvider={globalProvider} onProviderChange={setGlobalProvider}
+          providerDetail={codexProvider?.reason || `${codex.label} · one worker per image`}
           onHome={() => void goHome()} onPanel={togglePanel} onRename={setProjectName}
           onSave={() => void persistProject(true)} onImport={() => importRef.current?.click()}
           onExport={exportCurrentProject} onClear={clearCanvas}
           onDesignReferenceChange={handleProjectDesignReference} onDesignReferenceRemove={removeProjectDesignReference}
-          onConnect={codex.connected ? refreshCodex : handleConnectAccount}
+          onConnect={globalProvider !== 'codex' || codex.connected ? refreshCodex : handleConnectAccount}
           unity={unity} unityBusy={Boolean(unityBusyKey)} onUnityTarget={(path) => void chooseUnityTarget(path)} />
         <section
           ref={canvasShellRef}

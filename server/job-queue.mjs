@@ -25,7 +25,7 @@ export class JobQueue {
     return job;
   }
 
-  snapshot() { return { concurrency: this.concurrency, queued: [...this.pending], running: [...this.running] }; }
+  snapshot() { return { concurrency: Number.isFinite(this.concurrency) ? this.concurrency : null, workerMode: this.concurrency === Infinity ? 'per-image' : 'pool', queued: [...this.pending], running: [...this.running] }; }
 
   async #drain() {
     while (this.running.size < this.concurrency && this.pending.length) {
@@ -46,6 +46,7 @@ export class JobQueue {
   }
 
   #canStart(job) {
+    if (this.concurrency === Infinity) return true;
     if (!job.batchId) return true;
     const batchLimit = Math.max(1, Math.min(this.concurrency, Number(job.batchConcurrency) || 1));
     let activeInBatch = 0;
@@ -58,7 +59,7 @@ export class JobQueue {
   async #run(jobId) {
     const job = this.store.get(jobId);
     if (!job || job.status !== 'queued') return;
-    await this.store.update(jobId, { status: 'running', progress: 'Starting local Codex app-server' });
+    await this.store.update(jobId, { status: 'running', progress: job.provider === 'cursor' ? 'Starting local Cursor CLI' : 'Starting local Codex app-server' });
     try {
       await this.worker(this.store.get(jobId));
     } catch (error) {

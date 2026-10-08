@@ -62,7 +62,7 @@ test('batch normalization preserves Character Views and supports six variant slo
   const referenceBatch = normalizeBatchRequest({ sourceUrls: references, kind: 'variants', slots: [{ key: 'one', prompt: 'Use every reference' }] });
   assert.deepEqual(referenceBatch.sourceUrls, references);
   assert.throws(() => normalizeBatchRequest({ sourceUrls: Array.from({ length: 17 }, (_, index) => `/data/assets/reference-${index + 1}`), kind: 'variants', slots: [{ key: 'one', prompt: 'Too many references' }] }), { code: 'BATCH_REFERENCE_COUNT' });
-  assert.throws(() => normalizeBatchRequest({ sourceUrl: '/data/assets/source', concurrency: 5, views: [{ key: 'front', prompt: 'Front' }] }), { code: 'BATCH_CONCURRENCY' });
+  assert.equal(normalizeBatchRequest({ sourceUrl: '/data/assets/source', concurrency: 5, views: [{ key: 'front', prompt: 'Front' }] }).concurrency, 5);
 });
 
 test('project design trigger is explicit and appends the saved reference last', () => {

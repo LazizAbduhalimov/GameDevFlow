@@ -250,10 +250,11 @@ export default function CharacterViewsNode({ id, data, selected }: NodeProps) {
                 className="node-provider-select"
                 aria-label="Image provider"
                 value={nodeData.provider || 'global'}
-                onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'gemini')}
+                onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'cursor' | 'gemini')}
               >
-                <option value="global">Auto · Codex</option>
+                <option value="global">Default provider</option>
                 <option value="codex">Codex</option>
+                <option value="cursor">Cursor CLI</option>
                 <option value="gemini" disabled>Gemini · unavailable</option>
               </select>
               <div className="turnaround-more-actions">

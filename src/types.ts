@@ -1,6 +1,6 @@
 import type { Edge, Node, Viewport } from '@xyflow/react';
 
-export type ProviderId = 'codex' | 'gemini';
+export type ProviderId = 'codex' | 'cursor' | 'gemini';
 export type NodeStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 export type ViewKey = 'front' | 'left' | 'back' | 'right';
 export type CharacterSubjectKind = 'character' | 'prop';

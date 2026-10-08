@@ -190,10 +190,11 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
                 className="node-provider-select nodrag"
                 aria-label="Image provider"
                 value={nodeData.provider || 'global'}
-                onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'gemini')}
+                onChange={(event) => nodeData.onProviderChange?.(id, event.target.value as 'global' | 'codex' | 'cursor' | 'gemini')}
               >
-                <option value="global">Auto · Codex</option>
+                <option value="global">Default provider</option>
                 <option value="codex">Codex</option>
+                <option value="cursor">Cursor CLI</option>
                 <option value="gemini" disabled>Gemini · n/a</option>
               </select>
               {hasOutput && (
