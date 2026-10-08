@@ -41,6 +41,7 @@ function GeneratingOverlay() {
 }
 
 function PoseIcon({ pose }: { pose: CharacterPose }) {
+  if (pose === 'neutral') return <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="9" rx="7" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M5 13v3m4-2v2m3-2v2m3-3v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="6" cy="8" r="1" fill="currentColor" /></svg>;
   const horizontal = pose === 't-pose';
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
@@ -216,7 +217,7 @@ export default function CharacterViewsNode({ id, data, selected }: NodeProps) {
         <div className="turnaround-params nodrag" aria-label="Character pose">
           <span>Pose</span>
           <div className="turnaround-pose-row" role="radiogroup" aria-label="Character pose">
-            {(['a-pose', 't-pose'] as const).map((value) => (
+            {(['a-pose', 't-pose', 'neutral'] as const).map((value) => (
               <button
                 key={value}
                 type="button"

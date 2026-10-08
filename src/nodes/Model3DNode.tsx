@@ -238,9 +238,9 @@ export default function Model3DNode({ id, data, selected }: NodeProps) {
         if (!file) return;
         event.preventDefault(); event.stopPropagation(); nodeData.onImport?.(id, file);
       }}>
-      <Handle type="target" position={Position.Left} className="flow-handle input-handle model-input-handle" aria-label="Tripo source" />
+      <Handle type="target" position={Position.Left} className="flow-handle input-handle model-input-handle" aria-label={manual ? 'Model reference' : 'Tripo source'} />
       <div className="node-cap model-cap">
-        <span className="node-kind"><Box size={13} /> Tripo model</span>
+        <span className="node-kind"><Box size={13} /> {manual ? '3D model' : 'Tripo model'}</span>
         <span className="node-code">GLB</span>
       </div>
 

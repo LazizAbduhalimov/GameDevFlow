@@ -22,6 +22,9 @@ export type ProjectHomeProps = {
 type ProjectEdit = { kind: 'rename' | 'delete'; id: string } | null;
 
 const starterIcons: Record<WorkflowTemplateId, LucideIcon> = {
+  glowbud: UserRound,
+  'lunar-cache': Box,
+  'lunar-ui': Grid2X2,
   image: Image,
   '3d': Box,
   characters: UserRound,
@@ -66,6 +69,9 @@ export function ProjectHome({ projects, activeProjectId, busy = false, loading =
   const sorted = useMemo(() => [...projects].sort((a, b) => timestamp(b) - timestamp(a) || a.name.localeCompare(b.name)), [projects]);
   const visible = useMemo(() => sorted.filter((project) => project.name.toLowerCase().includes(query.trim().toLowerCase())), [sorted, query]);
   const templates = useMemo(() => filterWorkflowTemplates(templateQuery), [templateQuery]);
+  const featuredTemplates = templates.filter(template => template.featured);
+  const basicTemplates = templates.filter(template => !template.featured);
+  const allBasicVisible = basicTemplates.length === WORKFLOW_TEMPLATES.filter(template => !template.featured).length;
   const deleting = edit?.kind === 'delete' ? projects.find((project) => project.id === edit.id) : undefined;
 
   useEffect(() => {
@@ -153,7 +159,7 @@ export function ProjectHome({ projects, activeProjectId, busy = false, loading =
           <header className="ff-home-heading">
             <div>
               <h1>Pick a starting point.</h1>
-              <p>Use a template, or open one of your projects. Templates stay unchanged.</p>
+              <p>Learn from a finished workflow: source images, prompts, steps and results. Open a copy to try it yourself.</p>
             </div>
             <button type="button" className="ff-home-primary" onClick={startCreating} disabled={disabled}><Plus size={17} /><span>New project</span></button>
           </header>
@@ -166,15 +172,26 @@ export function ProjectHome({ projects, activeProjectId, busy = false, loading =
           </form>}
 
           <section className="ff-home-starters" aria-labelledby="ff-home-starters-heading">
-            <h2 id="ff-home-starters-heading" className="ff-home-starters-heading">Templates</h2>
+            <h2 id="ff-home-starters-heading" className="ff-home-starters-heading">Templates · worked examples</h2>
             <label className="ff-home-template-search">
               <Search size={16} />
               <input value={templateQuery} onChange={(event) => setTemplateQuery(event.target.value)} aria-label="Search templates" placeholder={`Search ${WORKFLOW_TEMPLATES.length} templates`} />
               {templateQuery && <button type="button" aria-label="Clear template search" onClick={() => setTemplateQuery('')}><X size={14} /></button>}
             </label>
-            {templates.length > 0 ? (
-              <div className={`ff-home-starter-tree ${templates.length === WORKFLOW_TEMPLATES.length ? 'is-complete' : ''}`} data-active-template={hoveredTemplate || undefined} onPointerLeave={() => setHoveredTemplate(null)}>
-                {templates.length === WORKFLOW_TEMPLATES.length && <svg className="ff-home-starter-wires" viewBox="0 0 1000 146" preserveAspectRatio="none" aria-hidden="true">
+            {featuredTemplates.length > 0 && <div className="ff-home-featured-grid">
+              {featuredTemplates.map(template => <button key={template.id} type="button" className="ff-home-featured-template" disabled={disabled} aria-label={`Use ${template.title} template. ${template.description}`} onClick={() => void perform(() => onUseTemplate(template.id))}>
+                <img src={template.coverUrl} alt={`${template.title} finished result`} />
+                <span className="ff-home-featured-content">
+                  <span className="ff-home-featured-meta">Original example · {template.nodes.filter(node => node.type === 'workflowLesson').length} completed steps</span>
+                  <strong>{template.title}<ArrowUpRight size={19} /></strong>
+                  <span>{template.description}</span>
+                  <small>Open the finished workflow</small>
+                </span>
+              </button>)}
+            </div>}
+            {basicTemplates.length > 0 ? (
+              <div className={`ff-home-starter-tree ${allBasicVisible ? 'is-complete' : ''}`} data-active-template={hoveredTemplate || undefined} onPointerLeave={() => setHoveredTemplate(null)}>
+                {allBasicVisible && <svg className="ff-home-starter-wires" viewBox="0 0 1000 146" preserveAspectRatio="none" aria-hidden="true">
                   <path className="ff-home-starter-wire wire-image" pathLength="1" d="M500 13 C486 52 100 54 58 121" />
                   <path className="ff-home-starter-wire wire-3d" pathLength="1" d="M500 13 C470 51 312 59 297 121" />
                   <path className="ff-home-starter-wire wire-characters" pathLength="1" d="M500 13 L500 121" />
@@ -188,7 +205,7 @@ export function ProjectHome({ projects, activeProjectId, busy = false, loading =
                   <circle className="ff-home-starter-terminal terminal-materials" cx="942" cy="121" r="4" />
                 </svg>}
                 <div className="ff-home-starter-row">
-                  {templates.map((template) => {
+                  {basicTemplates.map((template) => {
                     const Icon = starterIcons[template.id];
                     return (
                       <button
@@ -205,18 +222,19 @@ export function ProjectHome({ projects, activeProjectId, busy = false, loading =
                       >
                         <span className="ff-home-starter-icon"><Icon size={22} strokeWidth={1.6} /></span>
                         <strong>{template.title}</strong>
+                        <span className="ff-home-starter-caption">{template.nodes.filter(node => node.type === 'workflowLesson').length} steps · finished</span>
                         <small>{template.description}</small>
                       </button>
                     );
                   })}
                 </div>
               </div>
-            ) : (
+            ) : !templates.length ? (
               <div className="ff-home-template-empty">
                 <p>No templates match “{templateQuery.trim()}”.</p>
                 <button type="button" className="ff-home-secondary" onClick={() => setTemplateQuery('')}>Clear search</button>
               </div>
-            )}
+            ) : null}
           </section>
 
           <div className="ff-home-project-toolbar"><h2>{query.trim() ? 'Search results' : 'Your projects'} <span>{visible.length}</span></h2><span className="ff-home-sort"><Clock3 size={14} />Last edited</span></div>

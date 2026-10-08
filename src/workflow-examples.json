@@ -1,0 +1,1759 @@
+{
+  "image": {
+    "nodes": [
+      {
+        "id": "reference-set-f5037137-bae8-40db-a34a-9b066cd78016",
+        "type": "referenceSet",
+        "position": {
+          "x": 0,
+          "y": 235
+        },
+        "data": {
+          "title": "Собрать референсы",
+          "items": [
+            {
+              "id": "reference-1",
+              "title": "Референс 1",
+              "imageUrl": "/workflow-examples/c063f429-87d1-4a99-8701-1cea8ef1ed29.jpg"
+            },
+            {
+              "id": "reference-2",
+              "title": "Референс 2",
+              "imageUrl": "/workflow-examples/a07b00b3-4e77-42e7-8fb7-15e2685aee50.jpg"
+            },
+            {
+              "id": "reference-3",
+              "title": "Референс 3",
+              "imageUrl": "/workflow-examples/37a20e42-9777-4b91-b440-6e9722da2a4f.jpg"
+            }
+          ]
+        }
+      },
+      {
+        "id": "multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be",
+        "type": "multiGenerate",
+        "position": {
+          "x": 414,
+          "y": 235
+        },
+        "data": {
+          "title": "Исследовать форму",
+          "prompt": "Создай один модульный игровой туннель небольшой глубины: секционные соединяемые элементы с чёткими стыками, пригодные для комбинирования в разные конфигурации. Туннель не должен выглядеть длинным или глубоким; компактная перспектива, хорошо видимые вход и внутренняя часть. Вариации между запусками: форма секций, ширина прохода, тип соединений и материалы. Один объект в одном изображении, без контактного листа, без нескольких вариантов.",
+          "variantCount": 3,
+          "provider": "global",
+          "generationMode": "fast",
+          "variants": [
+            {
+              "key": "variant-1",
+              "title": "Variant 1",
+              "index": 0,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c063f429-87d1-4a99-8701-1cea8ef1ed29.jpg",
+              "outputUrl": "/workflow-examples/69501c76-f264-4927-b15e-a0f7020bf4b1.png"
+            },
+            {
+              "key": "variant-2",
+              "title": "Variant 2",
+              "index": 1,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c063f429-87d1-4a99-8701-1cea8ef1ed29.jpg",
+              "outputUrl": "/workflow-examples/e69c387f-2fea-4156-91e1-e8ce26174b8b.png"
+            },
+            {
+              "key": "variant-3",
+              "title": "Variant 3",
+              "index": 2,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c063f429-87d1-4a99-8701-1cea8ef1ed29.jpg",
+              "outputUrl": "/workflow-examples/97079494-15c0-4d75-9b07-577eb2dd709c.png"
+            }
+          ],
+          "selectedVariantKey": "variant-3",
+          "isConfigOpen": true
+        }
+      },
+      {
+        "id": "image-addb1f4f-72fa-4c70-8c49-20eb3210cff2",
+        "type": "image",
+        "position": {
+          "x": 828,
+          "y": 235
+        },
+        "data": {
+          "title": "Выбрать компактную арку",
+          "imageUrl": "/workflow-examples/97079494-15c0-4d75-9b07-577eb2dd709c.png",
+          "fileName": "Multi Generate-variant-4.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "generator-7540d098-b4b5-4b8a-b108-295f1953817f",
+        "type": "generator",
+        "position": {
+          "x": 1242,
+          "y": 235
+        },
+        "data": {
+          "title": "Убрать землю и открыть проход",
+          "prompt": "нужно сделать его пустым с обеих сторон\nважно чтобы она была как арка \nубери землю снизу \n",
+          "provider": "global",
+          "status": "completed",
+          "sourceUrl": "/workflow-examples/97079494-15c0-4d75-9b07-577eb2dd709c.png",
+          "sourceUrls": [
+            "/workflow-examples/97079494-15c0-4d75-9b07-577eb2dd709c.png"
+          ],
+          "outputUrl": "/workflow-examples/2e8fbaaa-f37a-4171-b848-927c0dac7395.png",
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80",
+        "type": "multiGenerate",
+        "position": {
+          "x": 1656,
+          "y": 235
+        },
+        "data": {
+          "title": "Упростить геометрию",
+          "prompt": "create variatns fo this image preserving its sizes \nmake it less detailed in terms of poligins \n",
+          "variantCount": 3,
+          "provider": "global",
+          "generationMode": "fast",
+          "variants": [
+            {
+              "key": "variant-1",
+              "title": "Variant 1",
+              "index": 0,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/2e8fbaaa-f37a-4171-b848-927c0dac7395.png",
+              "outputUrl": "/workflow-examples/f031397b-b50d-4f27-a079-a30eb9e69f3a.png"
+            },
+            {
+              "key": "variant-2",
+              "title": "Variant 2",
+              "index": 1,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/2e8fbaaa-f37a-4171-b848-927c0dac7395.png",
+              "outputUrl": "/workflow-examples/2698950c-730d-41e4-809e-d3e04b9829ae.png"
+            },
+            {
+              "key": "variant-3",
+              "title": "Variant 3",
+              "index": 2,
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/2e8fbaaa-f37a-4171-b848-927c0dac7395.png",
+              "outputUrl": "/workflow-examples/3e63fe81-97dd-4b84-9246-afafe4fd5ac8.png"
+            }
+          ],
+          "selectedVariantKey": "variant-1",
+          "isConfigOpen": true
+        }
+      },
+      {
+        "id": "tunnel-result",
+        "type": "image",
+        "data": {
+          "title": "Готовый игровой модуль",
+          "imageUrl": "/workflow-examples/f031397b-b50d-4f27-a079-a30eb9e69f3a.png",
+          "fileName": "f031397b-b50d-4f27-a079-a30eb9e69f3a.png",
+          "hasInput": true
+        },
+        "position": {
+          "x": 2070,
+          "y": 235
+        }
+      },
+      {
+        "id": "lesson-reference-set-f5037137-bae8-40db-a34a-9b066cd78016",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -30
+        },
+        "data": {
+          "step": 1,
+          "title": "Собрать референсы",
+          "body": "Три исходника задают материал, масштаб и форму модульного туннеля. Коллекция All передаёт их вместе.",
+          "exercise": "Замените один референс, сохранив остальные."
+        }
+      },
+      {
+        "id": "lesson-multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be",
+        "type": "workflowLesson",
+        "position": {
+          "x": 414,
+          "y": -30
+        },
+        "data": {
+          "step": 2,
+          "title": "Исследовать форму",
+          "body": "Прочитайте Parameters: здесь описаны компактная глубина, секционные стыки и один объект в кадре. Переключите три готовых варианта.",
+          "exercise": "Измените только материал в промпте и запустите один вариант."
+        }
+      },
+      {
+        "id": "lesson-image-addb1f4f-72fa-4c70-8c49-20eb3210cff2",
+        "type": "workflowLesson",
+        "position": {
+          "x": 828,
+          "y": -30
+        },
+        "data": {
+          "step": 3,
+          "title": "Выбрать компактную арку",
+          "body": "Выбранный вариант вынесен в отдельную Image-ноду. Дальнейшие правки относятся именно к нему.",
+          "exercise": "Сравните силуэт выбранной арки с соседними вариантами."
+        }
+      },
+      {
+        "id": "lesson-generator-7540d098-b4b5-4b8a-b108-295f1953817f",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1242,
+          "y": -30
+        },
+        "data": {
+          "step": 4,
+          "title": "Убрать землю и открыть проход",
+          "body": "Точечный промпт убрал землю снизу и открыл арку с обеих сторон. Сравните вход и результат.",
+          "exercise": "Откройте параметры и попробуйте одну конкретную правку."
+        }
+      },
+      {
+        "id": "lesson-multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1656,
+          "y": -30
+        },
+        "data": {
+          "step": 5,
+          "title": "Упростить геометрию",
+          "body": "Второй проход сохраняет размеры, но уменьшает детализацию геометрии. Это уже доработка выбранной идеи.",
+          "exercise": "Переключите варианты и сравните детализацию."
+        }
+      },
+      {
+        "id": "lesson-tunnel-result",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2070,
+          "y": -30
+        },
+        "data": {
+          "step": 6,
+          "title": "Готовый игровой модуль",
+          "body": "Здесь сохранён результат всей цепочки. Каждый промежуточный шаг можно рассмотреть отдельно.",
+          "exercise": "Сделайте новую ветку от результата для собственной версии."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "reference-set-f5037137-bae8-40db-a34a-9b066cd78016-multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be",
+        "source": "reference-set-f5037137-bae8-40db-a34a-9b066cd78016",
+        "target": "multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be",
+        "sourceHandle": "all",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be-image-addb1f4f-72fa-4c70-8c49-20eb3210cff2",
+        "source": "multi-generate-9e1fe2be-4fce-456b-914a-d4d8a59152be",
+        "target": "image-addb1f4f-72fa-4c70-8c49-20eb3210cff2",
+        "sourceHandle": "variant-3",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "image-addb1f4f-72fa-4c70-8c49-20eb3210cff2-generator-7540d098-b4b5-4b8a-b108-295f1953817f",
+        "source": "image-addb1f4f-72fa-4c70-8c49-20eb3210cff2",
+        "target": "generator-7540d098-b4b5-4b8a-b108-295f1953817f",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "generator-7540d098-b4b5-4b8a-b108-295f1953817f-multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80",
+        "source": "generator-7540d098-b4b5-4b8a-b108-295f1953817f",
+        "target": "multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80-tunnel-result",
+        "source": "multi-generate-d74fbca5-616e-44d8-ad7e-df5e94b88b80",
+        "target": "tunnel-result",
+        "sourceHandle": "variant-1",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 130,
+      "zoom": 0.7
+    }
+  },
+  "3d": {
+    "nodes": [
+      {
+        "id": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 235
+        },
+        "data": {
+          "title": "Исходный персонаж",
+          "imageUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+          "fileName": "photo_2026-09-02_04-00-40.jpg"
+        }
+      },
+      {
+        "id": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "characterViews",
+        "position": {
+          "x": 414,
+          "y": 235
+        },
+        "data": {
+          "title": "Согласовать четыре ракурса",
+          "provider": "global",
+          "basePrompt": "Preserve this exact character identity, outfit, proportions, palette, materials and every accessory across all views.",
+          "views": {
+            "front": {
+              "key": "front",
+              "title": "Front",
+              "prompt": "Create a clean full-body front orthographic view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png"
+            },
+            "left": {
+              "key": "left",
+              "title": "Left",
+              "prompt": "Create a clean full-body left orthographic side view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/bd986011-c889-4f63-8dc7-4b79c3cd9787.png"
+            },
+            "back": {
+              "key": "back",
+              "title": "Back",
+              "prompt": "Create a clean full-body back orthographic view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/e0de8954-04b4-4646-aa01-7abd213d047e.png"
+            },
+            "right": {
+              "key": "right",
+              "title": "Right",
+              "prompt": "Create a clean full-body right orthographic side view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/caf7505b-e93a-4eeb-8308-90fcddac39da.png"
+            }
+          },
+          "generationMode": "turbo",
+          "pose": "t-pose"
+        }
+      },
+      {
+        "id": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "type": "characterParts",
+        "position": {
+          "x": 828,
+          "y": 235
+        },
+        "data": {
+          "title": "Выделить тело без одежды",
+          "notes": "make body as a one object (no separation for head body legs and hands are needed)",
+          "provider": "global",
+          "generationMode": "fast",
+          "parts": [
+            {
+              "id": "part-body-99645442",
+              "name": "Body",
+              "description": "Complete green zombie body as one object, including head, arms, hands, legs, and feet; exclude clothing and accessories.",
+              "enabled": true,
+              "spawnedNodeId": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4"
+            },
+            {
+              "id": "part-straw-hat-760afb0a",
+              "name": "Straw hat",
+              "description": "Wide-brim yellow-orange straw hat with a red band.",
+              "enabled": false
+            },
+            {
+              "id": "part-patched-orange-shirt-22427381",
+              "name": "Patched orange shirt",
+              "description": "Long-sleeve orange shirt with yellow collar, neck tie, red waist band, and orange patch details.",
+              "enabled": false
+            },
+            {
+              "id": "part-brown-pants-37e84c6c",
+              "name": "Brown pants",
+              "description": "Brown cropped pants with rolled cuffs and dark knee patches.",
+              "enabled": false
+            },
+            {
+              "id": "part-left-sneaker-aaa6925f",
+              "name": "Left sneaker",
+              "description": "Blue-gray sneaker with white sole and white laces.",
+              "enabled": false
+            },
+            {
+              "id": "part-right-sneaker-2a60393a",
+              "name": "Right sneaker",
+              "description": "Blue-gray sneaker with white sole and white laces.",
+              "enabled": false
+            }
+          ],
+          "inputUrls": [
+            "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png"
+          ],
+          "status": "review",
+          "characterDescription": "Stylized green zombie scarecrow character in an orange patched shirt, brown cuffed pants, and blue-gray sneakers."
+        }
+      },
+      {
+        "id": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "type": "characterViews",
+        "position": {
+          "x": 1318,
+          "y": 235
+        },
+        "data": {
+          "title": "Получить ракурсы отдельного тела",
+          "subjectKind": "prop",
+          "provider": "global",
+          "generationMode": "turbo",
+          "basePrompt": "Isolate only: Body.\nComplete green zombie body as one object, including head, arms, hands, legs, and feet; exclude clothing and accessories.\nThis is a standalone production turnaround of that single part or object. Do not include the rest of the character, clothing that is not this part, or any environment.\nUse a plain light studio background that clearly separates from the subject. Do not blend the subject into the background.\nPreserve exact materials, colors, silhouette and visible details from the attached character references.\nProject notes: make body as a one object (no separation for head body legs and hands are needed)",
+          "views": {
+            "front": {
+              "key": "front",
+              "title": "Front",
+              "prompt": "Create a clean orthographic front view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/34663922-f30d-4e9d-a74f-920c6fbe400d.png"
+            },
+            "left": {
+              "key": "left",
+              "title": "Left",
+              "prompt": "Create a clean orthographic left side view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/f95be9dd-9de6-4c6a-8fba-11ff9c758784.png"
+            },
+            "back": {
+              "key": "back",
+              "title": "Back",
+              "prompt": "Create a clean orthographic back view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/2c0d5daf-d5fc-4e6d-9411-93d856a27e56.png"
+            },
+            "right": {
+              "key": "right",
+              "title": "Right",
+              "prompt": "Create a clean orthographic right side view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/9bf36c16-471a-464e-aaee-5e6d2cda5195.png"
+            }
+          }
+        }
+      },
+      {
+        "id": "model3d-0f2d0a03-c1c1-4bf8-9d79-5b5b2e607625",
+        "type": "model3d",
+        "position": {
+          "x": 1732,
+          "y": 235
+        },
+        "data": {
+          "title": "Готовая 3D-модель тела",
+          "watcherId": "",
+          "sourceNodeId": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+          "status": "ready",
+          "modelUrl": "/workflow-examples/tripo-879f66bb-c07e-4c20-aa0d-1fbbc47e9d2f-ab931d27.glb",
+          "downloadUrl": "/workflow-examples/tripo-879f66bb-c07e-4c20-aa0d-1fbbc47e9d2f-ab931d27.glb",
+          "fileName": "tripo-879f66bb-c07e-4c20-aa0d-1fbbc47e9d2f-ab931d27.glb",
+          "importMode": "manual",
+          "referenceUrls": [
+            "/workflow-examples/34663922-f30d-4e9d-a74f-920c6fbe400d.png",
+            "/workflow-examples/f95be9dd-9de6-4c6a-8fba-11ff9c758784.png",
+            "/workflow-examples/2c0d5daf-d5fc-4e6d-9411-93d856a27e56.png",
+            "/workflow-examples/9bf36c16-471a-464e-aaee-5e6d2cda5195.png"
+          ]
+        }
+      },
+      {
+        "id": "lesson-image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -30
+        },
+        "data": {
+          "step": 1,
+          "title": "Исходный персонаж",
+          "body": "Небольшой исходник задаёт персонажа: зелёный зомби в оранжевой рубашке. От него начинается весь путь.",
+          "exercise": "Сравните исходник с готовым Front."
+        }
+      },
+      {
+        "id": "lesson-character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "workflowLesson",
+        "position": {
+          "x": 414,
+          "y": -30
+        },
+        "data": {
+          "step": 2,
+          "title": "Согласовать четыре ракурса",
+          "body": "Front, Left, Back и Right уже получены. Промпты сохраняют узнаваемость персонажа между ракурсами.",
+          "exercise": "Откройте каждый ракурс и сравните детали одежды."
+        }
+      },
+      {
+        "id": "lesson-character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "type": "workflowLesson",
+        "position": {
+          "x": 828,
+          "y": -30
+        },
+        "data": {
+          "step": 3,
+          "title": "Выделить тело без одежды",
+          "body": "В анализе оставлено только Body. Guidance требует тело одним объектом, без разделения на руки, ноги и голову.",
+          "exercise": "Посмотрите, какие части отключены и почему."
+        }
+      },
+      {
+        "id": "lesson-character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1318,
+          "y": -30
+        },
+        "data": {
+          "step": 4,
+          "title": "Получить ракурсы отдельного тела",
+          "body": "Выход выбранной части передаёт исходные изображения в отдельный turnaround. Здесь тело уже изолировано от одежды.",
+          "exercise": "Сравните этот Front с Front одетого персонажа."
+        }
+      },
+      {
+        "id": "lesson-model3d-0f2d0a03-c1c1-4bf8-9d79-5b5b2e607625",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1732,
+          "y": -30
+        },
+        "data": {
+          "step": 5,
+          "title": "Готовая 3D-модель тела",
+          "body": "Из этих ракурсов в Tripo получена настоящая GLB-модель. Она сохранена в примере; можно вращать и смотреть сетку.",
+          "exercise": "Проверьте силуэт со всех сторон перед импортом в Unity."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6-character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "source": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "target": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d-character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "source": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "target": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "sourceHandle": "front",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804-character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "source": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "target": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "sourceHandle": "part:part-body-99645442",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4-model3d-0f2d0a03-c1c1-4bf8-9d79-5b5b2e607625",
+        "source": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "target": "model3d-0f2d0a03-c1c1-4bf8-9d79-5b5b2e607625",
+        "sourceHandle": "all",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 130,
+      "zoom": 0.7
+    }
+  },
+  "characters": {
+    "nodes": [
+      {
+        "id": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 235
+        },
+        "data": {
+          "title": "Исходный персонаж",
+          "imageUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+          "fileName": "photo_2026-09-02_04-00-40.jpg"
+        }
+      },
+      {
+        "id": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "characterViews",
+        "position": {
+          "x": 414,
+          "y": 235
+        },
+        "data": {
+          "title": "Согласовать четыре ракурса",
+          "provider": "global",
+          "basePrompt": "Preserve this exact character identity, outfit, proportions, palette, materials and every accessory across all views.",
+          "views": {
+            "front": {
+              "key": "front",
+              "title": "Front",
+              "prompt": "Create a clean full-body front orthographic view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png"
+            },
+            "left": {
+              "key": "left",
+              "title": "Left",
+              "prompt": "Create a clean full-body left orthographic side view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/bd986011-c889-4f63-8dc7-4b79c3cd9787.png"
+            },
+            "back": {
+              "key": "back",
+              "title": "Back",
+              "prompt": "Create a clean full-body back orthographic view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/e0de8954-04b4-4646-aa01-7abd213d047e.png"
+            },
+            "right": {
+              "key": "right",
+              "title": "Right",
+              "prompt": "Create a clean full-body right orthographic side view. Neutral pose, centered, plain background.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/c0482ed1-e1e2-4ea2-b939-99ec4c194ec4.jpg",
+              "outputUrl": "/workflow-examples/caf7505b-e93a-4eeb-8308-90fcddac39da.png"
+            }
+          },
+          "generationMode": "turbo",
+          "pose": "t-pose"
+        }
+      },
+      {
+        "id": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "type": "characterParts",
+        "position": {
+          "x": 828,
+          "y": 235
+        },
+        "data": {
+          "title": "Выделить тело без одежды",
+          "notes": "make body as a one object (no separation for head body legs and hands are needed)",
+          "provider": "global",
+          "generationMode": "fast",
+          "parts": [
+            {
+              "id": "part-body-99645442",
+              "name": "Body",
+              "description": "Complete green zombie body as one object, including head, arms, hands, legs, and feet; exclude clothing and accessories.",
+              "enabled": true,
+              "spawnedNodeId": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4"
+            },
+            {
+              "id": "part-straw-hat-760afb0a",
+              "name": "Straw hat",
+              "description": "Wide-brim yellow-orange straw hat with a red band.",
+              "enabled": false
+            },
+            {
+              "id": "part-patched-orange-shirt-22427381",
+              "name": "Patched orange shirt",
+              "description": "Long-sleeve orange shirt with yellow collar, neck tie, red waist band, and orange patch details.",
+              "enabled": false
+            },
+            {
+              "id": "part-brown-pants-37e84c6c",
+              "name": "Brown pants",
+              "description": "Brown cropped pants with rolled cuffs and dark knee patches.",
+              "enabled": false
+            },
+            {
+              "id": "part-left-sneaker-aaa6925f",
+              "name": "Left sneaker",
+              "description": "Blue-gray sneaker with white sole and white laces.",
+              "enabled": false
+            },
+            {
+              "id": "part-right-sneaker-2a60393a",
+              "name": "Right sneaker",
+              "description": "Blue-gray sneaker with white sole and white laces.",
+              "enabled": false
+            }
+          ],
+          "inputUrls": [
+            "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png"
+          ],
+          "status": "review",
+          "characterDescription": "Stylized green zombie scarecrow character in an orange patched shirt, brown cuffed pants, and blue-gray sneakers."
+        }
+      },
+      {
+        "id": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "type": "characterViews",
+        "position": {
+          "x": 1318,
+          "y": 235
+        },
+        "data": {
+          "title": "Получить ракурсы отдельного тела",
+          "subjectKind": "prop",
+          "provider": "global",
+          "generationMode": "turbo",
+          "basePrompt": "Isolate only: Body.\nComplete green zombie body as one object, including head, arms, hands, legs, and feet; exclude clothing and accessories.\nThis is a standalone production turnaround of that single part or object. Do not include the rest of the character, clothing that is not this part, or any environment.\nUse a plain light studio background that clearly separates from the subject. Do not blend the subject into the background.\nPreserve exact materials, colors, silhouette and visible details from the attached character references.\nProject notes: make body as a one object (no separation for head body legs and hands are needed)",
+          "views": {
+            "front": {
+              "key": "front",
+              "title": "Front",
+              "prompt": "Create a clean orthographic front view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/34663922-f30d-4e9d-a74f-920c6fbe400d.png"
+            },
+            "left": {
+              "key": "left",
+              "title": "Left",
+              "prompt": "Create a clean orthographic left side view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/f95be9dd-9de6-4c6a-8fba-11ff9c758784.png"
+            },
+            "back": {
+              "key": "back",
+              "title": "Back",
+              "prompt": "Create a clean orthographic back view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/2c0d5daf-d5fc-4e6d-9411-93d856a27e56.png"
+            },
+            "right": {
+              "key": "right",
+              "title": "Right",
+              "prompt": "Create a clean orthographic right side view of this isolated part only. Center it, keep a plain light studio background, even lighting, no perspective distortion, and do not crop the silhouette.",
+              "status": "completed",
+              "sourceUrl": "/workflow-examples/7022bf4f-1532-48a3-90d5-e1500aed0101.png",
+              "outputUrl": "/workflow-examples/9bf36c16-471a-464e-aaee-5e6d2cda5195.png"
+            }
+          }
+        }
+      },
+      {
+        "id": "body-result",
+        "type": "image",
+        "data": {
+          "title": "Готовый Front тела",
+          "imageUrl": "/workflow-examples/34663922-f30d-4e9d-a74f-920c6fbe400d.png",
+          "fileName": "34663922-f30d-4e9d-a74f-920c6fbe400d.png",
+          "hasInput": true
+        },
+        "position": {
+          "x": 1732,
+          "y": 235
+        }
+      },
+      {
+        "id": "lesson-image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -30
+        },
+        "data": {
+          "step": 1,
+          "title": "Исходный персонаж",
+          "body": "Небольшой исходник задаёт персонажа: зелёный зомби в оранжевой рубашке. От него начинается весь путь.",
+          "exercise": "Сравните исходник с готовым Front."
+        }
+      },
+      {
+        "id": "lesson-character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "workflowLesson",
+        "position": {
+          "x": 414,
+          "y": -30
+        },
+        "data": {
+          "step": 2,
+          "title": "Согласовать четыре ракурса",
+          "body": "Front, Left, Back и Right уже получены. Промпты сохраняют узнаваемость персонажа между ракурсами.",
+          "exercise": "Откройте каждый ракурс и сравните детали одежды."
+        }
+      },
+      {
+        "id": "lesson-character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "type": "workflowLesson",
+        "position": {
+          "x": 828,
+          "y": -30
+        },
+        "data": {
+          "step": 3,
+          "title": "Выделить тело без одежды",
+          "body": "В анализе оставлено только Body. Guidance требует тело одним объектом, без разделения на руки, ноги и голову.",
+          "exercise": "Посмотрите, какие части отключены и почему."
+        }
+      },
+      {
+        "id": "lesson-character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1318,
+          "y": -30
+        },
+        "data": {
+          "step": 4,
+          "title": "Получить ракурсы отдельного тела",
+          "body": "Выход выбранной части передаёт исходные изображения в отдельный turnaround. Здесь тело уже изолировано от одежды.",
+          "exercise": "Сравните этот Front с Front одетого персонажа."
+        }
+      },
+      {
+        "id": "lesson-body-result",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1732,
+          "y": -30
+        },
+        "data": {
+          "step": 5,
+          "title": "Готовый Front тела",
+          "body": "Финальный Front вынесен отдельно для следующего этапа или экспорта.",
+          "exercise": "Создайте свою ветку или скачайте изображение."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6-character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "source": "image-45fb2d7e-edf8-47c4-8e4f-3c6b130494e6",
+        "target": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d-character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "source": "character-views-70fed64e-6f8a-498a-881d-b7a256090e5d",
+        "target": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "sourceHandle": "front",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804-character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "source": "character-parts-57dea902-c4a1-418e-a3ff-48667f44b804",
+        "target": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "sourceHandle": "part:part-body-99645442",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4-body-result",
+        "source": "character-views-d001b18e-35b6-48a9-969d-9c247a6d98c4",
+        "target": "body-result",
+        "sourceHandle": "front",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 130,
+      "zoom": 0.7
+    }
+  },
+  "ui-kits": {
+    "nodes": [
+      {
+        "id": "image-571b776b-c365-49a1-9e80-89bec94a414b",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 235
+        },
+        "data": {
+          "title": "Исходный UI-лист",
+          "imageUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+          "fileName": "ffe11252-94ea-4897-b275-401498e4adf3.png",
+          "tripoBusy": false
+        }
+      },
+      {
+        "id": "smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10",
+        "type": "smartSeparation",
+        "position": {
+          "x": 414,
+          "y": 235
+        },
+        "data": {
+          "title": "Выделить четыре ранга",
+          "status": "completed",
+          "userHint": "Выделить только Bronze, Silver, Gold и Platinum. Сохранить названия и цвет каждого ранга.",
+          "sources": [
+            {
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+              "name": "ffe11252-94ea-4897-b275-401498e4adf3.png"
+            }
+          ],
+          "items": [
+            {
+              "id": "item-1-25-b95a66fa",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+              "name": "Bronze rank",
+              "role": "banner",
+              "description": "Bronze banner with medal.",
+              "bounds": {
+                "x": 204,
+                "y": 299,
+                "width": 113,
+                "height": 45
+              },
+              "enabled": true,
+              "groupId": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+              "generationStatus": "completed",
+              "rawOutputUrl": "/workflow-examples/ff32864e-53d1-493d-b91c-d642588e921e.png",
+              "generationMethod": "imagegen",
+              "outputUrl": "/workflow-examples/rank-1.png",
+              "transparentBackground": true
+            },
+            {
+              "id": "item-1-26-956ba316",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+              "name": "Silver rank",
+              "role": "banner",
+              "description": "Silver banner with medal.",
+              "bounds": {
+                "x": 205,
+                "y": 340,
+                "width": 112,
+                "height": 45
+              },
+              "enabled": true,
+              "groupId": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+              "generationStatus": "completed",
+              "rawOutputUrl": "/workflow-examples/731f1e2b-638e-4dda-8671-2dbeca78a35b.png",
+              "generationMethod": "imagegen",
+              "outputUrl": "/workflow-examples/rank-2.png",
+              "transparentBackground": true
+            },
+            {
+              "id": "item-1-27-c03d5609",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+              "name": "Gold rank",
+              "role": "banner",
+              "description": "Yellow banner with gem.",
+              "bounds": {
+                "x": 204,
+                "y": 380,
+                "width": 113,
+                "height": 46
+              },
+              "enabled": true,
+              "groupId": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+              "generationStatus": "completed",
+              "rawOutputUrl": "/workflow-examples/4fdddf75-f038-4387-8d8a-d2ea92f225f5.png",
+              "generationMethod": "imagegen",
+              "outputUrl": "/workflow-examples/rank-3.png",
+              "transparentBackground": true
+            },
+            {
+              "id": "item-1-28-76fecc97",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png",
+              "name": "Platinum rank",
+              "role": "banner",
+              "description": "Cyan banner with crystal.",
+              "bounds": {
+                "x": 204,
+                "y": 422,
+                "width": 113,
+                "height": 49
+              },
+              "enabled": true,
+              "groupId": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+              "generationStatus": "completed",
+              "rawOutputUrl": "/workflow-examples/60558679-0c55-442d-a081-373f15b0ffeb.png",
+              "generationMethod": "imagegen",
+              "outputUrl": "/workflow-examples/rank-4.png",
+              "transparentBackground": true
+            }
+          ],
+          "groups": [
+            {
+              "id": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+              "name": "Competitive ranks",
+              "slug": "competitive-ranks",
+              "reasoning": "Banners identify competitive progression tiers.",
+              "status": "ready",
+              "outputUrl": "/workflow-examples/rank-atlas.png",
+              "previewUrl": "/workflow-examples/rank-atlas.png",
+              "manifest": {
+                "schemaVersion": 1,
+                "image": "sprite-atlas.png",
+                "transparent": true,
+                "width": 1024,
+                "height": 1024,
+                "grid": {
+                  "columns": 2,
+                  "rows": 2,
+                  "cellSize": 256,
+                  "gutter": 8,
+                  "outerMargin": 8,
+                  "safeArea": 0.8,
+                  "powerOfTwo": true,
+                  "pixelArt": false
+                },
+                "frames": [
+                  {
+                    "id": "sprite-1",
+                    "source": "/workflow-examples/rank-1.png",
+                    "frame": {
+                      "x": 252,
+                      "y": 252,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 101,
+                      "width": 204,
+                      "height": 54
+                    },
+                    "sourceSize": {
+                      "width": 1991,
+                      "height": 550
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 0,
+                      "row": 0
+                    }
+                  },
+                  {
+                    "id": "sprite-2",
+                    "source": "/workflow-examples/rank-2.png",
+                    "frame": {
+                      "x": 516,
+                      "y": 252,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 102,
+                      "width": 204,
+                      "height": 52
+                    },
+                    "sourceSize": {
+                      "width": 1944,
+                      "height": 520
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 1,
+                      "row": 0
+                    }
+                  },
+                  {
+                    "id": "sprite-3",
+                    "source": "/workflow-examples/rank-3.png",
+                    "frame": {
+                      "x": 252,
+                      "y": 516,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 95,
+                      "width": 204,
+                      "height": 65
+                    },
+                    "sourceSize": {
+                      "width": 1965,
+                      "height": 652
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 0,
+                      "row": 1
+                    }
+                  },
+                  {
+                    "id": "sprite-4",
+                    "source": "/workflow-examples/rank-4.png",
+                    "frame": {
+                      "x": 516,
+                      "y": 516,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 97,
+                      "width": 204,
+                      "height": 61
+                    },
+                    "sourceSize": {
+                      "width": 2089,
+                      "height": 656
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 1,
+                      "row": 1
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "activeSourceIndex": 0,
+          "expanded": false,
+          "settings": {
+            "packingMode": "grid",
+            "tolerance": 15,
+            "cropPadding": 3,
+            "pixelArt": false,
+            "cellSize": 256,
+            "atlasSize": 1024,
+            "atlasPadding": 8
+          },
+          "inputUrls": [
+            "/workflow-examples/6790644d-2f81-45df-80c9-fd84ce203ef0.png"
+          ],
+          "warnings": [],
+          "activeGroupId": "group-4a03a0e6-8cf4-486c-9d8f-700b25884821"
+        }
+      },
+      {
+        "id": "rank-atlas",
+        "type": "spriteAtlas",
+        "data": {
+          "title": "Упаковать ранги в атлас",
+          "status": "completed",
+          "settings": {
+            "cellSize": 256,
+            "gutter": 8,
+            "outerMargin": 8,
+            "columns": 2,
+            "safeArea": 0.8,
+            "pixelArt": false,
+            "powerOfTwo": true
+          },
+          "outputUrl": "/workflow-examples/rank-atlas.png",
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "sprite-atlas.png",
+            "transparent": true,
+            "width": 1024,
+            "height": 1024,
+            "grid": {
+              "columns": 2,
+              "rows": 2,
+              "cellSize": 256,
+              "gutter": 8,
+              "outerMargin": 8,
+              "safeArea": 0.8,
+              "powerOfTwo": true,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/rank-1.png",
+                "frame": {
+                  "x": 252,
+                  "y": 252,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 101,
+                  "width": 204,
+                  "height": 54
+                },
+                "sourceSize": {
+                  "width": 1991,
+                  "height": 550
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/rank-2.png",
+                "frame": {
+                  "x": 516,
+                  "y": 252,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 102,
+                  "width": 204,
+                  "height": 52
+                },
+                "sourceSize": {
+                  "width": 1944,
+                  "height": 520
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-3",
+                "source": "/workflow-examples/rank-3.png",
+                "frame": {
+                  "x": 252,
+                  "y": 516,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 95,
+                  "width": 204,
+                  "height": 65
+                },
+                "sourceSize": {
+                  "width": 1965,
+                  "height": 652
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 1
+                }
+              },
+              {
+                "id": "sprite-4",
+                "source": "/workflow-examples/rank-4.png",
+                "frame": {
+                  "x": 516,
+                  "y": 516,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 97,
+                  "width": 204,
+                  "height": 61
+                },
+                "sourceSize": {
+                  "width": 2089,
+                  "height": 656
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ]
+          },
+          "validation": {
+            "valid": 4,
+            "total": 4,
+            "issues": []
+          },
+          "previewUrl": "/workflow-examples/rank-atlas.png",
+          "inputUrls": [
+            "/workflow-examples/rank-1.png",
+            "/workflow-examples/rank-2.png",
+            "/workflow-examples/rank-3.png",
+            "/workflow-examples/rank-4.png"
+          ]
+        },
+        "position": {
+          "x": 1174,
+          "y": 235
+        }
+      },
+      {
+        "id": "ui-result",
+        "type": "image",
+        "data": {
+          "title": "Готовый атлас рангов",
+          "imageUrl": "/workflow-examples/rank-atlas.png",
+          "fileName": "rank-atlas.png",
+          "hasInput": true
+        },
+        "position": {
+          "x": 1588,
+          "y": 235
+        }
+      },
+      {
+        "id": "lesson-image-571b776b-c365-49a1-9e80-89bec94a414b",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -30
+        },
+        "data": {
+          "step": 1,
+          "title": "Исходный UI-лист",
+          "body": "Полный UI-лист — источник стиля и координат элементов. Для короткого урока выбран один набор рангов.",
+          "exercise": "Найдите четыре ранга на исходном листе."
+        }
+      },
+      {
+        "id": "lesson-smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10",
+        "type": "workflowLesson",
+        "position": {
+          "x": 414,
+          "y": -30
+        },
+        "data": {
+          "step": 2,
+          "title": "Выделить четыре ранга",
+          "body": "Области найдены анализом, четыре спрайта получены генерацией. В этом примере фон дополнительно очищен локально.",
+          "exercise": "Разверните ноду и проверьте рамки выделения и готовые спрайты."
+        }
+      },
+      {
+        "id": "lesson-rank-atlas",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1174,
+          "y": -30
+        },
+        "data": {
+          "step": 3,
+          "title": "Упаковать ранги в атлас",
+          "body": "Готовые PNG собраны штатным Sprite Atlas: сетка 2×2, ячейка 256, отступ 8 и power of two. PNG и JSON уже сохранены.",
+          "exercise": "Поменяйте размер ячейки и нажмите Build."
+        }
+      },
+      {
+        "id": "lesson-ui-result",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1588,
+          "y": -30
+        },
+        "data": {
+          "step": 4,
+          "title": "Готовый атлас рангов",
+          "body": "Результат открыт как отдельное изображение. Прозрачные отступы не дают спрайтам соприкасаться.",
+          "exercise": "Скачайте PNG и JSON из предыдущей ноды."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "image-571b776b-c365-49a1-9e80-89bec94a414b-smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10",
+        "source": "image-571b776b-c365-49a1-9e80-89bec94a414b",
+        "target": "smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10-rank-atlas",
+        "source": "smart-separation-39794f1b-5ead-48a0-b7fa-c08df8c73b10",
+        "target": "rank-atlas",
+        "sourceHandle": "group:group-4a03a0e6-8cf4-486c-9d8f-700b25884821",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "rank-atlas-ui-result",
+        "source": "rank-atlas",
+        "target": "ui-result",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 130,
+      "zoom": 0.7
+    }
+  },
+  "materials": {
+    "nodes": [
+      {
+        "id": "image-a20ee1cb-3552-4b3c-8ddd-6362ccf55af7",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 235
+        },
+        "data": {
+          "title": "Исходник с нужной поверхностью",
+          "imageUrl": "/workflow-examples/4edbe65c-bed2-4409-bf0a-9eac828bbc67.png",
+          "fileName": "Multi Generate-variant-3.png",
+          "hasInput": true,
+          "tripoBusy": false,
+          "unityBusy": false
+        }
+      },
+      {
+        "id": "seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570",
+        "type": "seamlessTexture",
+        "position": {
+          "x": 414,
+          "y": 235
+        },
+        "data": {
+          "title": "Получить бесшовную текстуру",
+          "prompt": "Create a clean game-ready surface material based on this reference. I need only bakcground texutre ",
+          "provider": "global",
+          "status": "completed",
+          "settings": {
+            "outputSize": 1024,
+            "edgeBlend": 0.08
+          },
+          "sourceUrl": "/workflow-examples/4edbe65c-bed2-4409-bf0a-9eac828bbc67.png",
+          "rawOutputUrl": "/workflow-examples/c9c89055-fed7-4097-ac47-cb8c1b0de986.png",
+          "outputUrl": "/workflow-examples/60fb6761-8241-49d4-8fbb-e995456f0197.png",
+          "seamScore": 91,
+          "processingSeams": false
+        }
+      },
+      {
+        "id": "pbr-maps",
+        "type": "materialMaps",
+        "data": {
+          "title": "Собрать PBR-карты",
+          "status": "completed",
+          "settings": {
+            "normalStrength": 2.5,
+            "normalFormat": "opengl",
+            "heightContrast": 1.2,
+            "invertHeight": false,
+            "roughnessLevel": 0.65,
+            "metallicLevel": 0,
+            "detailInfluence": 0.35,
+            "aoStrength": 3
+          },
+          "maps": {
+            "baseColor": {
+              "key": "baseColor",
+              "title": "baseColor",
+              "outputUrl": "/workflow-examples/60fb6761-8241-49d4-8fbb-e995456f0197.png"
+            },
+            "normal": {
+              "key": "normal",
+              "title": "normal",
+              "outputUrl": "/workflow-examples/material-normal.png"
+            },
+            "height": {
+              "key": "height",
+              "title": "height",
+              "outputUrl": "/workflow-examples/material-height.png"
+            },
+            "roughness": {
+              "key": "roughness",
+              "title": "roughness",
+              "outputUrl": "/workflow-examples/material-roughness.png"
+            },
+            "metallic": {
+              "key": "metallic",
+              "title": "metallic",
+              "outputUrl": "/workflow-examples/material-metallic.png"
+            },
+            "ambientOcclusion": {
+              "key": "ambientOcclusion",
+              "title": "ambientOcclusion",
+              "outputUrl": "/workflow-examples/material-ambientOcclusion.png"
+            },
+            "orm": {
+              "key": "orm",
+              "title": "orm",
+              "outputUrl": "/workflow-examples/material-orm.png"
+            }
+          },
+          "manifest": {
+            "schemaVersion": 1,
+            "kind": "pbr-material-map-set",
+            "width": 1024,
+            "height": 1024,
+            "maps": [
+              "baseColor",
+              "normal",
+              "height",
+              "roughness",
+              "metallic",
+              "ambientOcclusion",
+              "orm"
+            ],
+            "channelPacking": {
+              "orm": {
+                "red": "ambientOcclusion",
+                "green": "roughness",
+                "blue": "metallic"
+              }
+            },
+            "settings": {
+              "normalStrength": 2.5,
+              "normalFormat": "opengl",
+              "heightContrast": 1.2,
+              "invertHeight": false,
+              "roughnessLevel": 0.65,
+              "metallicLevel": 0,
+              "detailInfluence": 0.35,
+              "aoStrength": 3
+            },
+            "notes": {
+              "roughness": "Estimated from luminance detail. Author review recommended.",
+              "metallic": "Uniform authored value; it cannot be reliably inferred from color alone.",
+              "normalFormat": "opengl"
+            }
+          },
+          "inputUrl": "/workflow-examples/60fb6761-8241-49d4-8fbb-e995456f0197.png"
+        },
+        "position": {
+          "x": 828,
+          "y": 235
+        }
+      },
+      {
+        "id": "material-result",
+        "type": "image",
+        "data": {
+          "title": "Результат: Normal map",
+          "imageUrl": "/workflow-examples/material-normal.png",
+          "fileName": "material-normal.png",
+          "hasInput": true
+        },
+        "position": {
+          "x": 1358,
+          "y": 235
+        }
+      },
+      {
+        "id": "lesson-image-a20ee1cb-3552-4b3c-8ddd-6362ccf55af7",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -30
+        },
+        "data": {
+          "step": 1,
+          "title": "Исходник с нужной поверхностью",
+          "body": "В этом изображении нужна только фоновая поверхность. Исходник показывает, что именно выделяли.",
+          "exercise": "Сравните поверхность с результатом следующего шага."
+        }
+      },
+      {
+        "id": "lesson-seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570",
+        "type": "workflowLesson",
+        "position": {
+          "x": 414,
+          "y": -30
+        },
+        "data": {
+          "step": 2,
+          "title": "Получить бесшовную текстуру",
+          "body": "Промпт оставил только фон. Бесшовная обработка дала текстуру 1024×1024; исходный промпт и настройки сохранены.",
+          "exercise": "Откройте tiled preview и проверьте стыки."
+        }
+      },
+      {
+        "id": "lesson-pbr-maps",
+        "type": "workflowLesson",
+        "position": {
+          "x": 828,
+          "y": -30
+        },
+        "data": {
+          "step": 3,
+          "title": "Собрать PBR-карты",
+          "body": "Карты собраны локально штатным PBR Material Maps. Roughness и AO — оценки по изображению, Metallic задан 0.",
+          "exercise": "Измените normalStrength и пересоберите карты."
+        }
+      },
+      {
+        "id": "lesson-material-result",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1358,
+          "y": -30
+        },
+        "data": {
+          "step": 4,
+          "title": "Результат: Normal map",
+          "body": "Normal вынесена отдельно; весь набор, включая ORM, можно скачать из предыдущей ноды.",
+          "exercise": "Сравните Base color, Normal и Height."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "image-a20ee1cb-3552-4b3c-8ddd-6362ccf55af7-seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570",
+        "source": "image-a20ee1cb-3552-4b3c-8ddd-6362ccf55af7",
+        "target": "seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570-pbr-maps",
+        "source": "seamless-texture-d4302e88-ddbc-4d53-9a95-0c6f2c389570",
+        "target": "pbr-maps",
+        "sourceHandle": "baseColor",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      },
+      {
+        "id": "pbr-maps-material-result",
+        "source": "pbr-maps",
+        "target": "material-result",
+        "sourceHandle": "normal",
+        "type": "default",
+        "animated": true,
+        "style": {
+          "stroke": "#a6d9f5",
+          "strokeWidth": 1.8
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 130,
+      "zoom": 0.7
+    }
+  }
+}

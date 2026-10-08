@@ -51,4 +51,13 @@ describe('Character view prompts', () => {
     expect(isCharacterViewSourceReady('character', 4)).toBe(false);
     expect(buildCharacterViewPrompt({ view: 'front', subjectKind: 'prop' })).toContain(PROP_IDENTITY_PROMPT);
   });
+
+  it('preserves non-humanoid anatomy in a natural turnaround stance', () => {
+    expect(normalizeCharacterPose('neutral')).toBe('neutral');
+    const prompt = buildCharacterViewPrompt({ view: 'left', pose: 'neutral', identityPrompt: 'Keep the four-legged seed creature.' });
+    expect(prompt).toContain('all four feet');
+    expect(prompt).toContain('original anatomy and number of limbs');
+    expect(prompt).toContain(CHARACTER_VIEW_SPECS.left.prompt);
+    expect(prompt).not.toMatch(/A-pose|T-pose|palms|elbows/i);
+  });
 });

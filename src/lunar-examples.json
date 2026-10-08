@@ -1,0 +1,2588 @@
+{
+  "lunar-cache": {
+    "nodes": [
+      {
+        "id": "lunar-cache-scene",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "title": "01 · Художественное направление",
+          "imageUrl": "/workflow-examples/lunar-scene.png",
+          "fileName": "lunar-scene.png",
+          "hasInput": false,
+          "creationPrompt": "Create original game concept art for LUNAR RELAY, an abandoned moon science outpost. Stylized premium hand-painted 3D game art, readable chunky low-poly forms, off-white ceramic enamel, midnight navy chassis, turquoise luminescent crystal cores and tiny warm amber warning lights. A single large octagonal supply relay cache with six chunky corner latches, a glowing cyan vertical central seam, bevelled ivory lid and a small recessed navy display stands in the foreground of lavender moon dunes; thin antenna mast, domed research habitat and broken satellite dish in the distance. No humans. Compose a beautiful wide establishing shot in 3/4 orthographic-like game camera, soft dust haze, strong focused silhouette, cool violet environment and warm rim light. No readable text, no letters, no logos, no watermark. This is the art-direction reference for a full game asset workflow. Landscape 1536x1024."
+        }
+      },
+      {
+        "id": "lunar-cache-scene-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -400
+        },
+        "data": {
+          "step": 1,
+          "title": "Художественное направление",
+          "body": "Новый мир LUNAR RELAY: лавандовый грунт, тёмно-синие корпуса, светлая керамика и бирюзовый свет. Верхняя ветка — состояния тайника; нижняя — материал; третья — презентация.",
+          "exercise": "Проследите три ветки через Fit view. Назовите три признака общего стиля."
+        }
+      },
+      {
+        "id": "lunar-cache-variants",
+        "type": "multiGenerate",
+        "position": {
+          "x": 550,
+          "y": 0
+        },
+        "data": {
+          "title": "02 · Три функции, три силуэта",
+          "prompt": "Create one isolated LUNAR RELAY supply cache, matching the ivory ceramic / midnight navy / cyan palette of the attached moon station. Explore three functional directions across the variants: standard field storage; a lower wider rescue cache with amber rails and an orange carry handle; a tall survey cache with a cyan crystal sensor. One object, three-quarter view, transparent background, no contact sheet.",
+          "variantCount": 3,
+          "selectedVariantKey": "variant-2",
+          "provider": "global",
+          "generationMode": "fast",
+          "isConfigOpen": false,
+          "variants": [
+            {
+              "key": "variant-1",
+              "title": "Field storage",
+              "index": 0,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/lunar-cache-standard.png",
+              "sourceUrl": "/workflow-examples/lunar-scene.png",
+              "generationPrompt": "Use the supplied scene only as art-direction and subject reference. Design exactly one standalone LUNAR RELAY supply cache game prop, an octagonal sci-fi cargo chest with bevelled lid, six dark chunky corner latches and central luminous crystal seam. Premium stylized game render, crisp readable chunky geometry, ivory ceramic enamel / midnight navy chassis / turquoise crystal / amber indicators. Consistent three-quarter top-down isometric view. Center the complete object with generous 15% transparent padding on every side. True transparent RGBA background. No environment, floor plane, surrounding rocks, ground shadows, labels, letters, logos, watermark or contact sheet. Readable as a 128px inventory icon. 1024x1024. Variant A: standard field supply cache. Tall broad octagonal vertical body, compact closed lid, softly glowing cyan seam and enclosed top crystal aperture. Simplify the scene object to clear production-friendly panels, at most six large ivory plates."
+            },
+            {
+              "key": "variant-2",
+              "title": "Rescue cache · selected",
+              "index": 1,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/lunar-cache-rescue.png",
+              "sourceUrl": "/workflow-examples/lunar-scene.png",
+              "generationPrompt": "Use the supplied scene only as art-direction and subject reference. Design exactly one standalone LUNAR RELAY supply cache game prop, an octagonal sci-fi cargo chest with bevelled lid, six dark chunky corner latches and central luminous crystal seam. Premium stylized game render, crisp readable chunky geometry, ivory ceramic enamel / midnight navy chassis / turquoise crystal / amber indicators. Consistent three-quarter top-down isometric view. Center the complete object with generous 15% transparent padding on every side. True transparent RGBA background. No environment, floor plane, surrounding rocks, ground shadows, labels, letters, logos, watermark or contact sheet. Readable as a 128px inventory icon. 1024x1024. Variant B: rescue medical cache. Wider and lower body than A; rounded reinforced lid, two amber safety rails and a prominent orange protective top handle. Preserve octagonal family silhouette and turquoise seam, use more cream ceramic panels. No medical symbols, no text."
+            },
+            {
+              "key": "variant-3",
+              "title": "Survey cache",
+              "index": 2,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/lunar-cache-survey.png",
+              "sourceUrl": "/workflow-examples/lunar-scene.png",
+              "generationPrompt": "Use the supplied scene only as art-direction and subject reference. Design exactly one standalone LUNAR RELAY supply cache game prop, an octagonal sci-fi cargo chest with bevelled lid, six dark chunky corner latches and central luminous crystal seam. Premium stylized game render, crisp readable chunky geometry, ivory ceramic enamel / midnight navy chassis / turquoise crystal / amber indicators. Consistent three-quarter top-down isometric view. Center the complete object with generous 15% transparent padding on every side. True transparent RGBA background. No environment, floor plane, surrounding rocks, ground shadows, labels, letters, logos, watermark or contact sheet. Readable as a 128px inventory icon. 1024x1024. Variant C: expedition survey cache. Taller narrow body, navy upper shell, three visible short turquoise crystal fins contained within the lid, protected instrument inset and rugged side ribs. More dark navy than A, maintain ivory corner armour. No antenna beyond the icon bounding box."
+            }
+          ]
+        }
+      },
+      {
+        "id": "lunar-cache-variants-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 550,
+          "y": -400
+        },
+        "data": {
+          "step": 2,
+          "title": "Три функции, три силуэта",
+          "body": "Варианты различаются назначением: обычное хранение, спасательное снабжение и научная разведка. Выбран Rescue: широкая форма и оранжевая ручка читаются с расстояния. Точные промпты трёх запусков сохранены в docs/lunar-relay-prompts.json.",
+          "exercise": "Переключите варианты. Какой лучше подходит для редкого научного лута, а какой — для аптечки?"
+        }
+      },
+      {
+        "id": "lunar-cache-selected",
+        "type": "image",
+        "position": {
+          "x": 1100,
+          "y": 0
+        },
+        "data": {
+          "title": "03 · Зафиксировать выбор",
+          "imageUrl": "/workflow-examples/lunar-cache-rescue.png",
+          "fileName": "lunar-cache-rescue.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-cache-selected-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": -400
+        },
+        "data": {
+          "step": 3,
+          "title": "Зафиксировать выбор",
+          "body": "Отдельный узел фиксирует выбранный Rescue и отдаёт его в три последующие ветки. Связь идёт с конкретного Variant 2: переключение превью не меняет исходник этой ветки.",
+          "exercise": "Создайте рядом ветку от Survey и сравните назначение."
+        }
+      },
+      {
+        "id": "lunar-cache-open",
+        "type": "generator",
+        "position": {
+          "x": 1650,
+          "y": 0
+        },
+        "data": {
+          "title": "04 · Открытое состояние",
+          "prompt": "Edit this exact rescue supply cache into its OPEN state for the LUNAR RELAY game. Preserve its exact cream octagonal body, low wide silhouette, six navy corner latches, orange carry handle, cyan crystal identity and same three-quarter isometric camera. Lift and hinge only the lid toward the back so the interior is visible. Inside, show three organized empty navy foam compartments, a single cyan energy cell and a small ivory first-aid cartridge. Do not add tiny clutter. Keep the entire open lid inside the frame, generous transparent margin on all sides. True transparent RGBA background with no floor, scenery, shadow plane, text or symbols. Premium stylized game prop, strong readable open/closed silhouette difference.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-cache-open.png",
+          "sourceUrl": "/workflow-examples/lunar-cache-rescue.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-cache-rescue.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-cache-open-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1650,
+          "y": -400
+        },
+        "data": {
+          "step": 4,
+          "title": "Открытое состояние",
+          "body": "Сохранены ракурс, корпус, ручка и световой шов; крышка поднята, видны ячейки. Генерация добавила небольшой знак на внутренней аптечке: это место для ручной проверки, а не обещание идеальной геометрической точности.",
+          "exercise": "Сравните петли, нижние защёлки и ширину корпуса. Запишите, что потребует правки."
+        }
+      },
+      {
+        "id": "lunar-cache-states",
+        "type": "referenceSet",
+        "position": {
+          "x": 2200,
+          "y": 0
+        },
+        "data": {
+          "title": "05 · Коллекция двух состояний",
+          "items": [
+            {
+              "id": "states-0",
+              "title": "cache rescue",
+              "imageUrl": "/workflow-examples/lunar-cache-rescue.png"
+            },
+            {
+              "id": "states-1",
+              "title": "cache open",
+              "imageUrl": "/workflow-examples/lunar-cache-open.png"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lunar-cache-states-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2200,
+          "y": -400
+        },
+        "data": {
+          "step": 5,
+          "title": "Коллекция двух состояний",
+          "body": "Closed и Open входят в одну коллекцию. Две входящие связи показывают, откуда взят каждый кадр; выход All несёт оба PNG.",
+          "exercise": "Добавьте третье состояние — повреждённый тайник — в своей копии."
+        }
+      },
+      {
+        "id": "lunar-cache-state-atlas",
+        "type": "spriteAtlas",
+        "position": {
+          "x": 2750,
+          "y": 0
+        },
+        "data": {
+          "title": "06 · Атлас состояний",
+          "status": "completed",
+          "inputUrls": [
+            "/workflow-examples/lunar-cache-rescue.png",
+            "/workflow-examples/lunar-cache-open.png"
+          ],
+          "outputUrl": "/workflow-examples/lunar-states-atlas.png",
+          "previewUrl": "/workflow-examples/lunar-states-atlas.png",
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "sprite-atlas.png",
+            "transparent": true,
+            "width": 536,
+            "height": 272,
+            "grid": {
+              "columns": 2,
+              "rows": 1,
+              "cellSize": 256,
+              "gutter": 8,
+              "outerMargin": 8,
+              "safeArea": 0.8,
+              "powerOfTwo": false,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/lunar-cache-rescue.png",
+                "frame": {
+                  "x": 8,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 47,
+                  "width": 204,
+                  "height": 161
+                },
+                "sourceSize": {
+                  "width": 1254,
+                  "height": 1254
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/lunar-cache-open.png",
+                "frame": {
+                  "x": 272,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 38,
+                  "y": 26,
+                  "width": 179,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1254,
+                  "height": 1254
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 0
+                }
+              }
+            ]
+          },
+          "validation": {
+            "valid": 2,
+            "total": 2,
+            "issues": []
+          },
+          "settings": {
+            "cellSize": 256,
+            "gutter": 8,
+            "outerMargin": 8,
+            "columns": 2,
+            "safeArea": 0.8,
+            "pixelArt": false,
+            "powerOfTwo": false
+          }
+        }
+      },
+      {
+        "id": "lunar-cache-state-atlas-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2750,
+          "y": -400
+        },
+        "data": {
+          "step": 6,
+          "title": "Атлас состояний",
+          "body": "Реально собранный прозрачный атлас: две ячейки 256 px, безопасная зона 80%, промежуток 8 px. JSON хранит прямоугольники и центр каждого кадра; атлас упаковывает изображения, но не выравнивает объекты по общей точке петли.",
+          "exercise": "Скачайте PNG и JSON. Для анимации дополнительно согласуйте масштаб и опорную точку."
+        }
+      },
+      {
+        "id": "lunar-cache-state-result",
+        "type": "image",
+        "position": {
+          "x": 3300,
+          "y": 0
+        },
+        "data": {
+          "title": "07 · Готовый атлас состояний",
+          "imageUrl": "/workflow-examples/lunar-states-atlas.png",
+          "fileName": "lunar-states-atlas.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-cache-state-result-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3300,
+          "y": -400
+        },
+        "data": {
+          "step": 7,
+          "title": "Готовый атлас состояний",
+          "body": "Это настоящий результат упаковки, связанный с атласом, а не картинка предполагаемого будущего шага. Исходные PNG остаются доступными в предыдущих узлах.",
+          "exercise": "Измените safe area на 70% и нажмите Build & save. Сравните отступы."
+        }
+      },
+      {
+        "id": "lunar-cache-surface",
+        "type": "generator",
+        "position": {
+          "x": 1650,
+          "y": 1350
+        },
+        "data": {
+          "title": "08 · Извлечь характер поверхности",
+          "prompt": "Generate a clean albedo material texture based on the ivory CERAMIC ENAMEL plates of this supply cache reference. This is for the LUNAR RELAY game. Only the material, no object. Square 1024x1024 tileable top-down flat evenly lit off-white ivory ceramic enamel with restrained warm grey wear, fine hairline scratches and extremely subtle micro-pitting. Continuous surface, no panel seams, grout, bolts, symbols, cyan glow, object edges or large stains. No highlights, gradients, perspective, directional shadows, ambient occlusion or baked lighting. Uniform material scale, believable hand-painted stylized game surface. Fill every pixel to edges; opposite edges must seamlessly repeat. This is base-color input for local tile seam processing and derived PBR maps.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-material-raw.png",
+          "sourceUrl": "/workflow-examples/lunar-cache-rescue.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-cache-rescue.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-cache-surface-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1650,
+          "y": 950
+        },
+        "data": {
+          "step": 8,
+          "title": "Извлечь характер поверхности",
+          "body": "От Rescue получен отдельный плоский образец светлой керамики без перспективы, ручек и защёлок. Геометрия корпуса не должна попасть в повторяющийся материал.",
+          "exercise": "Поменяйте промпт на тёмное покрытие корпуса: почему для него нужна другая roughness?"
+        }
+      },
+      {
+        "id": "lunar-cache-seamless",
+        "type": "seamlessTexture",
+        "position": {
+          "x": 2200,
+          "y": 1350
+        },
+        "data": {
+          "title": "09 · Подготовить повторение",
+          "status": "completed",
+          "provider": "global",
+          "prompt": "Generate a clean albedo material texture based on the ivory CERAMIC ENAMEL plates of this supply cache reference. This is for the LUNAR RELAY game. Only the material, no object. Square 1024x1024 tileable top-down flat evenly lit off-white ivory ceramic enamel with restrained warm grey wear, fine hairline scratches and extremely subtle micro-pitting. Continuous surface, no panel seams, grout, bolts, symbols, cyan glow, object edges or large stains. No highlights, gradients, perspective, directional shadows, ambient occlusion or baked lighting. Uniform material scale, believable hand-painted stylized game surface. Fill every pixel to edges; opposite edges must seamlessly repeat. This is base-color input for local tile seam processing and derived PBR maps.",
+          "sourceUrl": "/workflow-examples/lunar-material-raw.png",
+          "rawOutputUrl": "/workflow-examples/lunar-material-raw.png",
+          "outputUrl": "/workflow-examples/lunar-material-baseColor.png",
+          "settings": {
+            "outputSize": 1024,
+            "edgeBlend": 0.08
+          },
+          "seamScore": 96
+        }
+      },
+      {
+        "id": "lunar-cache-seamless-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2200,
+          "y": 950
+        },
+        "data": {
+          "step": 9,
+          "title": "Подготовить повторение",
+          "body": "Исходник обработан настоящим алгоритмом приложения: смещение на половину, смешивание центральных швов и согласование противоположных краёв. Готовый Base Color имеет размер 1024×1024.",
+          "exercise": "Откройте плиточное превью и найдите повторяющиеся трещины; уменьшите контраст при необходимости."
+        }
+      },
+      {
+        "id": "lunar-cache-maps",
+        "type": "materialMaps",
+        "position": {
+          "x": 2750,
+          "y": 1350
+        },
+        "data": {
+          "title": "10 · Семь карт поверхности",
+          "status": "completed",
+          "inputUrl": "/workflow-examples/lunar-material-baseColor.png",
+          "settings": {
+            "normalStrength": 1.6,
+            "normalFormat": "opengl",
+            "heightContrast": 1.1,
+            "invertHeight": false,
+            "roughnessLevel": 0.62,
+            "metallicLevel": 0,
+            "detailInfluence": 0.25,
+            "aoStrength": 2
+          },
+          "maps": {
+            "baseColor": {
+              "key": "baseColor",
+              "title": "Base Color",
+              "outputUrl": "/workflow-examples/lunar-material-baseColor.png"
+            },
+            "normal": {
+              "key": "normal",
+              "title": "Normal",
+              "outputUrl": "/workflow-examples/lunar-material-normal.png"
+            },
+            "height": {
+              "key": "height",
+              "title": "Height",
+              "outputUrl": "/workflow-examples/lunar-material-height.png"
+            },
+            "roughness": {
+              "key": "roughness",
+              "title": "Roughness",
+              "outputUrl": "/workflow-examples/lunar-material-roughness.png"
+            },
+            "metallic": {
+              "key": "metallic",
+              "title": "Metallic",
+              "outputUrl": "/workflow-examples/lunar-material-metallic.png"
+            },
+            "ambientOcclusion": {
+              "key": "ambientOcclusion",
+              "title": "Ambient Occlusion",
+              "outputUrl": "/workflow-examples/lunar-material-ambientOcclusion.png"
+            },
+            "orm": {
+              "key": "orm",
+              "title": "ORM",
+              "outputUrl": "/workflow-examples/lunar-material-orm.png"
+            }
+          },
+          "manifest": {
+            "schemaVersion": 1,
+            "kind": "pbr-material-map-set",
+            "width": 1024,
+            "height": 1024,
+            "maps": [
+              "baseColor",
+              "normal",
+              "height",
+              "roughness",
+              "metallic",
+              "ambientOcclusion",
+              "orm"
+            ],
+            "channelPacking": {
+              "orm": {
+                "red": "ambientOcclusion",
+                "green": "roughness",
+                "blue": "metallic"
+              }
+            },
+            "settings": {
+              "normalStrength": 1.6,
+              "normalFormat": "opengl",
+              "heightContrast": 1.1,
+              "invertHeight": false,
+              "roughnessLevel": 0.62,
+              "metallicLevel": 0,
+              "detailInfluence": 0.25,
+              "aoStrength": 2
+            },
+            "notes": {
+              "roughness": "Estimated from luminance detail. Author review recommended.",
+              "metallic": "Uniform authored value; it cannot be reliably inferred from color alone.",
+              "normalFormat": "opengl"
+            }
+          }
+        }
+      },
+      {
+        "id": "lunar-cache-maps-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2750,
+          "y": 950
+        },
+        "data": {
+          "step": 10,
+          "title": "Семь карт поверхности",
+          "body": "Карты действительно вычислены из Base Color: Normal OpenGL, Height, Roughness, Metallic=0, AO и ORM. Это приближение из яркости рисунка: тёмная краска может ошибочно стать углублением. Набор требует проверки в освещённом материале.",
+          "exercise": "Повторно соберите карты с normal strength 0.8 и 2.5. Сравните выраженность микрорельефа."
+        }
+      },
+      {
+        "id": "lunar-cache-normal",
+        "type": "image",
+        "position": {
+          "x": 3400,
+          "y": 1350
+        },
+        "data": {
+          "title": "11 · Проверить Normal",
+          "imageUrl": "/workflow-examples/lunar-material-normal.png",
+          "fileName": "lunar-material-normal.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-cache-normal-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3400,
+          "y": 950
+        },
+        "data": {
+          "step": 11,
+          "title": "Проверить Normal",
+          "body": "Фиолетовая карта показывает направление микрорельефа. Она не является цветом поверхности и должна импортироваться как Normal Map; формат OpenGL отличается от DirectX направлением зелёного канала.",
+          "exercise": "Переключите normal format в копии и сравните зелёный канал."
+        }
+      },
+      {
+        "id": "lunar-cache-review",
+        "type": "referenceSet",
+        "position": {
+          "x": 2200,
+          "y": 2900
+        },
+        "data": {
+          "title": "12 · Собрать контекст для презентации",
+          "items": [
+            {
+              "id": "review-0",
+              "title": "scene",
+              "imageUrl": "/workflow-examples/lunar-scene.png"
+            },
+            {
+              "id": "review-1",
+              "title": "cache rescue",
+              "imageUrl": "/workflow-examples/lunar-cache-rescue.png"
+            },
+            {
+              "id": "review-2",
+              "title": "cache open",
+              "imageUrl": "/workflow-examples/lunar-cache-open.png"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lunar-cache-review-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2200,
+          "y": 2500
+        },
+        "data": {
+          "step": 12,
+          "title": "Собрать контекст для презентации",
+          "body": "Здесь сходятся окружение и оба состояния. Коллекция отвечает за контекст финального промпта: одна картинка мира и две картинки одного выбранного объекта.",
+          "exercise": "Удалите окружение из коллекции своей копии и предскажите, что перестанет быть согласованным."
+        }
+      },
+      {
+        "id": "lunar-cache-board",
+        "type": "generator",
+        "position": {
+          "x": 2750,
+          "y": 2900
+        },
+        "data": {
+          "title": "13 · Презентация дизайн-решения",
+          "prompt": "Create an original premium game asset art-direction BOARD, landscape 1536x1024, for LUNAR RELAY. The references are (1) moon scene for atmosphere and palette, (2) the EXACT CLOSED rescue cache, (3) the EXACT OPEN version. Preserve both prop designs and orange handle; do not invent new chest geometry. Compose an editorial production presentation on very dark midnight navy: a narrow moon landscape banner at the top, large closed cache on left and opened cache on right on clean unobtrusive background, small ivory/navy/cyan/amber palette chips along bottom. Plenty of negative space and crisp subject readability. Exact title text only: LUNAR RELAY. Small labels only: CLOSED and OPEN underneath the corresponding props. No measurements, fake diagrams or extra objects. Highly polished restrained game-development portfolio board. This is visual review evidence, not a 3D mesh or animation.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-cache-board.png",
+          "sourceUrl": "/workflow-examples/lunar-scene.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-scene.png",
+            "/workflow-examples/lunar-cache-rescue.png",
+            "/workflow-examples/lunar-cache-open.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-cache-board-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2750,
+          "y": 2500
+        },
+        "data": {
+          "step": 13,
+          "title": "Презентация дизайн-решения",
+          "body": "Из трёх входов создан новый обзорный лист: мир, Closed, Open и палитра. Это иллюстрация для обсуждения дизайна; она не заменяет прозрачные спрайты и точную техническую спецификацию.",
+          "exercise": "Составьте другой лист: сравнение трёх функциональных вариантов вместо состояний Rescue."
+        }
+      },
+      {
+        "id": "lunar-cache-final",
+        "type": "image",
+        "position": {
+          "x": 3300,
+          "y": 2900
+        },
+        "data": {
+          "title": "14 · Итог авторского пути",
+          "imageUrl": "/workflow-examples/lunar-cache-board.png",
+          "fileName": "lunar-cache-board.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-cache-final-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3300,
+          "y": 2500
+        },
+        "data": {
+          "step": 14,
+          "title": "Итог авторского пути",
+          "body": "Путь завершён тремя результатами: атлас состояний, набор карт керамики и презентационный лист. Все промежуточные изображения уже сохранены; копия позволяет экспериментировать со своими промптами.",
+          "exercise": "Соберите свою ветку Survey: выбор → открытое состояние → атлас → презентация."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "lunar-cache-scene-lunar-cache-variants-out",
+        "source": "lunar-cache-scene",
+        "target": "lunar-cache-variants",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-variants-lunar-cache-selected-variant-2",
+        "source": "lunar-cache-variants",
+        "target": "lunar-cache-selected",
+        "sourceHandle": "variant-2",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-selected-lunar-cache-open-out",
+        "source": "lunar-cache-selected",
+        "target": "lunar-cache-open",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-selected-lunar-cache-states-out",
+        "source": "lunar-cache-selected",
+        "target": "lunar-cache-states",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-open-lunar-cache-states-out",
+        "source": "lunar-cache-open",
+        "target": "lunar-cache-states",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-states-lunar-cache-state-atlas-all",
+        "source": "lunar-cache-states",
+        "target": "lunar-cache-state-atlas",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-state-atlas-lunar-cache-state-result-out",
+        "source": "lunar-cache-state-atlas",
+        "target": "lunar-cache-state-result",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-selected-lunar-cache-surface-out",
+        "source": "lunar-cache-selected",
+        "target": "lunar-cache-surface",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-surface-lunar-cache-seamless-out",
+        "source": "lunar-cache-surface",
+        "target": "lunar-cache-seamless",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-seamless-lunar-cache-maps-baseColor",
+        "source": "lunar-cache-seamless",
+        "target": "lunar-cache-maps",
+        "sourceHandle": "baseColor",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-maps-lunar-cache-normal-normal",
+        "source": "lunar-cache-maps",
+        "target": "lunar-cache-normal",
+        "sourceHandle": "normal",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-scene-lunar-cache-review-out",
+        "source": "lunar-cache-scene",
+        "target": "lunar-cache-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-selected-lunar-cache-review-out",
+        "source": "lunar-cache-selected",
+        "target": "lunar-cache-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-open-lunar-cache-review-out",
+        "source": "lunar-cache-open",
+        "target": "lunar-cache-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-review-lunar-cache-board-all",
+        "source": "lunar-cache-review",
+        "target": "lunar-cache-board",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-cache-board-lunar-cache-final-out",
+        "source": "lunar-cache-board",
+        "target": "lunar-cache-final",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 390,
+      "zoom": 0.72
+    }
+  },
+  "lunar-ui": {
+    "nodes": [
+      {
+        "id": "lunar-ui-scene",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "title": "01 · Мир задаёт правила UI",
+          "imageUrl": "/workflow-examples/lunar-scene.png",
+          "fileName": "lunar-scene.png",
+          "hasInput": false,
+          "creationPrompt": "Create original game concept art for LUNAR RELAY, an abandoned moon science outpost. Stylized premium hand-painted 3D game art, readable chunky low-poly forms, off-white ceramic enamel, midnight navy chassis, turquoise luminescent crystal cores and tiny warm amber warning lights. A single large octagonal supply relay cache with six chunky corner latches, a glowing cyan vertical central seam, bevelled ivory lid and a small recessed navy display stands in the foreground of lavender moon dunes; thin antenna mast, domed research habitat and broken satellite dish in the distance. No humans. Compose a beautiful wide establishing shot in 3/4 orthographic-like game camera, soft dust haze, strong focused silhouette, cool violet environment and warm rim light. No readable text, no letters, no logos, no watermark. This is the art-direction reference for a full game asset workflow. Landscape 1536x1024."
+        }
+      },
+      {
+        "id": "lunar-ui-scene-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -400
+        },
+        "data": {
+          "step": 1,
+          "title": "Мир задаёт правила UI",
+          "body": "Авторский интерфейс для LUNAR RELAY. Верхняя ветка сохраняет объект; средняя готовит предметы; нижняя — панели. Последняя коллекция объединяет четыре источника в финальный экран.",
+          "exercise": "Через Fit view найдите место, где независимые ветки снова сходятся."
+        }
+      },
+      {
+        "id": "lunar-ui-closed",
+        "type": "generator",
+        "position": {
+          "x": 550,
+          "y": 0
+        },
+        "data": {
+          "title": "02 · Объект взаимодействия",
+          "prompt": "Use the supplied scene only as art-direction and subject reference. Design exactly one standalone LUNAR RELAY supply cache game prop, an octagonal sci-fi cargo chest with bevelled lid, six dark chunky corner latches and central luminous crystal seam. Premium stylized game render, crisp readable chunky geometry, ivory ceramic enamel / midnight navy chassis / turquoise crystal / amber indicators. Consistent three-quarter top-down isometric view. Center the complete object with generous 15% transparent padding on every side. True transparent RGBA background. No environment, floor plane, surrounding rocks, ground shadows, labels, letters, logos, watermark or contact sheet. Readable as a 128px inventory icon. 1024x1024. Variant B: rescue medical cache. Wider and lower body than A; rounded reinforced lid, two amber safety rails and a prominent orange protective top handle. Preserve octagonal family silhouette and turquoise seam, use more cream ceramic panels. No medical symbols, no text.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-cache-rescue.png",
+          "sourceUrl": "/workflow-examples/lunar-scene.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-scene.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-ui-closed-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 550,
+          "y": -400
+        },
+        "data": {
+          "step": 2,
+          "title": "Объект взаимодействия",
+          "body": "Из палитры окружения создан Rescue: светлая керамика, тёмные крепления, оранжевая ручка и бирюзовый шов. Интерфейс должен повторять материалы, а не копировать весь корпус.",
+          "exercise": "Назовите цвет основного действия и цвет второстепенной кнопки."
+        }
+      },
+      {
+        "id": "lunar-ui-open",
+        "type": "generator",
+        "position": {
+          "x": 1100,
+          "y": 0
+        },
+        "data": {
+          "title": "03 · Показать доступное содержимое",
+          "prompt": "Edit this exact rescue supply cache into its OPEN state for the LUNAR RELAY game. Preserve its exact cream octagonal body, low wide silhouette, six navy corner latches, orange carry handle, cyan crystal identity and same three-quarter isometric camera. Lift and hinge only the lid toward the back so the interior is visible. Inside, show three organized empty navy foam compartments, a single cyan energy cell and a small ivory first-aid cartridge. Do not add tiny clutter. Keep the entire open lid inside the frame, generous transparent margin on all sides. True transparent RGBA background with no floor, scenery, shadow plane, text or symbols. Premium stylized game prop, strong readable open/closed silhouette difference.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-cache-open.png",
+          "sourceUrl": "/workflow-examples/lunar-cache-rescue.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-cache-rescue.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-ui-open-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": -400
+        },
+        "data": {
+          "step": 3,
+          "title": "Показать доступное содержимое",
+          "body": "Открытое состояние связывает игровой объект с инвентарём. Перспектива сохранена для финального экрана; отдельные иконки рисуются ближе и крупнее, чтобы читаться в слотах.",
+          "exercise": "Проверьте, что форма тайника узнаётся без подписи."
+        }
+      },
+      {
+        "id": "lunar-ui-loot",
+        "type": "generator",
+        "position": {
+          "x": 550,
+          "y": 1150
+        },
+        "data": {
+          "title": "04 · Четыре категории предметов",
+          "prompt": "Create a production game sprite sheet for LUNAR RELAY using this image as the art-direction reference only. EXACTLY FOUR separate inventory icons in an exact evenly spaced 2-by-2 grid on true transparent RGBA background, square 1024x1024. Top-left: a chunky ivory cylindrical battery cell with navy end caps and one cyan glowing band. Top-right: one faceted cyan crystal shard in a small navy triangular metal holder. Bottom-left: one ivory/navy access keycard with amber corner tab, no letters or text. Bottom-right: one chunky navy repair wrench with ivory grip and amber joint. Each object is individually centered inside its own quadrant, roughly same apparent visual weight, at most 70 percent of quadrant width/height. Generous alpha-0 gap between icons and canvas edges, nothing crossing grid center lines. Crisp premium 3D stylized hand-painted game asset aesthetic, same ivory/navy/cyan/amber palette, consistent 3/4 isometric view, no text, labels, background, grid lines, checkerboard, frames or watermark.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-loot-sheet.png",
+          "sourceUrl": "/workflow-examples/lunar-scene.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-scene.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-ui-loot-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 550,
+          "y": 750
+        },
+        "data": {
+          "step": 4,
+          "title": "Четыре категории предметов",
+          "body": "Новый прозрачный лист: аккумулятор, кристалл, пропуск и инструмент. Разные силуэты помогают различать категории без текста; цвета поддерживают палитру мира.",
+          "exercise": "Уменьшите просмотр: какой предмет теряет узнаваемость первым?"
+        }
+      },
+      {
+        "id": "lunar-ui-loot-split",
+        "type": "smartSeparation",
+        "position": {
+          "x": 1100,
+          "y": 1150
+        },
+        "data": {
+          "title": "05 · Проверить границы и прозрачность",
+          "status": "completed",
+          "userHint": "Four distinct collectible items. Keep each silhouette and group as loot.",
+          "inputUrls": [
+            "/workflow-examples/lunar-loot-sheet.png"
+          ],
+          "sources": [
+            {
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+              "name": "Lunar Relay loot sheet"
+            }
+          ],
+          "items": [
+            {
+              "id": "loot-1",
+              "name": "Power cell",
+              "role": "battery",
+              "description": "Original LUNAR RELAY Power cell. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+              "bounds": {
+                "x": 0,
+                "y": 0,
+                "width": 500,
+                "height": 500
+              },
+              "enabled": true,
+              "groupId": "loot-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-loot-1.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+                "normalizedBounds": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 500,
+                  "height": 500
+                },
+                "sourcePixelBounds": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 646,
+                  "height": 646
+                },
+                "trimmedBounds": {
+                  "x": 65,
+                  "y": 97,
+                  "width": 539,
+                  "height": 445
+                },
+                "transparentInset": 13,
+                "contentBounds": {
+                  "x": 13,
+                  "y": 13,
+                  "width": 539,
+                  "height": 445
+                },
+                "outputSize": {
+                  "width": 565,
+                  "height": 471
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 270970,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "loot-2",
+              "name": "Survey crystal",
+              "role": "resource",
+              "description": "Original LUNAR RELAY Survey crystal. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+              "bounds": {
+                "x": 500,
+                "y": 0,
+                "width": 500,
+                "height": 500
+              },
+              "enabled": true,
+              "groupId": "loot-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-loot-2.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+                "normalizedBounds": {
+                  "x": 500,
+                  "y": 0,
+                  "width": 500,
+                  "height": 500
+                },
+                "sourcePixelBounds": {
+                  "x": 608,
+                  "y": 0,
+                  "width": 646,
+                  "height": 646
+                },
+                "trimmedBounds": {
+                  "x": 147,
+                  "y": 78,
+                  "width": 409,
+                  "height": 508
+                },
+                "transparentInset": 12,
+                "contentBounds": {
+                  "x": 12,
+                  "y": 12,
+                  "width": 409,
+                  "height": 508
+                },
+                "outputSize": {
+                  "width": 433,
+                  "height": 532
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 304030,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "loot-3",
+              "name": "Access card",
+              "role": "keycard",
+              "description": "Original LUNAR RELAY Access card. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+              "bounds": {
+                "x": 0,
+                "y": 500,
+                "width": 500,
+                "height": 500
+              },
+              "enabled": true,
+              "groupId": "loot-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-loot-3.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+                "normalizedBounds": {
+                  "x": 0,
+                  "y": 500,
+                  "width": 500,
+                  "height": 500
+                },
+                "sourcePixelBounds": {
+                  "x": 0,
+                  "y": 608,
+                  "width": 646,
+                  "height": 646
+                },
+                "trimmedBounds": {
+                  "x": 63,
+                  "y": 87,
+                  "width": 520,
+                  "height": 439
+                },
+                "transparentInset": 13,
+                "contentBounds": {
+                  "x": 13,
+                  "y": 13,
+                  "width": 520,
+                  "height": 439
+                },
+                "outputSize": {
+                  "width": 546,
+                  "height": 465
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 274763,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "loot-4",
+              "name": "Repair wrench",
+              "role": "tool",
+              "description": "Original LUNAR RELAY Repair wrench. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+              "bounds": {
+                "x": 500,
+                "y": 500,
+                "width": 500,
+                "height": 500
+              },
+              "enabled": true,
+              "groupId": "loot-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-loot-4.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+                "normalizedBounds": {
+                  "x": 500,
+                  "y": 500,
+                  "width": 500,
+                  "height": 500
+                },
+                "sourcePixelBounds": {
+                  "x": 608,
+                  "y": 608,
+                  "width": 646,
+                  "height": 646
+                },
+                "trimmedBounds": {
+                  "x": 97,
+                  "y": 69,
+                  "width": 515,
+                  "height": 496
+                },
+                "transparentInset": 15,
+                "contentBounds": {
+                  "x": 15,
+                  "y": 15,
+                  "width": 515,
+                  "height": 496
+                },
+                "outputSize": {
+                  "width": 545,
+                  "height": 526
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 323959,
+                  "backgroundColors": 0
+                }
+              }
+            }
+          ],
+          "groups": [
+            {
+              "id": "loot-kit",
+              "name": "Loot icons",
+              "slug": "loot-kit",
+              "status": "ready",
+              "outputUrl": "/workflow-examples/lunar-loot-atlas.png",
+              "previewUrl": "/workflow-examples/lunar-loot-atlas.png",
+              "manifest": {
+                "schemaVersion": 1,
+                "image": "sprite-atlas.png",
+                "transparent": true,
+                "width": 536,
+                "height": 536,
+                "grid": {
+                  "columns": 2,
+                  "rows": 2,
+                  "cellSize": 256,
+                  "gutter": 8,
+                  "outerMargin": 8,
+                  "safeArea": 0.8,
+                  "powerOfTwo": false,
+                  "pixelArt": false
+                },
+                "frames": [
+                  {
+                    "id": "sprite-1",
+                    "source": "/workflow-examples/lunar-loot-1.png",
+                    "frame": {
+                      "x": 8,
+                      "y": 8,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 44,
+                      "width": 204,
+                      "height": 168
+                    },
+                    "sourceSize": {
+                      "width": 565,
+                      "height": 471
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 0,
+                      "row": 0
+                    }
+                  },
+                  {
+                    "id": "sprite-2",
+                    "source": "/workflow-examples/lunar-loot-2.png",
+                    "frame": {
+                      "x": 272,
+                      "y": 8,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 46,
+                      "y": 26,
+                      "width": 164,
+                      "height": 204
+                    },
+                    "sourceSize": {
+                      "width": 433,
+                      "height": 532
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 1,
+                      "row": 0
+                    }
+                  },
+                  {
+                    "id": "sprite-3",
+                    "source": "/workflow-examples/lunar-loot-3.png",
+                    "frame": {
+                      "x": 8,
+                      "y": 272,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 42,
+                      "width": 204,
+                      "height": 172
+                    },
+                    "sourceSize": {
+                      "width": 546,
+                      "height": 465
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 0,
+                      "row": 1
+                    }
+                  },
+                  {
+                    "id": "sprite-4",
+                    "source": "/workflow-examples/lunar-loot-4.png",
+                    "frame": {
+                      "x": 272,
+                      "y": 272,
+                      "width": 256,
+                      "height": 256
+                    },
+                    "spriteSourceSize": {
+                      "x": 26,
+                      "y": 30,
+                      "width": 204,
+                      "height": 196
+                    },
+                    "sourceSize": {
+                      "width": 545,
+                      "height": 526
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "grid": {
+                      "column": 1,
+                      "row": 1
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "activeSourceIndex": 0,
+          "activeGroupId": "loot-kit",
+          "expanded": false,
+          "settings": {
+            "packingMode": "grid",
+            "tolerance": 0,
+            "cropPadding": 3,
+            "pixelArt": false,
+            "cellSize": 256,
+            "atlasSize": 1024,
+            "atlasPadding": 8
+          },
+          "warnings": [
+            "В этом примере спрайты вырезаны из нового сгенерированного PNG-листа. Regenerate & build создаст отдельные изображения через ImageGen."
+          ]
+        }
+      },
+      {
+        "id": "lunar-ui-loot-split-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": 750
+        },
+        "data": {
+          "step": 5,
+          "title": "Проверить границы и прозрачность",
+          "body": "Четыре спрайта реально вырезаны из нового ImageGen-листа алгоритмом cropAndCleanSprite: границы 0–1000, trimming и прозрачный отступ. Индивидуальные генерации не имитируются. При Regenerate & build каждый предмет будет создан заново через ImageGen.",
+          "exercise": "Разверните ноду, проверьте рамки и убедитесь, что ни одна не захватывает соседний предмет."
+        }
+      },
+      {
+        "id": "lunar-ui-loot-atlas",
+        "type": "spriteAtlas",
+        "position": {
+          "x": 1900,
+          "y": 1150
+        },
+        "data": {
+          "title": "06 · Единый размер слотов",
+          "status": "completed",
+          "inputUrls": [
+            "/workflow-examples/lunar-loot-1.png",
+            "/workflow-examples/lunar-loot-2.png",
+            "/workflow-examples/lunar-loot-3.png",
+            "/workflow-examples/lunar-loot-4.png"
+          ],
+          "outputUrl": "/workflow-examples/lunar-loot-atlas.png",
+          "previewUrl": "/workflow-examples/lunar-loot-atlas.png",
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "sprite-atlas.png",
+            "transparent": true,
+            "width": 536,
+            "height": 536,
+            "grid": {
+              "columns": 2,
+              "rows": 2,
+              "cellSize": 256,
+              "gutter": 8,
+              "outerMargin": 8,
+              "safeArea": 0.8,
+              "powerOfTwo": false,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/lunar-loot-1.png",
+                "frame": {
+                  "x": 8,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 44,
+                  "width": 204,
+                  "height": 168
+                },
+                "sourceSize": {
+                  "width": 565,
+                  "height": 471
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/lunar-loot-2.png",
+                "frame": {
+                  "x": 272,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 46,
+                  "y": 26,
+                  "width": 164,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 433,
+                  "height": 532
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-3",
+                "source": "/workflow-examples/lunar-loot-3.png",
+                "frame": {
+                  "x": 8,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 42,
+                  "width": 204,
+                  "height": 172
+                },
+                "sourceSize": {
+                  "width": 546,
+                  "height": 465
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 1
+                }
+              },
+              {
+                "id": "sprite-4",
+                "source": "/workflow-examples/lunar-loot-4.png",
+                "frame": {
+                  "x": 272,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 26,
+                  "y": 30,
+                  "width": 204,
+                  "height": 196
+                },
+                "sourceSize": {
+                  "width": 545,
+                  "height": 526
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ]
+          },
+          "validation": {
+            "valid": 4,
+            "total": 4,
+            "issues": []
+          },
+          "settings": {
+            "cellSize": 256,
+            "gutter": 8,
+            "outerMargin": 8,
+            "columns": 2,
+            "safeArea": 0.8,
+            "pixelArt": false,
+            "powerOfTwo": false
+          }
+        }
+      },
+      {
+        "id": "lunar-ui-loot-atlas-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1900,
+          "y": 750
+        },
+        "data": {
+          "step": 6,
+          "title": "Единый размер слотов",
+          "body": "Четыре проверенных PNG упакованы в 2×2: ячейки 256 px, safe area 80%, gutter 8 px. Размеры исходников отличаются, но ячейки интерфейса одинаковые.",
+          "exercise": "Скачайте manifest и найдите frame первого предмета. Не спутайте frame и spriteSourceSize."
+        }
+      },
+      {
+        "id": "lunar-ui-loot-result",
+        "type": "image",
+        "position": {
+          "x": 2450,
+          "y": 1150
+        },
+        "data": {
+          "title": "07 · Готовые иконки для инвентаря",
+          "imageUrl": "/workflow-examples/lunar-loot-atlas.png",
+          "fileName": "lunar-loot-atlas.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-ui-loot-result-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2450,
+          "y": 750
+        },
+        "data": {
+          "step": 7,
+          "title": "Готовые иконки для инвентаря",
+          "body": "Это готовый прозрачный PNG, построенный приложением, с четырьмя кадрами и JSON. Масштабирование в одинаковую ячейку подходит иконкам, которым нужен общий визуальный вес.",
+          "exercise": "Пересоберите с cell size 128: хватит ли деталей для маленького интерфейса?"
+        }
+      },
+      {
+        "id": "lunar-ui-panels",
+        "type": "generator",
+        "position": {
+          "x": 550,
+          "y": 2400
+        },
+        "data": {
+          "title": "08 · Панели без встроенного текста",
+          "prompt": "Create a production game UI SPRITE sheet for LUNAR RELAY. Use scene as palette/material reference only. Exactly FOUR standalone interface chrome elements in a precise 2-by-2 grid on TRUE transparent RGBA background, square 1024x1024. Top-left: one large rectangular empty dark navy inventory panel with ivory bevelled frame, clipped corners, turquoise very thin inner light strip, empty smooth dark interior. Top-right: one square empty item-slot frame, same dark navy interior, ivory bevelled border, subtle turquoise selected highlight at corners. Bottom-left: one wide pill-less rectangular primary action button with clipped corners, warm amber surface and ivory/navy bevels; COMPLETELY blank, no text. Bottom-right: one wide dark navy disabled action button with clipped corners, subdued steel-blue bevel, completely blank. Each element centered in its own quadrant, each occupies no more than 75 percent of quadrant width, generous fully transparent gap around EVERY element, no touching, no combined screen layout. Orthographic front-facing 2D game UI, precise crisp edges, premium restrained industrial sci-fi materials, subtle depth. No icons, text, letters, symbols, labels, grid lines, checkerboard or cast shadows outside silhouette.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-panel-sheet.png",
+          "sourceUrl": "/workflow-examples/lunar-scene.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-scene.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-ui-panels-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 550,
+          "y": 2000
+        },
+        "data": {
+          "step": 8,
+          "title": "Панели без встроенного текста",
+          "body": "Новый лист содержит широкую панель, квадратный слот, активную и неактивную кнопки. Текст намеренно не запечён в спрайты: надписи и локализация принадлежат интерфейсу игры.",
+          "exercise": "Подумайте, какие края можно растягивать, а какие нужно сохранить при 9-slice."
+        }
+      },
+      {
+        "id": "lunar-ui-panel-split",
+        "type": "smartSeparation",
+        "position": {
+          "x": 1100,
+          "y": 2400
+        },
+        "data": {
+          "title": "09 · Сохранить реальные пропорции",
+          "status": "completed",
+          "userHint": "Separate the wide panel, square slot, primary button and disabled button; preserve proportions.",
+          "inputUrls": [
+            "/workflow-examples/lunar-panel-sheet.png"
+          ],
+          "sources": [
+            {
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+              "name": "Lunar Relay panel sheet"
+            }
+          ],
+          "items": [
+            {
+              "id": "panel-1",
+              "name": "Inventory panel",
+              "role": "panel",
+              "description": "Original LUNAR RELAY Inventory panel. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+              "bounds": {
+                "x": 20,
+                "y": 110,
+                "width": 560,
+                "height": 380
+              },
+              "enabled": true,
+              "groupId": "panel-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-panel-1.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+                "normalizedBounds": {
+                  "x": 20,
+                  "y": 110,
+                  "width": 560,
+                  "height": 380
+                },
+                "sourcePixelBounds": {
+                  "x": 11,
+                  "y": 123,
+                  "width": 731,
+                  "height": 505
+                },
+                "trimmedBounds": {
+                  "x": 37,
+                  "y": 45,
+                  "width": 673,
+                  "height": 428
+                },
+                "transparentInset": 13,
+                "contentBounds": {
+                  "x": 13,
+                  "y": 13,
+                  "width": 673,
+                  "height": 428
+                },
+                "outputSize": {
+                  "width": 699,
+                  "height": 454
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 95555,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "panel-2",
+              "name": "Item slot",
+              "role": "slot",
+              "description": "Original LUNAR RELAY Item slot. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+              "bounds": {
+                "x": 600,
+                "y": 120,
+                "width": 360,
+                "height": 360
+              },
+              "enabled": true,
+              "groupId": "panel-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-panel-2.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+                "normalizedBounds": {
+                  "x": 600,
+                  "y": 120,
+                  "width": 360,
+                  "height": 360
+                },
+                "sourcePixelBounds": {
+                  "x": 738,
+                  "y": 136,
+                  "width": 480,
+                  "height": 480
+                },
+                "trimmedBounds": {
+                  "x": 65,
+                  "y": 67,
+                  "width": 384,
+                  "height": 366
+                },
+                "transparentInset": 11,
+                "contentBounds": {
+                  "x": 11,
+                  "y": 11,
+                  "width": 384,
+                  "height": 366
+                },
+                "outputSize": {
+                  "width": 406,
+                  "height": 388
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 100062,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "panel-3",
+              "name": "Primary button",
+              "role": "button-primary",
+              "description": "Original LUNAR RELAY Primary button. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+              "bounds": {
+                "x": 15,
+                "y": 620,
+                "width": 480,
+                "height": 220
+              },
+              "enabled": true,
+              "groupId": "panel-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-panel-3.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+                "normalizedBounds": {
+                  "x": 15,
+                  "y": 620,
+                  "width": 480,
+                  "height": 220
+                },
+                "sourcePixelBounds": {
+                  "x": 10,
+                  "y": 769,
+                  "width": 618,
+                  "height": 292
+                },
+                "trimmedBounds": {
+                  "x": 32,
+                  "y": 64,
+                  "width": 562,
+                  "height": 212
+                },
+                "transparentInset": 6,
+                "contentBounds": {
+                  "x": 6,
+                  "y": 6,
+                  "width": 562,
+                  "height": 212
+                },
+                "outputSize": {
+                  "width": 574,
+                  "height": 224
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 67100,
+                  "backgroundColors": 0
+                }
+              }
+            },
+            {
+              "id": "panel-4",
+              "name": "Disabled button",
+              "role": "button-disabled",
+              "description": "Original LUNAR RELAY Disabled button. Preserve silhouette, palette and transparency.",
+              "sourceIndex": 0,
+              "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+              "bounds": {
+                "x": 510,
+                "y": 620,
+                "width": 460,
+                "height": 220
+              },
+              "enabled": true,
+              "groupId": "panel-kit",
+              "generationMethod": "sheet-crop",
+              "generationStatus": "completed",
+              "outputUrl": "/workflow-examples/lunar-panel-4.png",
+              "transparentBackground": true,
+              "processingManifest": {
+                "schemaVersion": 1,
+                "transparent": true,
+                "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+                "normalizedBounds": {
+                  "x": 510,
+                  "y": 620,
+                  "width": 460,
+                  "height": 220
+                },
+                "sourcePixelBounds": {
+                  "x": 631,
+                  "y": 769,
+                  "width": 593,
+                  "height": 292
+                },
+                "trimmedBounds": {
+                  "x": 48,
+                  "y": 64,
+                  "width": 533,
+                  "height": 210
+                },
+                "transparentInset": 6,
+                "contentBounds": {
+                  "x": 6,
+                  "y": 6,
+                  "width": 533,
+                  "height": 210
+                },
+                "outputSize": {
+                  "width": 545,
+                  "height": 222
+                },
+                "cleanup": {
+                  "method": "edge-connected-palette",
+                  "tolerance": 0,
+                  "pixelArt": false,
+                  "removedPixels": 66827,
+                  "backgroundColors": 0
+                }
+              }
+            }
+          ],
+          "groups": [
+            {
+              "id": "panel-kit",
+              "name": "Interface parts",
+              "slug": "panel-kit",
+              "status": "ready",
+              "outputUrl": "/workflow-examples/lunar-panel-atlas.png",
+              "previewUrl": "/workflow-examples/lunar-panel-atlas.png",
+              "manifest": {
+                "schemaVersion": 1,
+                "image": "relative-atlas.png",
+                "transparent": true,
+                "width": 1024,
+                "height": 1024,
+                "layout": {
+                  "type": "relative-pack",
+                  "sharedScale": 0.9731298446655272,
+                  "padding": 8,
+                  "outerMargin": 16,
+                  "pixelArt": false
+                },
+                "frames": [
+                  {
+                    "id": "sprite-1",
+                    "source": "/workflow-examples/lunar-panel-1.png",
+                    "frame": {
+                      "x": 16,
+                      "y": 16,
+                      "width": 655,
+                      "height": 416
+                    },
+                    "spriteSourceSize": {
+                      "x": 0,
+                      "y": 0,
+                      "width": 655,
+                      "height": 416
+                    },
+                    "sourceSize": {
+                      "width": 699,
+                      "height": 454
+                    },
+                    "trimmedSourceBounds": {
+                      "x": 13,
+                      "y": 13,
+                      "width": 673,
+                      "height": 428
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "scale": 0.9731298446655272
+                  },
+                  {
+                    "id": "sprite-2",
+                    "source": "/workflow-examples/lunar-panel-2.png",
+                    "frame": {
+                      "x": 16,
+                      "y": 440,
+                      "width": 374,
+                      "height": 356
+                    },
+                    "spriteSourceSize": {
+                      "x": 0,
+                      "y": 0,
+                      "width": 374,
+                      "height": 356
+                    },
+                    "sourceSize": {
+                      "width": 406,
+                      "height": 388
+                    },
+                    "trimmedSourceBounds": {
+                      "x": 11,
+                      "y": 11,
+                      "width": 384,
+                      "height": 366
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "scale": 0.9731298446655272
+                  },
+                  {
+                    "id": "sprite-3",
+                    "source": "/workflow-examples/lunar-panel-3.png",
+                    "frame": {
+                      "x": 398,
+                      "y": 440,
+                      "width": 547,
+                      "height": 206
+                    },
+                    "spriteSourceSize": {
+                      "x": 0,
+                      "y": 0,
+                      "width": 547,
+                      "height": 206
+                    },
+                    "sourceSize": {
+                      "width": 574,
+                      "height": 224
+                    },
+                    "trimmedSourceBounds": {
+                      "x": 6,
+                      "y": 6,
+                      "width": 562,
+                      "height": 212
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "scale": 0.9731298446655272
+                  },
+                  {
+                    "id": "sprite-4",
+                    "source": "/workflow-examples/lunar-panel-4.png",
+                    "frame": {
+                      "x": 16,
+                      "y": 804,
+                      "width": 519,
+                      "height": 204
+                    },
+                    "spriteSourceSize": {
+                      "x": 0,
+                      "y": 0,
+                      "width": 519,
+                      "height": 204
+                    },
+                    "sourceSize": {
+                      "width": 545,
+                      "height": 222
+                    },
+                    "trimmedSourceBounds": {
+                      "x": 6,
+                      "y": 6,
+                      "width": 533,
+                      "height": 210
+                    },
+                    "pivot": {
+                      "x": 0.5,
+                      "y": 0.5
+                    },
+                    "scale": 0.9731298446655272
+                  }
+                ]
+              }
+            }
+          ],
+          "activeSourceIndex": 0,
+          "activeGroupId": "panel-kit",
+          "expanded": false,
+          "settings": {
+            "packingMode": "relative",
+            "tolerance": 0,
+            "cropPadding": 3,
+            "pixelArt": false,
+            "cellSize": 256,
+            "atlasSize": 1024,
+            "atlasPadding": 8
+          },
+          "warnings": [
+            "В этом примере спрайты вырезаны из нового сгенерированного PNG-листа. Regenerate & build создаст отдельные изображения через ImageGen."
+          ]
+        }
+      },
+      {
+        "id": "lunar-ui-panel-split-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": 2000
+        },
+        "data": {
+          "step": 9,
+          "title": "Сохранить реальные пропорции",
+          "body": "Границы проверены вручную по фактическому листу: широкая панель не укладывается в равные квадранты. Вырезанные элементы имеют прозрачные поля; размеры длинной кнопки и квадратного слота различаются.",
+          "exercise": "Разверните ноду и сравните рамку панели с рамкой слота. Почему одинаковые квадратные рамки обрезали бы панель?"
+        }
+      },
+      {
+        "id": "lunar-ui-panel-atlas",
+        "type": "relativeAtlas",
+        "position": {
+          "x": 1900,
+          "y": 2400
+        },
+        "data": {
+          "title": "10 · Упаковать без потери пропорций",
+          "status": "completed",
+          "inputUrls": [
+            "/workflow-examples/lunar-panel-1.png",
+            "/workflow-examples/lunar-panel-2.png",
+            "/workflow-examples/lunar-panel-3.png",
+            "/workflow-examples/lunar-panel-4.png"
+          ],
+          "outputUrl": "/workflow-examples/lunar-panel-atlas.png",
+          "previewUrl": "/workflow-examples/lunar-panel-atlas.png",
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "relative-atlas.png",
+            "transparent": true,
+            "width": 1024,
+            "height": 1024,
+            "layout": {
+              "type": "relative-pack",
+              "sharedScale": 0.9731298446655272,
+              "padding": 8,
+              "outerMargin": 16,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/lunar-panel-1.png",
+                "frame": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 655,
+                  "height": 416
+                },
+                "spriteSourceSize": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 655,
+                  "height": 416
+                },
+                "sourceSize": {
+                  "width": 699,
+                  "height": 454
+                },
+                "trimmedSourceBounds": {
+                  "x": 13,
+                  "y": 13,
+                  "width": 673,
+                  "height": 428
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "scale": 0.9731298446655272
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/lunar-panel-2.png",
+                "frame": {
+                  "x": 16,
+                  "y": 440,
+                  "width": 374,
+                  "height": 356
+                },
+                "spriteSourceSize": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 374,
+                  "height": 356
+                },
+                "sourceSize": {
+                  "width": 406,
+                  "height": 388
+                },
+                "trimmedSourceBounds": {
+                  "x": 11,
+                  "y": 11,
+                  "width": 384,
+                  "height": 366
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "scale": 0.9731298446655272
+              },
+              {
+                "id": "sprite-3",
+                "source": "/workflow-examples/lunar-panel-3.png",
+                "frame": {
+                  "x": 398,
+                  "y": 440,
+                  "width": 547,
+                  "height": 206
+                },
+                "spriteSourceSize": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 547,
+                  "height": 206
+                },
+                "sourceSize": {
+                  "width": 574,
+                  "height": 224
+                },
+                "trimmedSourceBounds": {
+                  "x": 6,
+                  "y": 6,
+                  "width": 562,
+                  "height": 212
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "scale": 0.9731298446655272
+              },
+              {
+                "id": "sprite-4",
+                "source": "/workflow-examples/lunar-panel-4.png",
+                "frame": {
+                  "x": 16,
+                  "y": 804,
+                  "width": 519,
+                  "height": 204
+                },
+                "spriteSourceSize": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 519,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 545,
+                  "height": 222
+                },
+                "trimmedSourceBounds": {
+                  "x": 6,
+                  "y": 6,
+                  "width": 533,
+                  "height": 210
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "scale": 0.9731298446655272
+              }
+            ]
+          },
+          "validation": {
+            "valid": 4,
+            "total": 4,
+            "issues": []
+          },
+          "settings": {
+            "canvasSize": 1024,
+            "padding": 8,
+            "outerMargin": 16,
+            "pixelArt": false
+          }
+        }
+      },
+      {
+        "id": "lunar-ui-panel-atlas-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1900,
+          "y": 2000
+        },
+        "data": {
+          "step": 10,
+          "title": "Упаковать без потери пропорций",
+          "body": "Relative Atlas сохраняет относительные размеры элементов и упаковывает их в 1024×1024. Это отличается от выравнивания иконок по квадратным ячейкам. JSON описывает позиции; границы 9-slice нужно задать отдельно в движке.",
+          "exercise": "Сравните с Loot Atlas. Для каких элементов одинаковые ячейки ухудшат результат?"
+        }
+      },
+      {
+        "id": "lunar-ui-panel-result",
+        "type": "image",
+        "position": {
+          "x": 2450,
+          "y": 2400
+        },
+        "data": {
+          "title": "11 · Готовый набор элементов UI",
+          "imageUrl": "/workflow-examples/lunar-panel-atlas.png",
+          "fileName": "lunar-panel-atlas.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-ui-panel-result-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2450,
+          "y": 2000
+        },
+        "data": {
+          "step": 11,
+          "title": "Готовый набор элементов UI",
+          "body": "Панель, слот и две кнопки доступны отдельными PNG в предыдущем шаге и общим атласом здесь. Кнопка Disabled отличается яркостью, чтобы состояние читалось без смены размера.",
+          "exercise": "В своей копии добавьте Hover для Primary и включите его в коллекцию."
+        }
+      },
+      {
+        "id": "lunar-ui-context",
+        "type": "referenceSet",
+        "position": {
+          "x": 3100,
+          "y": 0
+        },
+        "data": {
+          "title": "12 · Четыре источника одного экрана",
+          "items": [
+            {
+              "id": "context-0",
+              "title": "scene",
+              "imageUrl": "/workflow-examples/lunar-scene.png"
+            },
+            {
+              "id": "context-1",
+              "title": "cache open",
+              "imageUrl": "/workflow-examples/lunar-cache-open.png"
+            },
+            {
+              "id": "context-2",
+              "title": "loot sheet",
+              "imageUrl": "/workflow-examples/lunar-loot-sheet.png"
+            },
+            {
+              "id": "context-3",
+              "title": "panel sheet",
+              "imageUrl": "/workflow-examples/lunar-panel-sheet.png"
+            }
+          ]
+        }
+      },
+      {
+        "id": "lunar-ui-context-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3100,
+          "y": -400
+        },
+        "data": {
+          "step": 12,
+          "title": "Четыре источника одного экрана",
+          "body": "Здесь сходятся мир, открытый тайник, лист предметов и лист панелей. Все четыре изображения были реальными входами финальной генерации. Атласы предназначены для экспорта; полноразмерные листы удобнее для передачи художественного контекста.",
+          "exercise": "Откройте каждый вход и сформулируйте, за что он отвечает в финальном промпте."
+        }
+      },
+      {
+        "id": "lunar-ui-mockup",
+        "type": "generator",
+        "position": {
+          "x": 3650,
+          "y": 500
+        },
+        "data": {
+          "title": "13 · Собрать игровой экран",
+          "prompt": "Create a sophisticated polished GAME UI MOCKUP for LUNAR RELAY, landscape 1536x1024. Use all four references with strict roles: 1 moon scene is atmospheric backdrop; 2 exact opened supply cache is the large 3D subject on the LEFT; 3 contains exactly the four inventory item icons which must appear in FOUR separate inventory slots on the RIGHT; 4 supplies ivory/navy beveled interface frame and amber/navy button styling. Preserve cyan crystal, battery, keycard, wrench identities and palette. Compose a single finished gameplay screen: subdued moon-outpost world background; open chest large left with a soft vignette; on right a generous empty-space navy inventory panel with ivory frame and thin cyan accents, header exact text SUPPLY CACHE, four square slots in one 2-by-2 grid each containing exactly one referenced item, small quantities 02 / 05 / 01 / 01, bottom large amber button exact text TRANSFER and small navy button exact text CLOSE. Top-left quiet title LUNAR RELAY. Modern precise game UI typography, excellent spacing and contrast. Render one believable high-quality screenshot/mockup, not a contact sheet, not an atlas, no watermark. It is a visual composition example; interaction and game logic are not represented.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/lunar-mockup.png",
+          "sourceUrl": "/workflow-examples/lunar-scene.png",
+          "sourceUrls": [
+            "/workflow-examples/lunar-scene.png",
+            "/workflow-examples/lunar-cache-open.png",
+            "/workflow-examples/lunar-loot-sheet.png",
+            "/workflow-examples/lunar-panel-sheet.png"
+          ],
+          "isConfigOpen": false
+        }
+      },
+      {
+        "id": "lunar-ui-mockup-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3650,
+          "y": 100
+        },
+        "data": {
+          "step": 13,
+          "title": "Собрать игровой экран",
+          "body": "Из четырёх источников создан авторский экран взаимодействия: тайник слева, предметы и действия справа. Это визуальный макет: генерация может перерисовать детали и изменить порядок иконок; состояния и действия ещё предстоит реализовать в игре.",
+          "exercise": "Сверьте макет с готовыми атласами. Найдите элементы, которые нужно собирать из исходных PNG, а не вырезать из макета."
+        }
+      },
+      {
+        "id": "lunar-ui-final",
+        "type": "image",
+        "position": {
+          "x": 4200,
+          "y": 500
+        },
+        "data": {
+          "title": "14 · Итог: экран и два набора ассетов",
+          "imageUrl": "/workflow-examples/lunar-mockup.png",
+          "fileName": "lunar-mockup.png",
+          "hasInput": true
+        }
+      },
+      {
+        "id": "lunar-ui-final-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 4200,
+          "y": 100
+        },
+        "data": {
+          "step": 14,
+          "title": "Итог: экран и два набора ассетов",
+          "body": "Завершённый путь оставляет три результата: инвентарные иконки, панели с кнопками и визуальный макет экрана. Новый мир и все исходные изображения созданы специально для этих примеров, отдельно от прежних пользовательских проектов.",
+          "exercise": "Продолжите самостоятельно: экран научного Survey, другой тип лута и состояние пустого тайника."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "lunar-ui-scene-lunar-ui-closed-out",
+        "source": "lunar-ui-scene",
+        "target": "lunar-ui-closed",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-closed-lunar-ui-open-out",
+        "source": "lunar-ui-closed",
+        "target": "lunar-ui-open",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-scene-lunar-ui-loot-out",
+        "source": "lunar-ui-scene",
+        "target": "lunar-ui-loot",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-loot-lunar-ui-loot-split-out",
+        "source": "lunar-ui-loot",
+        "target": "lunar-ui-loot-split",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-loot-split-lunar-ui-loot-atlas-group:loot-kit",
+        "source": "lunar-ui-loot-split",
+        "target": "lunar-ui-loot-atlas",
+        "sourceHandle": "group:loot-kit",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-loot-atlas-lunar-ui-loot-result-out",
+        "source": "lunar-ui-loot-atlas",
+        "target": "lunar-ui-loot-result",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-scene-lunar-ui-panels-out",
+        "source": "lunar-ui-scene",
+        "target": "lunar-ui-panels",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-panels-lunar-ui-panel-split-out",
+        "source": "lunar-ui-panels",
+        "target": "lunar-ui-panel-split",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-panel-split-lunar-ui-panel-atlas-group:panel-kit",
+        "source": "lunar-ui-panel-split",
+        "target": "lunar-ui-panel-atlas",
+        "sourceHandle": "group:panel-kit",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-panel-atlas-lunar-ui-panel-result-out",
+        "source": "lunar-ui-panel-atlas",
+        "target": "lunar-ui-panel-result",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-scene-lunar-ui-context-out",
+        "source": "lunar-ui-scene",
+        "target": "lunar-ui-context",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-open-lunar-ui-context-out",
+        "source": "lunar-ui-open",
+        "target": "lunar-ui-context",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-loot-lunar-ui-context-out",
+        "source": "lunar-ui-loot",
+        "target": "lunar-ui-context",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-panels-lunar-ui-context-out",
+        "source": "lunar-ui-panels",
+        "target": "lunar-ui-context",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-context-lunar-ui-mockup-all",
+        "source": "lunar-ui-context",
+        "target": "lunar-ui-mockup",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "lunar-ui-mockup-lunar-ui-final-out",
+        "source": "lunar-ui-mockup",
+        "target": "lunar-ui-final",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#88becf",
+          "strokeWidth": 1.6
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 390,
+      "zoom": 0.72
+    }
+  }
+}

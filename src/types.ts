@@ -6,7 +6,7 @@ export type ViewKey = 'front' | 'left' | 'back' | 'right';
 export type CharacterSubjectKind = 'character' | 'prop';
 export type MaterialMapKey = 'baseColor' | 'normal' | 'height' | 'roughness' | 'metallic' | 'ambientOcclusion' | 'orm';
 export type GenerationMode = 'reliable' | 'fast' | 'turbo';
-export type CharacterPose = 'a-pose' | 't-pose';
+export type CharacterPose = 'a-pose' | 't-pose' | 'neutral';
 
 export type ProviderStatus = {
   id: ProviderId;
@@ -109,7 +109,7 @@ export type SmartSeparationItem = {
   bounds: SmartSeparationBounds;
   enabled: boolean;
   groupId?: string;
-  generationMethod?: 'imagegen';
+  generationMethod?: 'imagegen' | 'sheet-crop';
   generationStatus?: NodeStatus;
   generationProgress?: string;
   generationError?: string;

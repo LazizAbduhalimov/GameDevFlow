@@ -1,0 +1,7 @@
+.workflow-lesson { width: 304px; color: var(--text, #e8e9ed); border-left: 2px solid #a6d9f5; padding: 4px 0 4px 16px; font-family: inherit; }
+.workflow-lesson-heading { display: flex; align-items: baseline; gap: 10px; line-height: 1.4; }
+.workflow-lesson-heading > span { color: #a6d9f5; font-size: 12px; font-variant-numeric: tabular-nums; }
+.workflow-lesson-heading strong { font-size: 15px; font-weight: 600; }
+.workflow-lesson p { margin: 10px 0; font-size: 13px; line-height: 1.6; opacity: .85; }
+.workflow-lesson-exercise { font-size: 12px; line-height: 1.5; opacity: .75; }
+.workflow-lesson-exercise span { display: block; margin-bottom: 3px; color: #a6d9f5; font-weight: 600; }

@@ -48,6 +48,10 @@ export const PROP_VIEW_SPECS: Record<ViewKey, { title: string; prompt: string }>
 };
 
 export const CHARACTER_POSE_SPECS: Record<CharacterPose, { label: string; prompt: string }> = {
+  neutral: {
+    label: 'Natural',
+    prompt: 'Keep the creature in its natural neutral resting stance, preserving its original anatomy and number of limbs. For a quadruped, keep all four feet on the same level; for a floating creature, keep its natural resting shape. Preserve this same stance across every view.',
+  },
   'a-pose': {
     label: 'A-pose',
     prompt:
@@ -61,7 +65,7 @@ export const CHARACTER_POSE_SPECS: Record<CharacterPose, { label: string; prompt
 };
 
 export function normalizeCharacterPose(value: unknown): CharacterPose {
-  return value === 't-pose' ? 't-pose' : 'a-pose';
+  return value === 'neutral' || value === 't-pose' ? value : 'a-pose';
 }
 
 export function normalizeCharacterSubjectKind(value: unknown): CharacterSubjectKind {

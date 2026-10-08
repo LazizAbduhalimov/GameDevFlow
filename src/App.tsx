@@ -84,6 +84,8 @@ import {
 import { SpriteSheetBuilder } from './components/SpriteSheetBuilder';
 import { exportProject, importProject, projectPayload, useGraphHistory } from './graph';
 import { instantiateTemplate } from './workflow-templates';
+import { copyTemplateAssets } from './template-assets';
+import WorkflowLessonNode from './nodes/WorkflowLessonNode';
 import { arrangeSmartSeparationGraphs, downloadFileName, layoutPropViewStack, nextPropViewPosition, unpackSmartSeparationCards } from './graph-layout';
 import CharacterViewsNode from './nodes/CharacterViewsNode';
 import CharacterPartsNode from './nodes/CharacterPartsNode';
@@ -154,7 +156,7 @@ function writeLocal(key: string, value: string) {
   try { localStorage.setItem(`consept-${key}`, value); } catch { /* Browser storage is optional. */ }
 }
 
-const nodeTypes = { image: ImageNode, referenceSet: ReferenceSetNode, smartSeparation: SmartSeparationNode, generator: GeneratorNode, characterViews: CharacterViewsNode, characterParts: CharacterPartsNode, multiGenerate: MultiGenerateNode, spriteAtlas: SpriteAtlasNode, relativeAtlas: RelativeAtlasNode, seamlessTexture: SeamlessTextureNode, materialMaps: MaterialMapsNode, model3d: Model3DNode };
+const nodeTypes = { workflowLesson: WorkflowLessonNode, image: ImageNode, referenceSet: ReferenceSetNode, smartSeparation: SmartSeparationNode, generator: GeneratorNode, characterViews: CharacterViewsNode, characterParts: CharacterPartsNode, multiGenerate: MultiGenerateNode, spriteAtlas: SpriteAtlasNode, relativeAtlas: RelativeAtlasNode, seamlessTexture: SeamlessTextureNode, materialMaps: MaterialMapsNode, model3d: Model3DNode };
 const maxReferenceImages = 16;
 const edgeDefaults = {
   type: 'default',
@@ -548,11 +550,15 @@ function Studio() {
     await projectOperation(async () => {
       if (screen !== 'home') await persistProject(true, false);
       const instance = instantiateTemplate(templateId);
-      const created = await createProject(instance.name, {
-        nodes: instance.nodes,
-        edges: instance.edges,
-        viewport: instance.viewport,
-      });
+      const empty = await createProject(instance.name);
+      let created;
+      try {
+        const copied = await copyTemplateAssets(instance, empty.id);
+        created = await saveProject(empty.id, { ...empty, nodes: copied.nodes, edges: copied.edges, viewport: copied.viewport });
+      } catch (failure) {
+        await deleteProject(empty.id);
+        throw failure;
+      }
       setProjects((current) => [{ id: created.id, name: created.name, revision: created.revision, nodeCount: created.nodes.length, createdAt: created.createdAt, updatedAt: created.updatedAt }, ...current]);
       await loadProject(created.id);
       setScreen('workspace');
@@ -3326,8 +3332,9 @@ function restoreInterruptedSmartNodes(nodes: Node[]): Node[] {
     if (node.type !== 'smartSeparation') return node;
     const data = node.data as SmartSeparationNodeData;
     const interrupted = ['analyzing', 'extracting', 'building'].includes(data.status);
-    const legacyItemIds = new Set((data.items || []).filter((item) => item.outputUrl && item.generationMethod !== 'imagegen').map((item) => item.id));
-    const hasLegacyGroups = (data.groups || []).some((group) => group.outputUrl && (data.items || []).some((item) => item.enabled && item.groupId === group.id && (item.generationMethod !== 'imagegen' || !item.outputUrl)));
+    const isSavedOutput = (item: SmartSeparationNodeData['items'][number]) => item.outputUrl && (item.generationMethod === 'imagegen' || (item.generationMethod === 'sheet-crop' && item.transparentBackground === true && item.generationStatus === 'completed' && item.sourceUrl));
+    const legacyItemIds = new Set((data.items || []).filter((item) => item.outputUrl && !isSavedOutput(item)).map((item) => item.id));
+    const hasLegacyGroups = (data.groups || []).some((group) => group.outputUrl && (data.items || []).some((item) => item.enabled && item.groupId === group.id && !isSavedOutput(item)));
     if (!interrupted && !legacyItemIds.size && !hasLegacyGroups) return node;
     const legacyWarning = 'Legacy crop-based outputs were invalidated. Regenerate the selected elements with ImageGen before building new atlases.';
     return {
@@ -3344,7 +3351,7 @@ function restoreInterruptedSmartNodes(nodes: Node[]): Node[] {
           outputAssetId: undefined,
         } : item),
         groups: (data.groups || []).map((group) => {
-          const invalid = group.outputUrl && (data.items || []).some((item) => item.enabled && item.groupId === group.id && (item.generationMethod !== 'imagegen' || !item.outputUrl));
+          const invalid = group.outputUrl && (data.items || []).some((item) => item.enabled && item.groupId === group.id && !isSavedOutput(item));
           return invalid ? { ...group, status: 'idle', previewUrl: undefined, outputUrl: undefined, outputAssetId: undefined, manifest: undefined, error: undefined } : group;
         }),
         warnings: legacyItemIds.size || hasLegacyGroups ? [...new Set([...(data.warnings || []), legacyWarning])] : data.warnings,

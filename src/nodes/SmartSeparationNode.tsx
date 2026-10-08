@@ -24,6 +24,7 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
   const selectedCount = nodeData.items.filter((item) => item.enabled).length;
   const regenerateCount = nodeData.items.filter((item) => item.enabled && (item.generationMethod !== 'imagegen' || !item.rawOutputUrl)).length;
   const regeneratedCount = nodeData.items.filter((item) => item.enabled && item.generationMethod === 'imagegen' && Boolean(item.outputUrl)).length;
+  const sheetCropCount = nodeData.items.filter((item) => item.enabled && item.generationMethod === 'sheet-crop' && Boolean(item.outputUrl)).length;
   const opaqueCount = nodeData.items.filter((item) => item.enabled && item.generationMethod === 'imagegen' && Boolean(item.outputUrl) && item.transparentBackground !== true).length;
   const populatedGroups = nodeData.groups.filter((group) => nodeData.items.some((item) => item.enabled && item.groupId === group.id));
   const readyGroups = populatedGroups.filter((group) => group.status === 'ready').length;
@@ -193,7 +194,7 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
       {nodeData.error && <p className="smart-error"><AlertTriangle size={11} /> {nodeData.error}</p>}
       {reviewReady && <div className="smart-build-bar nodrag">
         <div>
-          <strong>{regeneratedCount}/{selectedCount} generated sprites saved</strong>
+          <strong>{regeneratedCount + sheetCropCount}/{selectedCount} {sheetCropCount ? 'prepared' : 'generated'} sprites saved</strong>
           <span>{regenerateCount ? `${regenerateCount} ImageGen call${regenerateCount === 1 ? '' : 's'} · source pixels are never packed directly` : opaqueCount ? `${opaqueCount} opaque result${opaqueCount === 1 ? '' : 's'} saved · remove backgrounds before atlas build` : 'All sprites are transparent · atlas rebuild only'}</span>
         </div>
         <button type="button" className="node-action primary" disabled={busy || !selectedCount} onClick={() => nodeData.onBuildAll?.(id)}>{busy ? <LoaderCircle className="spin" size={13} /> : <Sparkles size={13} />} Regenerate &amp; build {populatedGroups.length}</button>
@@ -203,7 +204,7 @@ export default function SmartSeparationNode({ id, data, selected }: NodeProps) {
     {nodeData.groups.length > 0 && <div className="smart-output-rail nodrag">
       {nodeData.groups.map((group) => {
         const count = nodeData.items.filter((item) => item.groupId === group.id && item.enabled).length;
-        const readyCount = nodeData.items.filter((item) => item.groupId === group.id && item.enabled && item.generationMethod === 'imagegen' && item.outputUrl).length;
+        const readyCount = nodeData.items.filter((item) => item.groupId === group.id && item.enabled && ['imagegen', 'sheet-crop'].includes(item.generationMethod || '') && item.outputUrl).length;
         return <div className={`smart-group-output status-${group.status}`} key={group.id}>
           <span>{group.status === 'building' ? <LoaderCircle className="spin" size={11} /> : group.status === 'ready' ? <Check size={11} /> : <Layers3 size={11} />}</span>
           <input aria-label="Group name" value={group.name} onChange={(event) => nodeData.onPatchGroup?.(id, group.id, { name: event.target.value })} />

@@ -1,0 +1,791 @@
+{
+  "loot": [
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+      "normalizedBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 500,
+        "height": 500
+      },
+      "sourcePixelBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 646,
+        "height": 646
+      },
+      "trimmedBounds": {
+        "x": 65,
+        "y": 97,
+        "width": 539,
+        "height": 445
+      },
+      "transparentInset": 13,
+      "contentBounds": {
+        "x": 13,
+        "y": 13,
+        "width": 539,
+        "height": 445
+      },
+      "outputSize": {
+        "width": 565,
+        "height": 471
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 270970,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+      "normalizedBounds": {
+        "x": 500,
+        "y": 0,
+        "width": 500,
+        "height": 500
+      },
+      "sourcePixelBounds": {
+        "x": 608,
+        "y": 0,
+        "width": 646,
+        "height": 646
+      },
+      "trimmedBounds": {
+        "x": 147,
+        "y": 78,
+        "width": 409,
+        "height": 508
+      },
+      "transparentInset": 12,
+      "contentBounds": {
+        "x": 12,
+        "y": 12,
+        "width": 409,
+        "height": 508
+      },
+      "outputSize": {
+        "width": 433,
+        "height": 532
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 304030,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+      "normalizedBounds": {
+        "x": 0,
+        "y": 500,
+        "width": 500,
+        "height": 500
+      },
+      "sourcePixelBounds": {
+        "x": 0,
+        "y": 608,
+        "width": 646,
+        "height": 646
+      },
+      "trimmedBounds": {
+        "x": 63,
+        "y": 87,
+        "width": 520,
+        "height": 439
+      },
+      "transparentInset": 13,
+      "contentBounds": {
+        "x": 13,
+        "y": 13,
+        "width": 520,
+        "height": 439
+      },
+      "outputSize": {
+        "width": 546,
+        "height": 465
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 274763,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-loot-sheet.png",
+      "normalizedBounds": {
+        "x": 500,
+        "y": 500,
+        "width": 500,
+        "height": 500
+      },
+      "sourcePixelBounds": {
+        "x": 608,
+        "y": 608,
+        "width": 646,
+        "height": 646
+      },
+      "trimmedBounds": {
+        "x": 97,
+        "y": 69,
+        "width": 515,
+        "height": 496
+      },
+      "transparentInset": 15,
+      "contentBounds": {
+        "x": 15,
+        "y": 15,
+        "width": 515,
+        "height": 496
+      },
+      "outputSize": {
+        "width": 545,
+        "height": 526
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 323959,
+        "backgroundColors": 0
+      }
+    }
+  ],
+  "panel": [
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+      "normalizedBounds": {
+        "x": 20,
+        "y": 110,
+        "width": 560,
+        "height": 380
+      },
+      "sourcePixelBounds": {
+        "x": 11,
+        "y": 123,
+        "width": 731,
+        "height": 505
+      },
+      "trimmedBounds": {
+        "x": 37,
+        "y": 45,
+        "width": 673,
+        "height": 428
+      },
+      "transparentInset": 13,
+      "contentBounds": {
+        "x": 13,
+        "y": 13,
+        "width": 673,
+        "height": 428
+      },
+      "outputSize": {
+        "width": 699,
+        "height": 454
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 95555,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+      "normalizedBounds": {
+        "x": 600,
+        "y": 120,
+        "width": 360,
+        "height": 360
+      },
+      "sourcePixelBounds": {
+        "x": 738,
+        "y": 136,
+        "width": 480,
+        "height": 480
+      },
+      "trimmedBounds": {
+        "x": 65,
+        "y": 67,
+        "width": 384,
+        "height": 366
+      },
+      "transparentInset": 11,
+      "contentBounds": {
+        "x": 11,
+        "y": 11,
+        "width": 384,
+        "height": 366
+      },
+      "outputSize": {
+        "width": 406,
+        "height": 388
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 100062,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+      "normalizedBounds": {
+        "x": 15,
+        "y": 620,
+        "width": 480,
+        "height": 220
+      },
+      "sourcePixelBounds": {
+        "x": 10,
+        "y": 769,
+        "width": 618,
+        "height": 292
+      },
+      "trimmedBounds": {
+        "x": 32,
+        "y": 64,
+        "width": 562,
+        "height": 212
+      },
+      "transparentInset": 6,
+      "contentBounds": {
+        "x": 6,
+        "y": 6,
+        "width": 562,
+        "height": 212
+      },
+      "outputSize": {
+        "width": 574,
+        "height": 224
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 67100,
+        "backgroundColors": 0
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "transparent": true,
+      "sourceUrl": "/workflow-examples/lunar-panel-sheet.png",
+      "normalizedBounds": {
+        "x": 510,
+        "y": 620,
+        "width": 460,
+        "height": 220
+      },
+      "sourcePixelBounds": {
+        "x": 631,
+        "y": 769,
+        "width": 593,
+        "height": 292
+      },
+      "trimmedBounds": {
+        "x": 48,
+        "y": 64,
+        "width": 533,
+        "height": 210
+      },
+      "transparentInset": 6,
+      "contentBounds": {
+        "x": 6,
+        "y": 6,
+        "width": 533,
+        "height": 210
+      },
+      "outputSize": {
+        "width": 545,
+        "height": 222
+      },
+      "cleanup": {
+        "method": "edge-connected-palette",
+        "tolerance": 0,
+        "pixelArt": false,
+        "removedPixels": 66827,
+        "backgroundColors": 0
+      }
+    }
+  ],
+  "lootAtlas": {
+    "manifest": {
+      "schemaVersion": 1,
+      "image": "sprite-atlas.png",
+      "transparent": true,
+      "width": 536,
+      "height": 536,
+      "grid": {
+        "columns": 2,
+        "rows": 2,
+        "cellSize": 256,
+        "gutter": 8,
+        "outerMargin": 8,
+        "safeArea": 0.8,
+        "powerOfTwo": false,
+        "pixelArt": false
+      },
+      "frames": [
+        {
+          "id": "sprite-1",
+          "source": "/workflow-examples/lunar-loot-1.png",
+          "frame": {
+            "x": 8,
+            "y": 8,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 26,
+            "y": 44,
+            "width": 204,
+            "height": 168
+          },
+          "sourceSize": {
+            "width": 565,
+            "height": 471
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 0,
+            "row": 0
+          }
+        },
+        {
+          "id": "sprite-2",
+          "source": "/workflow-examples/lunar-loot-2.png",
+          "frame": {
+            "x": 272,
+            "y": 8,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 46,
+            "y": 26,
+            "width": 164,
+            "height": 204
+          },
+          "sourceSize": {
+            "width": 433,
+            "height": 532
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 1,
+            "row": 0
+          }
+        },
+        {
+          "id": "sprite-3",
+          "source": "/workflow-examples/lunar-loot-3.png",
+          "frame": {
+            "x": 8,
+            "y": 272,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 26,
+            "y": 42,
+            "width": 204,
+            "height": 172
+          },
+          "sourceSize": {
+            "width": 546,
+            "height": 465
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 0,
+            "row": 1
+          }
+        },
+        {
+          "id": "sprite-4",
+          "source": "/workflow-examples/lunar-loot-4.png",
+          "frame": {
+            "x": 272,
+            "y": 272,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 26,
+            "y": 30,
+            "width": 204,
+            "height": 196
+          },
+          "sourceSize": {
+            "width": 545,
+            "height": 526
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 1,
+            "row": 1
+          }
+        }
+      ]
+    },
+    "validation": {
+      "valid": 4,
+      "total": 4,
+      "issues": []
+    },
+    "settings": {
+      "cellSize": 256,
+      "gutter": 8,
+      "outerMargin": 8,
+      "columns": 2,
+      "safeArea": 0.8,
+      "pixelArt": false,
+      "powerOfTwo": false
+    }
+  },
+  "panelAtlas": {
+    "manifest": {
+      "schemaVersion": 1,
+      "image": "relative-atlas.png",
+      "transparent": true,
+      "width": 1024,
+      "height": 1024,
+      "layout": {
+        "type": "relative-pack",
+        "sharedScale": 0.9731298446655272,
+        "padding": 8,
+        "outerMargin": 16,
+        "pixelArt": false
+      },
+      "frames": [
+        {
+          "id": "sprite-1",
+          "source": "/workflow-examples/lunar-panel-1.png",
+          "frame": {
+            "x": 16,
+            "y": 16,
+            "width": 655,
+            "height": 416
+          },
+          "spriteSourceSize": {
+            "x": 0,
+            "y": 0,
+            "width": 655,
+            "height": 416
+          },
+          "sourceSize": {
+            "width": 699,
+            "height": 454
+          },
+          "trimmedSourceBounds": {
+            "x": 13,
+            "y": 13,
+            "width": 673,
+            "height": 428
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "scale": 0.9731298446655272
+        },
+        {
+          "id": "sprite-2",
+          "source": "/workflow-examples/lunar-panel-2.png",
+          "frame": {
+            "x": 16,
+            "y": 440,
+            "width": 374,
+            "height": 356
+          },
+          "spriteSourceSize": {
+            "x": 0,
+            "y": 0,
+            "width": 374,
+            "height": 356
+          },
+          "sourceSize": {
+            "width": 406,
+            "height": 388
+          },
+          "trimmedSourceBounds": {
+            "x": 11,
+            "y": 11,
+            "width": 384,
+            "height": 366
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "scale": 0.9731298446655272
+        },
+        {
+          "id": "sprite-3",
+          "source": "/workflow-examples/lunar-panel-3.png",
+          "frame": {
+            "x": 398,
+            "y": 440,
+            "width": 547,
+            "height": 206
+          },
+          "spriteSourceSize": {
+            "x": 0,
+            "y": 0,
+            "width": 547,
+            "height": 206
+          },
+          "sourceSize": {
+            "width": 574,
+            "height": 224
+          },
+          "trimmedSourceBounds": {
+            "x": 6,
+            "y": 6,
+            "width": 562,
+            "height": 212
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "scale": 0.9731298446655272
+        },
+        {
+          "id": "sprite-4",
+          "source": "/workflow-examples/lunar-panel-4.png",
+          "frame": {
+            "x": 16,
+            "y": 804,
+            "width": 519,
+            "height": 204
+          },
+          "spriteSourceSize": {
+            "x": 0,
+            "y": 0,
+            "width": 519,
+            "height": 204
+          },
+          "sourceSize": {
+            "width": 545,
+            "height": 222
+          },
+          "trimmedSourceBounds": {
+            "x": 6,
+            "y": 6,
+            "width": 533,
+            "height": 210
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "scale": 0.9731298446655272
+        }
+      ]
+    },
+    "validation": {
+      "valid": 4,
+      "total": 4,
+      "issues": []
+    },
+    "settings": {
+      "canvasSize": 1024,
+      "padding": 8,
+      "outerMargin": 16,
+      "pixelArt": false
+    }
+  },
+  "statesAtlas": {
+    "manifest": {
+      "schemaVersion": 1,
+      "image": "sprite-atlas.png",
+      "transparent": true,
+      "width": 536,
+      "height": 272,
+      "grid": {
+        "columns": 2,
+        "rows": 1,
+        "cellSize": 256,
+        "gutter": 8,
+        "outerMargin": 8,
+        "safeArea": 0.8,
+        "powerOfTwo": false,
+        "pixelArt": false
+      },
+      "frames": [
+        {
+          "id": "sprite-1",
+          "source": "/workflow-examples/lunar-cache-rescue.png",
+          "frame": {
+            "x": 8,
+            "y": 8,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 26,
+            "y": 47,
+            "width": 204,
+            "height": 161
+          },
+          "sourceSize": {
+            "width": 1254,
+            "height": 1254
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 0,
+            "row": 0
+          }
+        },
+        {
+          "id": "sprite-2",
+          "source": "/workflow-examples/lunar-cache-open.png",
+          "frame": {
+            "x": 272,
+            "y": 8,
+            "width": 256,
+            "height": 256
+          },
+          "spriteSourceSize": {
+            "x": 38,
+            "y": 26,
+            "width": 179,
+            "height": 204
+          },
+          "sourceSize": {
+            "width": 1254,
+            "height": 1254
+          },
+          "pivot": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "grid": {
+            "column": 1,
+            "row": 0
+          }
+        }
+      ]
+    },
+    "validation": {
+      "valid": 2,
+      "total": 2,
+      "issues": []
+    },
+    "settings": {
+      "cellSize": 256,
+      "gutter": 8,
+      "outerMargin": 8,
+      "columns": 2,
+      "safeArea": 0.8,
+      "pixelArt": false,
+      "powerOfTwo": false
+    }
+  },
+  "seamless": {
+    "settings": {
+      "outputSize": 1024,
+      "edgeBlend": 0.08
+    },
+    "manifest": {
+      "schemaVersion": 1,
+      "kind": "seamless-texture",
+      "width": 1024,
+      "height": 1024,
+      "edgeBlend": 0.08,
+      "seamScore": 96,
+      "wrapMode": "repeat",
+      "colorSpace": "sRGB"
+    },
+    "seamScore": 96
+  },
+  "maps": {
+    "settings": {
+      "normalStrength": 1.6,
+      "normalFormat": "opengl",
+      "heightContrast": 1.1,
+      "invertHeight": false,
+      "roughnessLevel": 0.62,
+      "metallicLevel": 0,
+      "detailInfluence": 0.25,
+      "aoStrength": 2
+    },
+    "manifest": {
+      "schemaVersion": 1,
+      "kind": "pbr-material-map-set",
+      "width": 1024,
+      "height": 1024,
+      "maps": [
+        "baseColor",
+        "normal",
+        "height",
+        "roughness",
+        "metallic",
+        "ambientOcclusion",
+        "orm"
+      ],
+      "channelPacking": {
+        "orm": {
+          "red": "ambientOcclusion",
+          "green": "roughness",
+          "blue": "metallic"
+        }
+      },
+      "settings": {
+        "normalStrength": 1.6,
+        "normalFormat": "opengl",
+        "heightContrast": 1.1,
+        "invertHeight": false,
+        "roughnessLevel": 0.62,
+        "metallicLevel": 0,
+        "detailInfluence": 0.25,
+        "aoStrength": 2
+      },
+      "notes": {
+        "roughness": "Estimated from luminance detail. Author review recommended.",
+        "metallic": "Uniform authored value; it cannot be reliably inferred from color alone.",
+        "normalFormat": "opengl"
+      }
+    }
+  }
+}

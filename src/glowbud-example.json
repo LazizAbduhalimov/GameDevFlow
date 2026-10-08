@@ -1,0 +1,1134 @@
+{
+  "glowbud": {
+    "nodes": [
+      {
+        "id": "glowbud-reference",
+        "type": "image",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "title": "01 · Разобрать дизайн-референс",
+          "imageUrl": "/workflow-examples/glowbud-reference.png",
+          "fileName": "glowbud-reference.png",
+          "hasInput": false,
+          "creationMethod": "publisher-reference",
+          "referenceUrl": "https://assetstore.unity.com/packages/3d/characters/creatures/low-level-monsters-growing-pack-cute-series-v1-2-391364",
+          "credit": "Meshtint Studio · public marketing preview",
+          "publisherImageUrl": "https://www.meshtint.com/cdn/shop/files/ShopLLMons-13-Square_4272f6a3-0bf9-4766-b744-aad0faad1238_640x640.png?v=1788506952"
+        }
+      },
+      {
+        "id": "glowbud-reference-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 0,
+          "y": -400
+        },
+        "data": {
+          "step": 1,
+          "title": "Разобрать дизайн-референс",
+          "body": "Источник — публичное превью Low Level Monsters Growing Pack от Meshtint, указанное пользователем. Из него взяты принципы: крупные простые формы, выразительные глаза, короткие лапки и яркие акценты. Glowbud — новый четырёхлапый росток. Это учебный проект на основе собственного моделирования; готовые изображения не являются результатами AI-запусков.",
+          "exercise": "Сравните округлые формы, пропорции и количество деталей. Ссылка на источник сохранена в данных ноды."
+        }
+      },
+      {
+        "id": "glowbud-alternatives",
+        "type": "multiGenerate",
+        "position": {
+          "x": 550,
+          "y": 0
+        },
+        "data": {
+          "title": "02 · Три направления силуэта",
+          "prompt": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow. Explore one of three original directions per image: a rounded seed explorer with a detachable acorn pouch; a low wider beetle-like blue shell; a greener guardian with a third sprout leaf. One creature only, natural quadruped stance, no contact sheet.",
+          "variantCount": 3,
+          "selectedVariantKey": "variant-1",
+          "provider": "global",
+          "generationMode": "fast",
+          "isConfigOpen": false,
+          "variants": [
+            {
+              "key": "variant-1",
+              "title": "Seed explorer · selected",
+              "index": 0,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-variant-seed.png",
+              "sourceUrl": "/workflow-examples/glowbud-reference.png",
+              "creationMethod": "procedural-3d",
+              "modelVariant": "seed"
+            },
+            {
+              "key": "variant-2",
+              "title": "Wide shell",
+              "index": 1,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-variant-beetle.png",
+              "sourceUrl": "/workflow-examples/glowbud-reference.png",
+              "creationMethod": "procedural-3d",
+              "modelVariant": "beetle"
+            },
+            {
+              "key": "variant-3",
+              "title": "Leaf guardian",
+              "index": 2,
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-variant-guardian.png",
+              "sourceUrl": "/workflow-examples/glowbud-reference.png",
+              "creationMethod": "procedural-3d",
+              "modelVariant": "guardian"
+            }
+          ],
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-alternatives-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 550,
+          "y": -400
+        },
+        "data": {
+          "step": 2,
+          "title": "Три направления силуэта",
+          "body": "Три направления построены и отрендерены из собственной геометрии: круглый исследователь, более низкий панцирный вариант и зелёный хранитель. Выбран Seed: его четыре лапки, пара листьев и фонарик читаются сразу. Промпт оставлен для дальнейших AI-экспериментов; сохранённые варианты сделаны в 3D.",
+          "exercise": "Переключите три варианта и сравните их в маленьком размере. Что меняет силуэт, а что — только цвет?"
+        }
+      },
+      {
+        "id": "glowbud-selected",
+        "type": "image",
+        "position": {
+          "x": 1100,
+          "y": 0
+        },
+        "data": {
+          "title": "03 · Зафиксировать Glowbud",
+          "imageUrl": "/workflow-examples/glowbud-variant-seed.png",
+          "fileName": "glowbud-variant-seed.png",
+          "hasInput": true,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-selected-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": -400
+        },
+        "data": {
+          "step": 3,
+          "title": "Зафиксировать Glowbud",
+          "body": "Выбор закреплён связью с Variant 1. Существо не имеет человеческого торса, рук и кистей: это единое семенное тело на четырёх коротких лапках. Листья и фонарик входят в его анатомию; сумка — отдельный аксессуар.",
+          "exercise": "Найдите четыре опоры и отличите собственные части существа от съёмного предмета."
+        }
+      },
+      {
+        "id": "glowbud-parts",
+        "type": "characterParts",
+        "position": {
+          "x": 1650,
+          "y": 0
+        },
+        "data": {
+          "title": "04 · Разделить тело и аксессуар",
+          "status": "review",
+          "provider": "global",
+          "notes": "Keep the whole quadruped body together. The four root feet, eyes, sprout leaves and belly lantern belong to the creature. Only the acorn pouch and its strap are detachable.",
+          "inputUrls": [
+            "/workflow-examples/glowbud-variant-seed.png"
+          ],
+          "characterDescription": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow.",
+          "parts": [
+            {
+              "id": "glowbud-body",
+              "name": "Body",
+              "description": "Complete non-humanoid quadruped creature with its four root feet, eyes, leaf sprout and amber belly seed. Exclude the acorn pouch and strap.",
+              "enabled": true,
+              "spawnedNodeId": "glowbud-body-render"
+            },
+            {
+              "id": "glowbud-pouch",
+              "name": "Acorn pouch",
+              "description": "Only the tan acorn pouch with brown cap and strap. No creature body.",
+              "enabled": false
+            }
+          ],
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-parts-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1650,
+          "y": -400
+        },
+        "data": {
+          "step": 4,
+          "title": "Разделить тело и аксессуар",
+          "body": "Разбор выполнен вручную по модели: целое тело остаётся одним объектом, сумка и ремешок снимаются отдельно. Листья не исключаются, потому что они определяют узнаваемость персонажа. Отмечен только Body; живого задания анализа здесь нет.",
+          "exercise": "Выберите Acorn pouch в своей копии, чтобы подготовить отдельную ветку аксессуара."
+        }
+      },
+      {
+        "id": "glowbud-body-render",
+        "type": "generator",
+        "position": {
+          "x": 2300,
+          "y": 0
+        },
+        "data": {
+          "title": "05 · Тело без сумки",
+          "prompt": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow. Remove only the acorn pouch and its strap. Keep the whole creature and all four root feet.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/glowbud-body.png",
+          "sourceUrl": "/workflow-examples/glowbud-variant-seed.png",
+          "sourceUrls": [
+            "/workflow-examples/glowbud-variant-seed.png"
+          ],
+          "isConfigOpen": false,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-body-render-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2300,
+          "y": -400
+        },
+        "data": {
+          "step": 5,
+          "title": "Тело без сумки",
+          "body": "В сохранённом результате отключена группа Detachable_acorn_pouch, затем тело отрендерено заново. Это не вырезание по пикселям и не отдельная AI-генерация: собственная 3D-геометрия остаётся прежней. Промпт позволяет повторить идею через обычную генерацию приложения.",
+          "exercise": "Сравните тело до и после: глаза, листья, лапки и фонарик должны оставаться одинаковыми."
+        }
+      },
+      {
+        "id": "glowbud-views",
+        "type": "characterViews",
+        "position": {
+          "x": 2900,
+          "y": 0
+        },
+        "data": {
+          "title": "06 · Четыре согласованных ракурса",
+          "subjectKind": "character",
+          "pose": "neutral",
+          "basePrompt": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow.",
+          "provider": "global",
+          "generationMode": "fast",
+          "views": {
+            "front": {
+              "key": "front",
+              "title": "Front",
+              "prompt": "Full-body front orthographic view of the same four-legged creature, centered and transparent.",
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-view-front.png",
+              "sourceUrl": "/workflow-examples/glowbud-body.png",
+              "creationMethod": "procedural-3d"
+            },
+            "left": {
+              "key": "left",
+              "title": "Left",
+              "prompt": "Full-body left orthographic profile, with the face pointing to the left of the image. Same natural stance and transparent background.",
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-view-left.png",
+              "sourceUrl": "/workflow-examples/glowbud-body.png",
+              "creationMethod": "procedural-3d"
+            },
+            "back": {
+              "key": "back",
+              "title": "Back",
+              "prompt": "Full-body rear orthographic view. Show the back, not a second front face. Same four root feet and sprout.",
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-view-back.png",
+              "sourceUrl": "/workflow-examples/glowbud-body.png",
+              "creationMethod": "procedural-3d"
+            },
+            "right": {
+              "key": "right",
+              "title": "Right",
+              "prompt": "Full-body right orthographic profile, with the face pointing to the right of the image. Same natural stance and transparent background.",
+              "status": "completed",
+              "outputUrl": "/workflow-examples/glowbud-view-right.png",
+              "sourceUrl": "/workflow-examples/glowbud-body.png",
+              "creationMethod": "procedural-3d"
+            }
+          },
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-views-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2900,
+          "y": -400
+        },
+        "data": {
+          "step": 6,
+          "title": "Четыре согласованных ракурса",
+          "body": "Front, Left, Back и Right получены ортографическими камерами из одного тела. Поэтому геометрия и число лап не дрейфуют между кадрами. Режим Natural сохраняет естественную стойку при дальнейшем AI-запуске; существу не задаётся человеческая A- или T-поза.",
+          "exercise": "Проверьте боковые профили и тыльный вид: лицевая сторона не должна появляться сзади."
+        }
+      },
+      {
+        "id": "glowbud-view-atlas",
+        "type": "spriteAtlas",
+        "position": {
+          "x": 3500,
+          "y": 0
+        },
+        "data": {
+          "title": "07 · Упаковать ракурсы",
+          "status": "completed",
+          "inputUrls": [
+            "/workflow-examples/glowbud-view-front.png",
+            "/workflow-examples/glowbud-view-left.png",
+            "/workflow-examples/glowbud-view-back.png",
+            "/workflow-examples/glowbud-view-right.png"
+          ],
+          "previewUrl": "/workflow-examples/glowbud-views-atlas.png",
+          "outputUrl": "/workflow-examples/glowbud-views-atlas.png",
+          "settings": {
+            "cellSize": 256,
+            "gutter": 8,
+            "outerMargin": 8,
+            "columns": 2,
+            "safeArea": 0.8,
+            "pixelArt": false,
+            "powerOfTwo": false
+          },
+          "validation": {
+            "valid": 4,
+            "total": 4,
+            "issues": []
+          },
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "sprite-atlas.png",
+            "transparent": true,
+            "width": 536,
+            "height": 536,
+            "grid": {
+              "columns": 2,
+              "rows": 2,
+              "cellSize": 256,
+              "gutter": 8,
+              "outerMargin": 8,
+              "safeArea": 0.8,
+              "powerOfTwo": false,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/glowbud-view-front.png",
+                "frame": {
+                  "x": 8,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/glowbud-view-left.png",
+                "frame": {
+                  "x": 272,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 56,
+                  "y": 26,
+                  "width": 143,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-3",
+                "source": "/workflow-examples/glowbud-view-back.png",
+                "frame": {
+                  "x": 8,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 1
+                }
+              },
+              {
+                "id": "sprite-4",
+                "source": "/workflow-examples/glowbud-view-right.png",
+                "frame": {
+                  "x": 272,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 56,
+                  "y": 26,
+                  "width": 144,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ]
+          },
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-view-atlas-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3500,
+          "y": -400
+        },
+        "data": {
+          "step": 7,
+          "title": "Упаковать ракурсы",
+          "body": "Четыре прозрачных рендера реально упакованы buildSpriteAtlas: 256 px на ячейку, safe area 80%, gutter 8 px. JSON указывает кадры и размеры. Упаковка сама по себе не создаёт анимацию и может менять масштаб широких и узких видов.",
+          "exercise": "Скачайте PNG и JSON. Для поворота в игре отдельно согласуйте размер и pivot всех кадров."
+        }
+      },
+      {
+        "id": "glowbud-view-result",
+        "type": "image",
+        "position": {
+          "x": 4100,
+          "y": 0
+        },
+        "data": {
+          "title": "08 · Готовый атлас ракурсов",
+          "imageUrl": "/workflow-examples/glowbud-views-atlas.png",
+          "fileName": "glowbud-views-atlas.png",
+          "hasInput": true,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-view-result-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 4100,
+          "y": -400
+        },
+        "data": {
+          "step": 8,
+          "title": "Готовый атлас ракурсов",
+          "body": "Порядок в этом атласе: Front, Left, Back, Right. Исходные PNG доступны в ноде ракурсов и сохраняют полное разрешение 1024×1024.",
+          "exercise": "Откройте каждый исходный ракурс отдельно и сравните мелкие детали с атласом."
+        }
+      },
+      {
+        "id": "glowbud-model",
+        "type": "model3d",
+        "position": {
+          "x": 1650,
+          "y": 1350
+        },
+        "data": {
+          "title": "09 · Настоящая 3D-модель",
+          "status": "ready",
+          "importMode": "manual",
+          "modelUrl": "/workflow-examples/glowbud-model.glb",
+          "downloadUrl": "/workflow-examples/glowbud-model.glb",
+          "fileName": "glowbud-model.glb",
+          "sourceNodeId": "glowbud-selected",
+          "referenceUrls": [
+            "/workflow-examples/glowbud-variant-seed.png"
+          ],
+          "modelMetadata": {
+            "triangles": 6304,
+            "meshes": 27,
+            "materials": 12,
+            "rigged": false,
+            "animations": 0,
+            "designReference": "https://assetstore.unity.com/packages/3d/characters/creatures/low-level-monsters-growing-pack-cute-series-v1-2-391364"
+          },
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-model-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1650,
+          "y": 950
+        },
+        "data": {
+          "step": 9,
+          "title": "Настоящая 3D-модель",
+          "body": "Готовый GLB содержит собственную модель Glowbud с сумкой: 6304 треугольника и 27 мешей. Его можно вращать, смотреть каркас и скачать. Группы Creature_Body и Detachable_acorn_pouch позволяют отделить аксессуар. Рига и анимаций пока нет.",
+          "exercise": "Откройте каркас. При подготовке к игре объедините нужные меши и добавьте риг для четырёх лап."
+        }
+      },
+      {
+        "id": "glowbud-expressions",
+        "type": "referenceSet",
+        "position": {
+          "x": 2300,
+          "y": 1350
+        },
+        "data": {
+          "title": "10 · Четыре выражения",
+          "items": [
+            {
+              "id": "expressions-0",
+              "title": "expression idle",
+              "imageUrl": "/workflow-examples/glowbud-expression-idle.png"
+            },
+            {
+              "id": "expressions-1",
+              "title": "expression happy",
+              "imageUrl": "/workflow-examples/glowbud-expression-happy.png"
+            },
+            {
+              "id": "expressions-2",
+              "title": "expression surprised",
+              "imageUrl": "/workflow-examples/glowbud-expression-surprised.png"
+            },
+            {
+              "id": "expressions-3",
+              "title": "expression angry",
+              "imageUrl": "/workflow-examples/glowbud-expression-angry.png"
+            }
+          ],
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-expressions-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2300,
+          "y": 950
+        },
+        "data": {
+          "step": 10,
+          "title": "Четыре выражения",
+          "body": "Нейтральное, радостное, удивлённое и сердитое выражения отрендерены из той же модели с одинаковой фронтальной камерой. Меняются глаза, рот и брови; анатомия сохраняется. Это отдельные готовые PNG, а не кадры готовой анимации.",
+          "exercise": "Сравните выражения при маленьком масштабе. Какое читается благодаря глазам, а какое — благодаря бровям?"
+        }
+      },
+      {
+        "id": "glowbud-expression-atlas",
+        "type": "spriteAtlas",
+        "position": {
+          "x": 2900,
+          "y": 1350
+        },
+        "data": {
+          "title": "11 · Атлас выражений",
+          "status": "completed",
+          "inputUrls": [
+            "/workflow-examples/glowbud-expression-idle.png",
+            "/workflow-examples/glowbud-expression-happy.png",
+            "/workflow-examples/glowbud-expression-surprised.png",
+            "/workflow-examples/glowbud-expression-angry.png"
+          ],
+          "previewUrl": "/workflow-examples/glowbud-expressions-atlas.png",
+          "outputUrl": "/workflow-examples/glowbud-expressions-atlas.png",
+          "settings": {
+            "cellSize": 256,
+            "gutter": 8,
+            "outerMargin": 8,
+            "columns": 2,
+            "safeArea": 0.8,
+            "pixelArt": false,
+            "powerOfTwo": false
+          },
+          "validation": {
+            "valid": 4,
+            "total": 4,
+            "issues": []
+          },
+          "manifest": {
+            "schemaVersion": 1,
+            "image": "sprite-atlas.png",
+            "transparent": true,
+            "width": 536,
+            "height": 536,
+            "grid": {
+              "columns": 2,
+              "rows": 2,
+              "cellSize": 256,
+              "gutter": 8,
+              "outerMargin": 8,
+              "safeArea": 0.8,
+              "powerOfTwo": false,
+              "pixelArt": false
+            },
+            "frames": [
+              {
+                "id": "sprite-1",
+                "source": "/workflow-examples/glowbud-expression-idle.png",
+                "frame": {
+                  "x": 8,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-2",
+                "source": "/workflow-examples/glowbud-expression-happy.png",
+                "frame": {
+                  "x": 272,
+                  "y": 8,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 0
+                }
+              },
+              {
+                "id": "sprite-3",
+                "source": "/workflow-examples/glowbud-expression-surprised.png",
+                "frame": {
+                  "x": 8,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 0,
+                  "row": 1
+                }
+              },
+              {
+                "id": "sprite-4",
+                "source": "/workflow-examples/glowbud-expression-angry.png",
+                "frame": {
+                  "x": 272,
+                  "y": 272,
+                  "width": 256,
+                  "height": 256
+                },
+                "spriteSourceSize": {
+                  "x": 52,
+                  "y": 26,
+                  "width": 151,
+                  "height": 204
+                },
+                "sourceSize": {
+                  "width": 1024,
+                  "height": 1024
+                },
+                "pivot": {
+                  "x": 0.5,
+                  "y": 0.5
+                },
+                "grid": {
+                  "column": 1,
+                  "row": 1
+                }
+              }
+            ]
+          },
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-expression-atlas-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 2900,
+          "y": 950
+        },
+        "data": {
+          "step": 11,
+          "title": "Атлас выражений",
+          "body": "Экспортируемый набор использует тот же размер ячеек и отступы. Все четыре изображения проходят проверку прозрачности. Manifest сохраняет отдельный кадр для каждого выражения.",
+          "exercise": "Измените cell size на 128 и пересоберите атлас. Проверьте, остаётся ли заметным удивлённый рот."
+        }
+      },
+      {
+        "id": "glowbud-expression-result",
+        "type": "image",
+        "position": {
+          "x": 3500,
+          "y": 1350
+        },
+        "data": {
+          "title": "12 · Готовый набор состояний",
+          "imageUrl": "/workflow-examples/glowbud-expressions-atlas.png",
+          "fileName": "glowbud-expressions-atlas.png",
+          "hasInput": true,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-expression-result-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 3500,
+          "y": 950
+        },
+        "data": {
+          "step": 12,
+          "title": "Готовый набор состояний",
+          "body": "В одном PNG находятся четыре фронтальных состояния. Источники позволяют использовать полное разрешение, а JSON — выбрать соответствующий прямоугольник атласа.",
+          "exercise": "Предложите пятое состояние для существа: сон, испуг или истощённый фонарик."
+        }
+      },
+      {
+        "id": "glowbud-growth",
+        "type": "generator",
+        "position": {
+          "x": 1100,
+          "y": 1350
+        },
+        "data": {
+          "title": "13 · Развитие одной семьи",
+          "prompt": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow. Show three natural growth stages left to right: base sprout, larger juvenile with a third leaf and flank foliage, mature larger leaf guardian. Keep all four feet and the same amber belly seed. No text.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/glowbud-growth.png",
+          "sourceUrl": "/workflow-examples/glowbud-variant-seed.png",
+          "sourceUrls": [
+            "/workflow-examples/glowbud-variant-seed.png"
+          ],
+          "isConfigOpen": false,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-growth-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 1100,
+          "y": 950
+        },
+        "data": {
+          "step": 13,
+          "title": "Развитие одной семьи",
+          "body": "Три стадии построены параметрами роста одной собственной модели: меняются масштаб и число листьев, сохраняются четыре лапки и фонарик. Это дизайн эволюции, не система прокачки и не три автоматически оптимизированных игровых LOD.",
+          "exercise": "Какие признаки должны сохраниться на всех стадиях? Не путайте развитие существа с техническими LOD."
+        }
+      },
+      {
+        "id": "glowbud-review",
+        "type": "referenceSet",
+        "position": {
+          "x": 4100,
+          "y": 1350
+        },
+        "data": {
+          "title": "14 · Собрать результаты пути",
+          "items": [
+            {
+              "id": "review-0",
+              "title": "variant seed",
+              "imageUrl": "/workflow-examples/glowbud-variant-seed.png"
+            },
+            {
+              "id": "review-1",
+              "title": "views atlas",
+              "imageUrl": "/workflow-examples/glowbud-views-atlas.png"
+            },
+            {
+              "id": "review-2",
+              "title": "expressions atlas",
+              "imageUrl": "/workflow-examples/glowbud-expressions-atlas.png"
+            },
+            {
+              "id": "review-3",
+              "title": "growth",
+              "imageUrl": "/workflow-examples/glowbud-growth.png"
+            }
+          ],
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-review-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 4100,
+          "y": 950
+        },
+        "data": {
+          "step": 14,
+          "title": "Собрать результаты пути",
+          "body": "В одном месте собраны выбранный персонаж, ракурсы, эмоции и рост. Четыре входящих связи позволяют проследить каждую ветку. Согласованность проверяется по анатомии, материалам и опорным точкам, а не только по совпадению цвета.",
+          "exercise": "Проверьте четыре результата. Какие файлы предназначены для экспорта, а какие — для обсуждения дизайна?"
+        }
+      },
+      {
+        "id": "glowbud-presentation",
+        "type": "generator",
+        "position": {
+          "x": 4700,
+          "y": 1350
+        },
+        "data": {
+          "title": "15 · Сравнить семейство",
+          "prompt": "Preserve this exact non-humanoid Glowbud seed creature: one squat rounded teal body, four short cream root feet, two dark oval eyes, two lime sprout leaves and one amber belly seed. Preserve anatomy, proportions, palette and leaf arrangement. No human torso, arms or hands. Transparent background, no ground or cast shadow. Create a clean family presentation of the three original silhouette directions: Seed explorer, wide blue shell and leaf guardian. Keep natural quadruped stance and detachable acorn pouches. No text, transparent background.",
+          "provider": "global",
+          "status": "completed",
+          "outputUrl": "/workflow-examples/glowbud-presentation.png",
+          "sourceUrl": "/workflow-examples/glowbud-variant-seed.png",
+          "sourceUrls": [
+            "/workflow-examples/glowbud-variant-seed.png",
+            "/workflow-examples/glowbud-views-atlas.png",
+            "/workflow-examples/glowbud-expressions-atlas.png",
+            "/workflow-examples/glowbud-growth.png"
+          ],
+          "isConfigOpen": false,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-presentation-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 4700,
+          "y": 950
+        },
+        "data": {
+          "step": 15,
+          "title": "Сравнить семейство",
+          "body": "Финальный лист — рендер трёх модельных направлений в общей сцене. Он показывает выбранный стиль семейства; коллекция перед ним хранит доказательства пройденного пути. Кнопка генерации использует сохранённый промпт и контекст, но даст новый AI-результат, а не повторный рендер модели.",
+          "exercise": "Для собственной версии выберите другой силуэт, затем обновите все производные ветки."
+        }
+      },
+      {
+        "id": "glowbud-final",
+        "type": "image",
+        "position": {
+          "x": 5250,
+          "y": 1350
+        },
+        "data": {
+          "title": "16 · Завершённый персонажный путь",
+          "imageUrl": "/workflow-examples/glowbud-presentation.png",
+          "fileName": "glowbud-presentation.png",
+          "hasInput": true,
+          "creationMethod": "procedural-3d"
+        }
+      },
+      {
+        "id": "glowbud-final-lesson",
+        "type": "workflowLesson",
+        "position": {
+          "x": 5250,
+          "y": 950
+        },
+        "data": {
+          "step": 16,
+          "title": "Завершённый персонажный путь",
+          "body": "В примере уже есть три направления, чистое тело, четыре вида, четыре выражения, стадии роста, два настоящих атласа и скачиваемый GLB. Исходник процедурного моделирования находится в scripts/glowbud-model.mjs. Файлы Meshtint FBX, текстуры и анимации в этот пример не входят.",
+          "exercise": "Продолжите путь: отдельная сумка, второй тип существа или риг и анимации в движке."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "glowbud-reference-glowbud-alternatives",
+        "source": "glowbud-reference",
+        "target": "glowbud-alternatives",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-alternatives-glowbud-selected",
+        "source": "glowbud-alternatives",
+        "target": "glowbud-selected",
+        "sourceHandle": "variant-1",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-selected-glowbud-parts",
+        "source": "glowbud-selected",
+        "target": "glowbud-parts",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-parts-glowbud-body-render",
+        "source": "glowbud-parts",
+        "target": "glowbud-body-render",
+        "sourceHandle": "part:glowbud-body",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-body-render-glowbud-views",
+        "source": "glowbud-body-render",
+        "target": "glowbud-views",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-views-glowbud-view-atlas",
+        "source": "glowbud-views",
+        "target": "glowbud-view-atlas",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-view-atlas-glowbud-view-result",
+        "source": "glowbud-view-atlas",
+        "target": "glowbud-view-result",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-selected-glowbud-model",
+        "source": "glowbud-selected",
+        "target": "glowbud-model",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-body-render-glowbud-expressions",
+        "source": "glowbud-body-render",
+        "target": "glowbud-expressions",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-expressions-glowbud-expression-atlas",
+        "source": "glowbud-expressions",
+        "target": "glowbud-expression-atlas",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-expression-atlas-glowbud-expression-result",
+        "source": "glowbud-expression-atlas",
+        "target": "glowbud-expression-result",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-selected-glowbud-growth",
+        "source": "glowbud-selected",
+        "target": "glowbud-growth",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-selected-glowbud-review",
+        "source": "glowbud-selected",
+        "target": "glowbud-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-view-result-glowbud-review",
+        "source": "glowbud-view-result",
+        "target": "glowbud-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-expression-result-glowbud-review",
+        "source": "glowbud-expression-result",
+        "target": "glowbud-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-growth-glowbud-review",
+        "source": "glowbud-growth",
+        "target": "glowbud-review",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-review-glowbud-presentation",
+        "source": "glowbud-review",
+        "target": "glowbud-presentation",
+        "sourceHandle": "all",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      },
+      {
+        "id": "glowbud-presentation-glowbud-final",
+        "source": "glowbud-presentation",
+        "target": "glowbud-final",
+        "type": "smoothstep",
+        "style": {
+          "stroke": "#9bd183",
+          "strokeWidth": 1.6
+        }
+      }
+    ],
+    "viewport": {
+      "x": 60,
+      "y": 390,
+      "zoom": 0.72
+    }
+  }
+}
