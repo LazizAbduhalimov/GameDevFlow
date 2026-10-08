@@ -37,9 +37,12 @@ async function fixture(t, model = 'success') {
         if (mode === 'tool-error') {
           emit({ type: 'tool_call', subtype: 'completed', tool_call: { generateImageToolCall: { result: { error: { message: 'Image quota exceeded' } } } } });
         } else {
+          const nativeImagePath = mode === 'concurrent'
+            ? path.join(${JSON.stringify(path.dirname(imagePath))}, path.basename(process.cwd()) + '.png')
+            : ${JSON.stringify(imagePath)};
           await mkdir(${JSON.stringify(path.dirname(imagePath))}, { recursive: true });
-          await writeFile(${JSON.stringify(imagePath)}, mode === 'copy' ? await readFile('references/1.png') : Buffer.from(${JSON.stringify(png.toString('base64'))}, 'base64'));
-          emit({ type: 'tool_call', subtype: 'completed', tool_call: { generateImageToolCall: { result: { success: { filePath: ${JSON.stringify(imagePath)} } } } } });
+          await writeFile(nativeImagePath, mode === 'copy' ? await readFile('references/1.png') : Buffer.from(${JSON.stringify(png.toString('base64'))}, 'base64'));
+          emit({ type: 'tool_call', subtype: 'completed', tool_call: { generateImageToolCall: { result: { success: { filePath: nativeImagePath } } } } });
         }
       }
       emit({ type: 'result', is_error: false, result: 'Finished' });
