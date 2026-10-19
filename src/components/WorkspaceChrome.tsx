@@ -7,7 +7,8 @@ import {
   LoaderCircle, Map, MoreHorizontal, MousePointer2, Palette, Plus, Redo2,
   Save, Sparkles, Trash2, Undo2, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
-import type { CodexStatus, ProviderId, ProviderStatus, ProjectDesignReference, ProjectSaveState, UnityStatus } from '../types';
+import type { CodexStatus, ProviderId, ProviderStatus, ProjectDesignReference, ProjectSaveState, ProjectStyleLibrary as ProjectStyleLibraryData, UnityStatus } from '../types';
+import { ProjectStyleLibrary } from './ProjectStyleLibrary';
 import { canvasDuration } from '../workspace-display';
 import { homePath, shouldHandleAppLink } from '../app-route';
 import '../shell.css';
@@ -39,6 +40,10 @@ function useDismiss(open: boolean, close: () => void, ref: React.RefObject<HTMLD
 type WorkspaceChromeProps = {
   projectName: string; saveState: ProjectSaveState; busy: boolean;
   designReference: ProjectDesignReference | null; designReferenceBusy: boolean;
+  projectStyleLibrary: ProjectStyleLibraryData; styleLibraryBusy: boolean;
+  onProjectStyleTextChange: (text: string) => void;
+  onUploadProjectStyleImages: (files: File[]) => void | Promise<void>;
+  onRemoveProjectStyleImage: (assetId: string) => void | Promise<void>;
   activePanel: 'gallery' | 'jobs' | 'appearance' | null; activeJobs: number;
   codex: CodexStatus; authBusy: boolean; providerDetail?: string;
   providers: ProviderStatus[]; globalProvider: ProviderId; onProviderChange: (provider: ProviderId) => void;
@@ -55,6 +60,7 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
   const [projectOpen, setProjectOpen] = useState(false);
   const [providerOpen, setProviderOpen] = useState(false);
   const [unityOpen, setUnityOpen] = useState(false);
+  const [styleLibraryOpen, setStyleLibraryOpen] = useState(false);
   const projectRef = useRef<HTMLDivElement>(null);
   const designReferenceInputRef = useRef<HTMLInputElement>(null);
   const providerRef = useRef<HTMLDivElement>(null);
@@ -125,6 +131,10 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
         </div>}
       </div>
       <div className="hud-tools">
+      <button type="button" className={`hud-project-style-trigger${props.projectStyleLibrary.text.trim() || props.projectStyleLibrary.images.length ? ' has-style' : ''}`} disabled={props.busy} aria-label="Project style library" aria-haspopup="dialog" aria-expanded={styleLibraryOpen} aria-controls="project-style-library-dialog" onClick={() => { setStyleLibraryOpen(true); setProjectOpen(false); setProviderOpen(false); setUnityOpen(false); }}>
+        <Palette size={15} /><span><span className="project-style-trigger-prefix">Project </span>style</span>
+        {(props.projectStyleLibrary.text.trim() || props.projectStyleLibrary.images.length > 0) && <small>{props.projectStyleLibrary.images.length || 'On'}</small>}
+      </button>
       <div className="hud-unity" ref={unityRef}>
         <button type="button" className="hud-provider-trigger" onClick={() => { setUnityOpen(!unityOpen); setProviderOpen(false); setProjectOpen(false); }} aria-expanded={unityOpen} aria-label="Unity project target">
           <Component size={14} className={props.unity.ready ? 'is-ready' : ''} /><span>Unity</span><small>{unityLabel}</small><ChevronDown size={12} />
@@ -164,6 +174,16 @@ export function WorkspaceChrome(props: WorkspaceChromeProps) {
       </div>
       </div>
     </div>
+    {styleLibraryOpen && <ProjectStyleLibrary
+      projectName={props.projectName}
+      library={props.projectStyleLibrary}
+      busy={props.styleLibraryBusy}
+      saveState={props.saveState}
+      onTextChange={props.onProjectStyleTextChange}
+      onUploadImages={props.onUploadProjectStyleImages}
+      onRemoveImage={props.onRemoveProjectStyleImage}
+      onClose={() => setStyleLibraryOpen(false)}
+    />}
   </>;
 }
 

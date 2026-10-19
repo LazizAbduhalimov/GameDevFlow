@@ -16,9 +16,15 @@
 .rail-count { position: absolute; right: -2px; top: 0; min-width: 16px; height: 16px; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accent-text); font-size: 9px; font-weight: 700; }
 .workspace-hud { position: absolute; z-index: var(--z-hud); top: 18px; left: 72px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; pointer-events: none; }
 .workspace-hud > div { pointer-events: auto; position: relative; min-width: 0; }
-.hud-tools { display: flex; align-items: flex-start; gap: 8px; }
+.hud-tools { display: flex; align-items: flex-start; flex-shrink: 0; gap: 8px; }
+.hud-project-style-trigger { height: 44px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 14px; padding: 0 13px; background: var(--surface); color: var(--muted); cursor: pointer; box-shadow: 0 3px 12px #0000000a; white-space: nowrap; font-size: 12px; }
+.hud-project-style-trigger:hover { color: var(--text); border-color: var(--border-strong); }
+.hud-project-style-trigger.has-style > svg { color: var(--accent-ink); }
+.hud-project-style-trigger small { display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 5px; background: var(--accent-soft); color: var(--accent-ink); font: 9px 'IBM Plex Mono', monospace; }
+.hud-project-style-trigger:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .hud-project-trigger, .hud-provider-trigger { height: 44px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 14px; padding: 0 14px; background: var(--surface); color: var(--text); cursor: pointer; box-shadow: 0 3px 12px #0000000a; }
-.hud-project-trigger { max-width: min(450px, 50vw); }
+.hud-project { max-width: min(450px, 50vw); }
+.hud-project-trigger { max-width: 100%; }
 .hud-project-trigger strong { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hud-project-trigger > svg { flex-shrink: 0; color: var(--muted); }
 .hud-save { display: flex; flex-shrink: 0; color: var(--muted); }
@@ -87,7 +93,7 @@
 .app-shell .toast { z-index: var(--z-toast); bottom: 72px; }
 @media (max-width: 850px) {
   .workspace-hud { top: 12px; left: 64px; right: 12px; }
-  .hud-project-trigger { max-width: 48vw; }
+  .hud-project { max-width: 48vw; }
   .hud-provider-trigger small { display: none; }
   .app-shell .workspace-drawer { right: 10px; top: 68px; bottom: 64px; width: min(370px, calc(100vw - 72px)); }
 }
@@ -96,7 +102,10 @@
   .editor-canvas { left: 44px; }
   .workspace-hud { left: 54px; gap: 8px; right: 8px; }
   .hud-project-trigger, .hud-provider-trigger { height: 40px; padding: 0 10px; border-radius: 12px; gap: 7px; }
-  .hud-project-trigger { max-width: calc(100vw - 146px); }
+  .hud-project { flex: 1; max-width: none; }
+  .hud-tools { flex-shrink: 0; gap: 5px; }
+  .hud-project-style-trigger { height: 40px; border-radius: 12px; padding: 0 9px; gap: 6px; font-size: 11px; }
+  .project-style-trigger-prefix, .hud-project-style-trigger small { display: none; }
   .hud-project-trigger strong { font-size: 11px; }
   .hud-provider-trigger span { display: none; }
   .hud-provider-trigger { gap: 6px; }

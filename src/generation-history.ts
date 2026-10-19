@@ -197,7 +197,7 @@ export function hydrateMultiGenerateHistory(data: MultiGenerateNodeData): MultiG
 
 export function hydrateGraphGenerationHistory<T extends { type?: string; data: unknown }>(nodes: T[]): T[] {
   return nodes.map((node) => {
-    if (node.type === 'generator') {
+    if (node.type === 'generator' || node.type === 'characterFront') {
       const data = hydrateGeneratorHistory(node.data as GeneratorNodeData);
       return data === node.data ? node : { ...node, data };
     }

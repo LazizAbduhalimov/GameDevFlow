@@ -89,11 +89,12 @@ export async function enhanceImagePrompt(
   prompt: string,
   context: 'image-generation' | 'multi-variation' | 'character-consistency',
   signal?: AbortSignal,
+  projectId = 'default',
 ): Promise<{ prompt: string }> {
   return request('/api/prompts/enhance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, context }),
+    body: JSON.stringify({ prompt, context, projectId }),
     signal,
   });
 }
@@ -251,7 +252,7 @@ export async function getProjects(): Promise<ProjectSummary[]> {
 
 export async function createProject(
   name: string,
-  graph?: Pick<ConseptProject, 'nodes' | 'edges' | 'viewport'>,
+  graph?: Pick<ConseptProject, 'nodes' | 'edges' | 'viewport' | 'designReference' | 'styleLibrary'>,
 ): Promise<ConseptProject> {
   return request('/api/projects', {
     method: 'POST',
@@ -287,7 +288,7 @@ export async function saveProject(projectId: string, project: Omit<ConseptProjec
 export async function startGeneration(
   source: string | string[],
   prompt: string,
-  options: { provider?: ProviderId; outputName?: string; view?: string; projectId?: string; graphNodeId?: string; slotKey?: string } = {},
+  options: { provider?: ProviderId; kind?: 'character-front'; outputName?: string; view?: string; projectId?: string; graphNodeId?: string; slotKey?: string } = {},
 ): Promise<{ jobId: string }> {
   const sourceUrls = Array.isArray(source) ? source : [source];
   return request('/api/generate', {

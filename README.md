@@ -28,6 +28,17 @@ npm run dev
 
 Open `http://127.0.0.1:8080`.
 
+## Project style library
+
+Open **Project style** above the canvas to write shared style instructions and
+upload up to 12 reference images. Changes save automatically within this project.
+Every AI generation, prompt enhancement, and image analysis reads the project's
+current style without a trigger phrase or graph connections. Inputs and style
+references together must fit the 16-image limit. Style images guide the visual
+language; they are not extra subjects or items to detect. Local atlas and material
+processing keep using their selected inputs. The separate **Design reference**
+continues to use its existing «сохрани наш дизайн» trigger.
+
 ## Shared LAN server
 
 After `npm run build`, `npm start` serves the frontend and API on the same port.
@@ -85,6 +96,8 @@ generation needs a supported account/client setup before it can be used here.
 4. Branch from generated results to keep iterating without losing earlier variants.
 5. Open Gallery to inspect, compare, select, bundle, reuse, or move local assets to Trash.
 6. Export selected images as a ZIP, or assemble them into a local sprite sheet with a JSON frame manifest.
+
+The **Character Front** node (Character category) generates one full-body front image in A-pose or T-pose from a description or connected references. Connect its output to **Character views**, or use **Create Multi View** on the result: the existing image automatically fills Front and carries its pose. **Generate other views** renders Left/Back/Right using that image as reference. Front can be regenerated separately; its replacement survives project reloads and stays until the connected source image changes.
 
 The **Character views** node accepts one source and owns four independent Front/Left/Back/Right outputs plus a distinct orange **All views** output. All views becomes usable when the complete set is ready and sends the four images together as references to a downstream ImageGen node. Portrait previews use contain sizing, so the entire generated frame remains visible.
 

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rename } from 'node:fs/promises';
 import { readJson, writeJsonAtomic } from './json-store.mjs';
+import { normalizeProjectStyleLibrary } from './project-style.mjs';
 
 const DEFAULT_PROJECT_ID = 'default';
 const PROJECT_ID = /^(default|[a-f0-9-]{36})$/;
@@ -35,7 +36,7 @@ export class ProjectStore {
   async get(projectId = DEFAULT_PROJECT_ID) {
     const id = validateProjectId(projectId);
     const saved = await readJson(this.filePath(id), null);
-    if (saved) return saved;
+    if (saved) return normalizeProject(saved);
     if (id === DEFAULT_PROJECT_ID) return this.#ensureDefault();
     const error = new Error('Project not found.');
     error.code = 'PROJECT_NOT_FOUND';
@@ -52,6 +53,7 @@ export class ProjectStore {
       if (Array.isArray(input?.edges)) project.edges = JSON.parse(JSON.stringify(input.edges));
       if (validViewport(input?.viewport)) project.viewport = { ...input.viewport };
       project.designReference = cleanDesignReference(input?.designReference);
+      project.styleLibrary = normalizeProjectStyleLibrary(input?.styleLibrary);
       await writeJsonAtomic(this.filePath(id), project);
       return project;
     });
@@ -79,6 +81,9 @@ export class ProjectStore {
         designReference: Object.prototype.hasOwnProperty.call(input || {}, 'designReference')
           ? cleanDesignReference(input.designReference)
           : cleanDesignReference(current.designReference),
+        styleLibrary: Object.prototype.hasOwnProperty.call(input || {}, 'styleLibrary')
+          ? normalizeProjectStyleLibrary(input.styleLibrary)
+          : normalizeProjectStyleLibrary(current.styleLibrary),
         createdAt: current.createdAt || current.updatedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -98,6 +103,7 @@ export class ProjectStore {
       copy.edges = JSON.parse(JSON.stringify(source.edges || []));
       copy.viewport = validViewport(source.viewport) ? { ...source.viewport } : copy.viewport;
       copy.designReference = cleanDesignReference(source.designReference);
+      copy.styleLibrary = normalizeProjectStyleLibrary(source.styleLibrary);
       await writeJsonAtomic(this.filePath(copy.id), copy);
       return copy;
     });
@@ -121,7 +127,7 @@ export class ProjectStore {
   async #ensureDefault() {
     return this.#enqueue(async () => {
       const saved = await readJson(this.filePath(), null);
-      if (saved) return saved;
+      if (saved) return normalizeProject(saved);
       const project = createProject(DEFAULT_PROJECT_ID, 'Untitled pipeline');
       await writeJsonAtomic(this.filePath(), project);
       return project;
@@ -130,7 +136,7 @@ export class ProjectStore {
 
   async #readForWrite(id) {
     const saved = await readJson(this.filePath(id), null);
-    if (saved) return saved;
+    if (saved) return normalizeProject(saved);
     if (id === DEFAULT_PROJECT_ID) {
       const project = createProject(DEFAULT_PROJECT_ID, 'Untitled pipeline');
       await writeJsonAtomic(this.filePath(), project);
@@ -159,9 +165,14 @@ function createProject(id, name) {
     edges: [],
     viewport: { x: 0, y: 0, zoom: 1 },
     designReference: null,
+    styleLibrary: { text: '', images: [] },
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function normalizeProject(project) {
+  return { ...project, styleLibrary: normalizeProjectStyleLibrary(project.styleLibrary) };
 }
 
 function projectSummary(project) {

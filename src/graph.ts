@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Edge, Node, Viewport } from '@xyflow/react';
-import type { ConseptProject, ProjectDesignReference } from './types';
+import type { ConseptProject, ProjectDesignReference, ProjectStyleLibrary } from './types';
 
 export type GraphSnapshot = { nodes: Node[]; edges: Edge[] };
 
@@ -35,6 +35,7 @@ export function projectPayload(
   edges: Edge[],
   viewport: Viewport,
   designReference: ProjectDesignReference | null = null,
+  styleLibrary: ProjectStyleLibrary = { text: '', images: [] },
 ): Omit<ConseptProject, 'updatedAt' | 'createdAt'> {
   return {
     schemaVersion: 1,
@@ -45,6 +46,7 @@ export function projectPayload(
     edges: serializeEdges(edges),
     viewport,
     designReference,
+    styleLibrary,
   };
 }
 

@@ -75,6 +75,23 @@ export class AssetStore {
     return asset.deletedAt ? this.trashPath(asset) : this.filePath(asset);
   }
 
+  async shareAssetsWithProject(assetIds, sourceProjectId, targetProjectId) {
+    return this.#enqueue(async () => {
+      const assets = [...new Set(assetIds.filter(Boolean))].map((id) => this.get(id));
+      for (const asset of assets) {
+        const belongsToSource = asset && (asset.projectId === sourceProjectId || asset.projectIds?.includes(sourceProjectId));
+        if (!belongsToSource || !existsSync(this.filePath(asset))) {
+          const error = new Error('A project reference image is unavailable and cannot be copied.');
+          error.code = 'PROJECT_STYLE_REFERENCE_UNAVAILABLE';
+          throw error;
+        }
+      }
+      const targetId = cleanProjectId(targetProjectId);
+      for (const asset of assets) asset.projectIds = [...new Set([asset.projectId, ...(asset.projectIds || []), targetId])];
+      if (assets.length) await this.#persist();
+    });
+  }
+
   async createUpload({ buffer, name, image, projectId = 'default' }) {
     const id = randomUUID();
     const storageName = `${id}${image.extension}`;

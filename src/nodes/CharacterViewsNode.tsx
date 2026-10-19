@@ -85,6 +85,9 @@ export default function CharacterViewsNode({ id, data, selected }: NodeProps) {
   const ready = outputs.filter((view) => view.outputUrl).length;
   const busy = outputs.some((view) => view.status === 'queued' || view.status === 'running');
   const sourceReady = Boolean(nodeData.sourceReady);
+  const runLabel = busy ? 'Cancel' : nodeData.linkedFront && nodeData.views.front.outputUrl
+    ? ready === 4 ? 'Regenerate other views' : 'Generate other views'
+    : ready ? 'Regenerate' : 'Generate';
   const viewGeometry = outputs.map((view) => `${view.key}:${view.outputUrl || ''}:${view.status}`).join('|');
 
   useLayoutEffect(() => {
@@ -197,7 +200,7 @@ export default function CharacterViewsNode({ id, data, selected }: NodeProps) {
             onClick={handlePrimary}
           >
             {busy ? <Square size={12} /> : <RefreshCw size={12} />}
-            {busy ? 'Cancel' : ready ? 'Regenerate' : 'Generate'}
+            {runLabel}
           </button>
           <Handle
             type="source"

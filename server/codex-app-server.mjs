@@ -75,11 +75,11 @@ export class CodexAppServer extends EventEmitter {
     this.#child = null;
   }
 
-  async generate({ cwd, sourcePath, sourcePaths, outputPath, prompt, onProgress, requireTransparentBackground = false }) {
+  async generate({ cwd, sourcePath, sourcePaths, outputPath, prompt, onProgress, requireTransparentBackground = false, allowNoReferences = false }) {
     await this.start(cwd);
     onProgress('Opening an ImageGen session');
     const references = (Array.isArray(sourcePaths) ? sourcePaths : [sourcePath]).filter(Boolean);
-    if (!references.length) throw new Error('At least one local reference image is required.');
+    if (!references.length && !allowNoReferences) throw new Error('At least one local reference image is required.');
 
     const threadResponse = await this.request('thread/start', {
       cwd,
@@ -176,7 +176,7 @@ export class CodexAppServer extends EventEmitter {
     });
   }
 
-  async enhancePrompt({ cwd, prompt, context = 'image-generation' }) {
+  async enhancePrompt({ cwd, prompt, context = 'image-generation', projectStyle }) {
     await this.start(cwd);
     const contextInstructions = {
       'image-generation': 'Make composition, camera, lighting, materials, background, and preservation constraints explicit where they help.',
@@ -230,8 +230,8 @@ export class CodexAppServer extends EventEmitter {
           threadId,
           input: [{
             type: 'text',
-            text: `${contextInstructions[context] || contextInstructions['image-generation']}\n\nDraft prompt:\n${prompt}`,
-          }],
+            text: [contextInstructions[context] || contextInstructions['image-generation'], `Draft prompt:\n${prompt}`, projectStyle?.instructions].filter(Boolean).join('\n\n'),
+          }, ...projectStyleImageInputs(projectStyle)],
           effort: 'low',
           approvalPolicy: 'never',
         });
@@ -241,7 +241,7 @@ export class CodexAppServer extends EventEmitter {
     });
   }
 
-  async analyzeCharacterProps({ cwd, imagePaths = [], userHint = '', outputSchema }) {
+  async analyzeCharacterProps({ cwd, imagePaths = [], userHint = '', outputSchema, projectStyle }) {
     const paths = Array.isArray(imagePaths) ? imagePaths.filter(Boolean) : [];
     const viewHint = paths.length === 4
       ? 'These four images are front, back, left and right views of the same character. Propose one unified list of extractable parts, not a duplicate list per view.'
@@ -252,6 +252,8 @@ export class CodexAppServer extends EventEmitter {
       'Prefer concrete visible items: head, hair, armor plates, belts, gloves, boots, weapons, pouches, or unique accessories.',
       'Use short human-readable names. Do not merge left and right copies unless they are clearly one object. Ignore the studio background.',
       userHint ? `User guidance: ${userHint}` : '',
+      projectStyle?.instructions || '',
+      projectStyle?.instructions ? `Detect parts only in the first ${paths.length} character source images. Project style references provide visual context; never extract their objects.` : '',
     ].filter(Boolean).join('\n');
     return this.#runStructuredTurn({
       cwd,
@@ -260,6 +262,7 @@ export class CodexAppServer extends EventEmitter {
       input: [
         { type: 'text', text: prompt },
         ...paths.map((imagePath) => ({ type: 'localImage', path: imagePath, detail: 'original' })),
+        ...projectStyleImageInputs(projectStyle),
       ],
       outputSchema,
       timeoutMs: 180_000,
@@ -267,38 +270,41 @@ export class CodexAppServer extends EventEmitter {
     });
   }
 
-  async analyzeUiSheet({ cwd, imagePath, sourceIndex = 0, userHint = '', outputSchema }) {
+  async analyzeUiSheet({ cwd, imagePath, sourceIndex = 0, userHint = '', outputSchema, projectStyle }) {
     const prompt = [
       `Inspect source image ${sourceIndex + 1} as a UI sheet, reference board, sprite sheet, or collection of game-art elements.`,
       'Identify every distinct reusable visual element that can be cropped independently.',
       'Bounds use integer x, y, width, height in a normalized 0..1000 coordinate system. Keep each box tight but include the complete object.',
       'Do not merge neighboring elements. Ignore decorative page backgrounds, rulers, labels that only describe the sheet, and duplicate thumbnails.',
       userHint ? `User guidance: ${userHint}` : '',
+      projectStyle?.instructions || '',
+      projectStyle?.instructions ? 'Detect elements and bounds only in the first attached source image. Never detect objects or calculate bounds from project style reference images.' : '',
     ].filter(Boolean).join('\n');
     return this.#runStructuredTurn({
       cwd,
       serviceName: 'Consept Smart Separation',
       baseInstructions: 'You are a visual UI asset detector. Return only data matching the supplied JSON schema. Do not edit files or generate images.',
-      input: [{ type: 'text', text: prompt }, { type: 'localImage', path: imagePath, detail: 'original' }],
+      input: [{ type: 'text', text: prompt }, { type: 'localImage', path: imagePath, detail: 'original' }, ...projectStyleImageInputs(projectStyle)],
       outputSchema,
       timeoutMs: 180_000,
       emptyMessage: 'Codex finished without UI element data.',
     });
   }
 
-  async groupUiItems({ cwd, items, userHint = '', outputSchema }) {
+  async groupUiItems({ cwd, items, userHint = '', outputSchema, projectStyle }) {
     const prompt = [
       'Group these detected visual elements by their practical game/UI purpose.',
       'Choose the number of semantic groups from the content. Avoid one group per item and avoid broad meaningless buckets.',
       'Every item ID must appear exactly once. Use short human-readable group names and stable lowercase slugs.',
       userHint ? `User guidance: ${userHint}` : '',
+      projectStyle?.instructions || '',
       JSON.stringify(items.map(({ id, name, role, description, sourceIndex }) => ({ id, name, role, description, sourceIndex }))),
     ].filter(Boolean).join('\n\n');
     return this.#runStructuredTurn({
       cwd,
       serviceName: 'Consept Smart Grouping',
       baseInstructions: 'You organize detected game-art and UI elements. Return only data matching the supplied JSON schema.',
-      input: [{ type: 'text', text: prompt }],
+      input: [{ type: 'text', text: prompt }, ...projectStyleImageInputs(projectStyle)],
       outputSchema,
       timeoutMs: 120_000,
       emptyMessage: 'Codex finished without grouping data.',
@@ -386,6 +392,10 @@ export class CodexAppServer extends EventEmitter {
       }
     }
   }
+}
+
+function projectStyleImageInputs(projectStyle) {
+  return (projectStyle?.imagePaths || []).map((imagePath) => ({ type: 'localImage', path: imagePath, detail: 'original' }));
 }
 
 function cleanPromptText(value) {

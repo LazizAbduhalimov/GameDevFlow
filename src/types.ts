@@ -240,11 +240,21 @@ export type CharacterViewOutput = {
   error?: string;
 };
 
+export type CharacterFrontNodeData = GeneratorNodeData & {
+  pose: CharacterPose;
+  outputPose?: CharacterPose;
+  outputPoses?: Record<string, CharacterPose>;
+  jobPose?: CharacterPose;
+  onPoseChange?: (nodeId: string, pose: CharacterPose) => void;
+  onCreateViews?: (nodeId: string) => void;
+};
+
 export type CharacterViewsNodeData = {
   [key: string]: unknown;
   title: string;
   basePrompt: string;
   pose?: CharacterPose;
+  linkedFront?: { nodeId: string; outputUrl: string; pose: CharacterPose };
   subjectKind?: CharacterSubjectKind;
   provider?: ProviderId | 'global';
   generationMode?: GenerationMode;
@@ -547,6 +557,7 @@ export type StudioNode =
   | Node<ReferenceSetNodeData, 'referenceSet'>
   | Node<SmartSeparationNodeData, 'smartSeparation'>
   | Node<GeneratorNodeData, 'generator'>
+  | Node<CharacterFrontNodeData, 'characterFront'>
   | Node<CharacterViewsNodeData, 'characterViews'>
   | Node<MultiGenerateNodeData, 'multiGenerate'>
   | Node<CharacterPartsNodeData, 'characterParts'>
@@ -633,6 +644,11 @@ export type ProjectDesignReference = {
   name: string;
 };
 
+export type ProjectStyleLibrary = {
+  text: string;
+  images: ProjectDesignReference[];
+};
+
 export type ConseptProject = {
   schemaVersion: 1;
   id: string;
@@ -642,6 +658,7 @@ export type ConseptProject = {
   edges: Edge[];
   viewport: Viewport;
   designReference?: ProjectDesignReference | null;
+  styleLibrary?: ProjectStyleLibrary;
   createdAt?: string;
   updatedAt?: string;
 };

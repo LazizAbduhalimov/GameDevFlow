@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import '../catalog.css';
 
-export type NodeCatalogAction = 'upload' | 'references' | 'generator' | 'multi' | 'turnaround' | 'parts'
+export type NodeCatalogAction = 'upload' | 'references' | 'generator' | 'multi' | 'characterFront' | 'turnaround' | 'parts'
   | 'smartSeparation' | 'atlas' | 'relativeAtlas' | 'seamless' | 'materialMaps';
 
 export type NodeCatalogProps = {
@@ -32,6 +32,7 @@ const items: CatalogItem[] = [
   { id: 'references', category: 'Input', label: 'Reference Set', description: 'Collect selected images into a single input.', icon: Images, tone: 'teal' },
   { id: 'generator', category: 'Image', label: 'Generate image', description: 'Create or transform an image with a prompt.', icon: Sparkles, tone: 'coral' },
   { id: 'multi', category: 'Image', label: 'Multi Generate', description: 'Explore several variations from one idea.', icon: Layers3, tone: 'coral' },
+  { id: 'characterFront', category: 'Character', label: 'Character Front', description: 'Create one front image in A-pose or T-pose.', icon: UserRound, tone: 'blue' },
   { id: 'turnaround', category: 'Character', label: 'Character Views', description: 'Turn one image into front, side and back views.', icon: UserRound, tone: 'blue' },
   { id: 'parts', category: 'Character', label: 'Character Parts', description: 'Separate a character into reusable parts.', icon: Shapes, tone: 'blue' },
   { id: 'smartSeparation', category: 'Atlas', label: 'Smart Separation', description: 'Find, extract and group individual assets.', icon: Scan, tone: 'amber' },

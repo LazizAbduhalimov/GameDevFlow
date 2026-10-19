@@ -97,8 +97,8 @@ export class CursorCli {
     });
   }
 
-  async generate({ sourcePaths, outputPath, prompt, requireTransparentBackground = false, onProgress = () => {} }) {
-    if (!sourcePaths?.length) throw new Error('At least one local reference image is required.');
+  async generate({ sourcePaths = [], outputPath, prompt, requireTransparentBackground = false, allowNoReferences = false, onProgress = () => {} }) {
+    if (!sourcePaths.length && !allowNoReferences) throw new Error('At least one local reference image is required.');
     const workspace = await mkdtemp(path.join(os.tmpdir(), 'consept-cursor-'));
     try {
       const references = path.join(workspace, 'references');
@@ -109,11 +109,12 @@ export class CursorCli {
         return target;
       }));
       await writeFile(path.join(workspace, 'request.txt'), [
-        'You are an image generation engine. Use the native generate_image / generateImage tool to generate exactly one raster image. Read the reference images and pass them to the image tool as referenceImagePaths.',
+        'You are an image generation engine. Use the native generate_image / generateImage tool to generate exactly one raster image.',
+        localPaths.length ? 'Read the reference images and pass them to the image tool as referenceImagePaths.' : 'Create the image from the description. Omit referenceImagePaths because there are no reference images.',
         'Do not write code, draw with SVG/canvas/Python, use other providers, or just copy a reference. If the native image tool is unavailable, report the limitation and stop.',
         'Use filename output.png for the image tool. Do not modify the references. Return the generated image path.',
         requireTransparentBackground ? 'Request real PNG alpha transparency outside the asset; never simulate it with a checkerboard.' : '',
-        `Reference image paths:\n${localPaths.join('\n')}`,
+        localPaths.length ? `Reference image paths:\n${localPaths.join('\n')}` : '',
         prompt,
       ].filter(Boolean).join('\n\n'));
       onProgress('Cursor is preparing image generation');

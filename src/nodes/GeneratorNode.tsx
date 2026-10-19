@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useState, type MouseEvent } from 'react';
 import {
   AlertTriangle,
+  ArrowUpRight,
   Box,
   Component,
   Download,
@@ -19,10 +20,14 @@ import {
 import { InspectablePreview } from '../components/InspectablePreview';
 import { GenerationHistoryButton, GenerationHistoryPopover } from '../components/GenerationHistoryPopover';
 import { PromptEnhanceButton } from '../components/PromptEnhanceButton';
-import type { GeneratorNodeData } from '../types';
+import { CHARACTER_POSE_SPECS, normalizeCharacterPose } from '../character-views';
+import type { CharacterFrontNodeData, GeneratorNodeData } from '../types';
 
-export default function GeneratorNode({ id, data, selected }: NodeProps) {
+export default function GeneratorNode({ id, data, selected, type }: NodeProps) {
   const nodeData = data as GeneratorNodeData;
+  const isCharacterFront = type === 'characterFront';
+  const frontData = data as CharacterFrontNodeData;
+  const canGenerate = Boolean(nodeData.prompt.trim() || (isCharacterFront && nodeData.inputCount));
   const busy = nodeData.status === 'queued' || nodeData.status === 'running';
   const hasOutput = Boolean(nodeData.outputUrl);
   const isEditing = nodeData.isConfigOpen ?? (!hasOutput && !busy);
@@ -91,6 +96,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
           </button>
 
           <div className="card-btn-group">
+            {isCharacterFront && <button title="Create Multi View" aria-label="Create Multi View" onClick={() => frontData.onCreateViews?.(id)}><ArrowUpRight size={12} /></button>}
             <GenerationHistoryButton count={revisions.length} onClick={openHistory} />
             <button
               title="Edit parameters"
@@ -155,6 +161,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
       <div className="node-floating-label">
         <Sparkles size={12} />
         <span>{nodeData.title || 'Generate image'}</span>
+        {isCharacterFront && <span className="floating-status-pill">{CHARACTER_POSE_SPECS[normalizeCharacterPose(hasOutput ? frontData.outputPose ?? frontData.pose : frontData.pose)].label}</span>}
         {busy && <span className="floating-status-pill">Generating…</span>}
       </div>
 
@@ -216,18 +223,34 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
             </div>
           )}
 
+          {isCharacterFront && (
+            <div className="turnaround-params nodrag">
+              <span>Pose</span>
+              <div className="turnaround-pose-row" role="radiogroup" aria-label="Character front pose">
+                {(['a-pose', 't-pose', 'neutral'] as const).map((pose) => (
+                  <button key={pose} type="button" role="radio"
+                    aria-checked={normalizeCharacterPose(frontData.pose) === pose}
+                    className={normalizeCharacterPose(frontData.pose) === pose ? 'active' : ''}
+                    disabled={busy} onClick={() => frontData.onPoseChange?.(id, pose)}>
+                    {CHARACTER_POSE_SPECS[pose].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="clean-config-prompt-wrap nodrag">
             <textarea
               className="clean-config-textarea nodrag"
-              aria-label="Image generation instruction"
+              aria-label={isCharacterFront ? 'Character description' : 'Image generation instruction'}
               value={nodeData.prompt}
               onChange={(event) => nodeData.onPromptChange?.(id, event.target.value)}
               onKeyDown={(event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && nodeData.prompt.trim() && !busy) {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && canGenerate && !busy) {
                   nodeData.onRun?.(id);
                 }
               }}
-              placeholder="Describe what to generate or transform…"
+              placeholder={isCharacterFront ? 'Describe your character, or connect a reference image…' : 'Describe what to generate or transform…'}
               rows={3}
               autoFocus={!hasOutput}
             />
@@ -245,7 +268,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
             <span className="prompt-enhance-error" role="alert">{nodeData.enhancePromptError}</span>
           )}
 
-          <div className="clean-presets-row nodrag">
+          {!isCharacterFront && <div className="clean-presets-row nodrag">
             {presets.map((preset) => (
               <button
                 key={preset.id}
@@ -256,7 +279,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
                 + {preset.label}
               </button>
             ))}
-          </div>
+          </div>}
 
           {nodeData.error && (
             <p className="node-error"><AlertTriangle size={12} /> {nodeData.error}</p>
@@ -275,7 +298,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
             <button
               type="button"
               className="clean-btn-primary"
-              disabled={!nodeData.prompt.trim()}
+              disabled={!canGenerate}
               onClick={() => nodeData.onRun?.(id)}
             >
               <Sparkles size={12} />
@@ -285,7 +308,7 @@ export default function GeneratorNode({ id, data, selected }: NodeProps) {
         </article>
       )}
 
-      {nodeData.outputUrl && (
+      {(nodeData.outputUrl || isCharacterFront) && (
         <Handle type="source" position={Position.Right} className="flow-handle output-handle" />
       )}
 

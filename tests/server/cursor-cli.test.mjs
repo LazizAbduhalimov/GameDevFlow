@@ -61,6 +61,14 @@ test('Cursor saves native tool images returned outside the workspace', async (t)
   assert.equal(cli.children.size, 0);
 });
 
+test('Cursor generates Character Front from text only when explicitly allowed', async (t) => {
+  const { cli, output } = await fixture(t);
+  await assert.rejects(cli.generate({ sourcePaths: [], outputPath: output, prompt: 'A robot in T-pose' }), /reference image is required/);
+  await cli.generate({ sourcePaths: [], outputPath: output, prompt: 'A robot in T-pose', allowNoReferences: true });
+  assert.deepEqual(await readFile(output), png);
+  assert.equal(cli.children.size, 0);
+});
+
 test('Cursor rejects text-only results even if read text mentions generateImage', async (t) => {
   const { cli, source, output } = await fixture(t, 'text-only');
   await assert.rejects(cli.generate({ sourcePaths: [source], outputPath: output, prompt: 'generateImage' }), /Finished|without invoking/);

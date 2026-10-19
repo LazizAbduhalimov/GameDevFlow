@@ -84,6 +84,7 @@ import {
 import { SpriteSheetBuilder } from './components/SpriteSheetBuilder';
 import { exportProject, importProject, projectPayload, useGraphHistory } from './graph';
 import { instantiateTemplate } from './workflow-templates';
+import { EMPTY_PROJECT_STYLE_LIBRARY, normalizeProjectStyleLibrary, ProjectStyleContext, PROJECT_STYLE_IMAGE_LIMIT } from './project-style';
 import { copyTemplateAssets } from './template-assets';
 import WorkflowLessonNode from './nodes/WorkflowLessonNode';
 import { arrangeSmartSeparationGraphs, downloadFileName, layoutPropViewStack, nextPropViewPosition, unpackSmartSeparationCards } from './graph-layout';
@@ -99,6 +100,7 @@ import ReferenceSetNode from './nodes/ReferenceSetNode';
 import SmartSeparationNode from './nodes/SmartSeparationNode';
 import { buildRelativeAtlas, buildSpriteAtlas } from './atlas';
 import { buildCharacterViewPrompt, CHARACTER_IDENTITY_PROMPT, CHARACTER_VIEW_KEYS as viewKeys, CHARACTER_VIEW_SPECS, PROP_VIEW_SPECS, isCharacterViewSourceReady, normalizeCharacterSubjectKind } from './character-views';
+import { buildCharacterFrontPrompt, characterViewRunKeys, createCharacterFrontData, syncCharacterFrontInputs } from './character-front';
 import { addCharacterPart, buildPropIdentityPrompt, characterPartHandle, characterPartsInputError, createCharacterPartsData, normalizeCharacterPartsList, parseCharacterPartHandle, patchCharacterPart, removeCharacterPart, selectedCharacterParts, setAllCharacterPartsEnabled, toggleCharacterPart } from './character-parts';
 import { MULTI_ALL_HANDLE, resolveSelectedVariantKey, sourceUrlsForMultiGenerate } from './multi-generate';
 import { NODE_INSPECT_DRAG_THRESHOLD_PX } from './click-without-drag';
@@ -112,6 +114,7 @@ import type {
   CharacterPartCandidate,
   CharacterPartsProgress,
   CharacterPose,
+  CharacterFrontNodeData,
   CharacterViewsNodeData,
   CodexStatus,
   ConseptProject,
@@ -125,6 +128,7 @@ import type {
   MultiGenerateNodeData,
   ProjectSaveState,
   ProjectDesignReference,
+  ProjectStyleLibrary,
   ProjectSummary,
   ReferenceSetItem,
   ReferenceSetNodeData,
@@ -156,7 +160,7 @@ function writeLocal(key: string, value: string) {
   try { localStorage.setItem(`consept-${key}`, value); } catch { /* Browser storage is optional. */ }
 }
 
-const nodeTypes = { workflowLesson: WorkflowLessonNode, image: ImageNode, referenceSet: ReferenceSetNode, smartSeparation: SmartSeparationNode, generator: GeneratorNode, characterViews: CharacterViewsNode, characterParts: CharacterPartsNode, multiGenerate: MultiGenerateNode, spriteAtlas: SpriteAtlasNode, relativeAtlas: RelativeAtlasNode, seamlessTexture: SeamlessTextureNode, materialMaps: MaterialMapsNode, model3d: Model3DNode };
+const nodeTypes = { workflowLesson: WorkflowLessonNode, image: ImageNode, referenceSet: ReferenceSetNode, smartSeparation: SmartSeparationNode, generator: GeneratorNode, characterFront: GeneratorNode, characterViews: CharacterViewsNode, characterParts: CharacterPartsNode, multiGenerate: MultiGenerateNode, spriteAtlas: SpriteAtlasNode, relativeAtlas: RelativeAtlasNode, seamlessTexture: SeamlessTextureNode, materialMaps: MaterialMapsNode, model3d: Model3DNode };
 const maxReferenceImages = 16;
 const edgeDefaults = {
   type: 'default',
@@ -199,7 +203,7 @@ function referenceItemsForNode(node: Node): ReferenceSetItem[] {
     const data = node.data as SmartSeparationNodeData;
     return data.groups.flatMap((group) => item(group.outputUrl, `${data.title} · ${group.name}`, group.outputAssetId));
   }
-  if (node.type === 'generator') {
+  if (node.type === 'generator' || node.type === 'characterFront') {
     const data = node.data as GeneratorNodeData;
     return item(data.outputUrl, data.title);
   }
@@ -280,6 +284,17 @@ function Studio() {
   const [projectName, setProjectName] = useState('Untitled pipeline');
   const [projectDesignReference, setProjectDesignReference] = useState<ProjectDesignReference | null>(null);
   const [designReferenceBusy, setDesignReferenceBusy] = useState(false);
+  const [projectStyleLibrary, setProjectStyleLibrary] = useState<ProjectStyleLibrary>(EMPTY_PROJECT_STYLE_LIBRARY);
+  const projectStyleLibraryRef = useRef(projectStyleLibrary);
+  const savedProjectStylesRef = useRef(new Map<string, string>());
+  const [styleLibraryBusy, setStyleLibraryBusy] = useState(false);
+  const styleUploadBusyRef = useRef(false);
+  const updateProjectStyleLibrary = useCallback((value: ProjectStyleLibrary | undefined, dirty = false) => {
+    const next = normalizeProjectStyleLibrary(value);
+    projectStyleLibraryRef.current = next;
+    setProjectStyleLibrary(next);
+    if (dirty) setSaveState('saving');
+  }, []);
   const [projectBusy, setProjectBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [saveState, setSaveState] = useState<ProjectSaveState>('loading');
@@ -373,10 +388,11 @@ function Studio() {
         setNodes(hydrateProjectNodes(project.nodes as Node[]));
         setEdges(project.edges);
         setProjectName(project.name);
-        setProjectDesignReference(project.designReference || null);
+        setProjectDesignReference(project.designReference || null); updateProjectStyleLibrary(project.styleLibrary);
         revisionRef.current = project.revision;
         projectRevisionsRef.current.set(project.id, project.revision);
-        lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
+        savedProjectStylesRef.current.set(project.id, JSON.stringify(normalizeProjectStyleLibrary(project.styleLibrary)));
+        lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null, normalizeProjectStyleLibrary(project.styleLibrary));
         writeLocal('active-project-id', project.id);
         window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
         setScreen(openWorkspace ? 'workspace' : 'home');
@@ -394,10 +410,10 @@ function Studio() {
           setNodes(hydrateProjectNodes(project.nodes as Node[]));
           setEdges(project.edges);
           setProjectName(project.name);
-          setProjectDesignReference(project.designReference || null);
+          setProjectDesignReference(project.designReference || null); updateProjectStyleLibrary(project.styleLibrary);
           revisionRef.current = project.revision || 0;
           projectRevisionsRef.current.set(activeProjectIdRef.current, revisionRef.current);
-          lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
+          lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null, normalizeProjectStyleLibrary(project.styleLibrary));
           setProjects([{ id: activeProjectIdRef.current, name: project.name, revision: project.revision || 0, nodeCount: project.nodes.length, updatedAt: project.updatedAt }]);
           if (project.viewport) window.setTimeout(() => reactFlow.setViewport(project!.viewport, { duration: 0 }), 0);
           showToast('Backend project was unavailable. Restored the browser backup.');
@@ -419,11 +435,11 @@ function Studio() {
     return () => { cancelled = true; };
   }, [reactFlow, refreshAssets, refreshCodex, refreshJobs, refreshUnity, setEdges, setNodes, showToast]);
 
-  const persistProject = useCallback((manual = false, notify = manual, designReference = projectDesignReference) => {
+  const persistProject = useCallback((manual = false, notify = manual, designReference = projectDesignReference, styleLibrary = projectStyleLibraryRef.current) => {
     if (!projectReady) return Promise.resolve();
     const projectId = activeProjectIdRef.current;
-    const payload = projectPayload(projectId, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), designReference);
-    const hash = projectHash(projectName, nodes, edges, designReference);
+    const payload = projectPayload(projectId, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), designReference, styleLibrary);
+    const hash = projectHash(projectName, nodes, edges, designReference, styleLibrary);
     if (!manual && hash === lastSavedHashRef.current) return saveSequenceRef.current;
     writeLocal(`project-backup:${projectId}`, JSON.stringify(payload));
     if (projectId === 'default') writeLocal('project-backup', JSON.stringify(payload));
@@ -433,6 +449,7 @@ function Studio() {
         const expectedRevision = projectRevisionsRef.current.get(projectId) ?? payload.revision;
         const saved = await saveProject(projectId, { ...payload, revision: expectedRevision });
         projectRevisionsRef.current.set(projectId, saved.revision);
+        savedProjectStylesRef.current.set(projectId, JSON.stringify(normalizeProjectStyleLibrary(saved.styleLibrary)));
         setProjects((current) => current.map((project) => project.id === projectId ? { ...project, name: saved.name, revision: saved.revision, nodeCount: saved.nodes.length, updatedAt: saved.updatedAt } : project));
         if (activeProjectIdRef.current === projectId) {
           revisionRef.current = saved.revision;
@@ -446,6 +463,7 @@ function Studio() {
             const current = await getProject(projectId);
             const saved = await saveProject(projectId, { ...payload, revision: current.revision });
             projectRevisionsRef.current.set(projectId, saved.revision);
+            savedProjectStylesRef.current.set(projectId, JSON.stringify(normalizeProjectStyleLibrary(saved.styleLibrary)));
             setProjects((projectsSnapshot) => projectsSnapshot.map((project) => project.id === projectId ? { ...project, name: saved.name, revision: saved.revision, nodeCount: saved.nodes.length, updatedAt: saved.updatedAt } : project));
             if (activeProjectIdRef.current === projectId) {
               revisionRef.current = saved.revision;
@@ -460,13 +478,28 @@ function Studio() {
       }
     });
     return saveSequenceRef.current;
-  }, [edges, nodes, projectDesignReference, projectName, projectReady, reactFlow, showToast]);
+  }, [edges, nodes, projectDesignReference, projectStyleLibrary, projectName, projectReady, reactFlow, showToast]);
 
   useEffect(() => {
     if (!projectReady) return;
     const timer = window.setTimeout(() => persistProject(false), 720);
     return () => window.clearTimeout(timer);
-  }, [nodes, edges, projectDesignReference, projectName, projectReady, persistProject]);
+  }, [nodes, edges, projectDesignReference, projectStyleLibrary, projectName, projectReady, persistProject]);
+
+  async function prepareProjectStyle() {
+    const projectId = activeProjectIdRef.current;
+    while (true) {
+      if (styleUploadBusyRef.current) throw new Error('Wait for the project style images to finish uploading.');
+      const expected = JSON.stringify(projectStyleLibraryRef.current);
+      await persistProject(false, false);
+      if (projectId !== activeProjectIdRef.current) throw new Error('The active project changed. Run this node again.');
+      if (JSON.stringify(projectStyleLibraryRef.current) !== expected) continue;
+      if (savedProjectStylesRef.current.get(projectId) !== expected) {
+        throw new Error('Project style could not be saved. Save the project before running this node.');
+      }
+      return;
+    }
+  }
 
   function closeWorkspacePanels() {
     setGalleryOpen(false); setJobsOpen(false); setAppearanceOpen(false);
@@ -492,12 +525,13 @@ function Studio() {
     setActiveProjectId(project.id);
     setProjects(projectList);
     const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
-    setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null);
+    setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null); updateProjectStyleLibrary(project.styleLibrary);
     setAssets(projectAssets); setJobs(projectJobs); setCompare([null, null]);
     closeWorkspacePanels();
     revisionRef.current = project.revision;
     projectRevisionsRef.current.set(project.id, project.revision);
-    lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null);
+    savedProjectStylesRef.current.set(project.id, JSON.stringify(normalizeProjectStyleLibrary(project.styleLibrary)));
+    lastSavedHashRef.current = projectHash(project.name, project.nodes as Node[], project.edges, project.designReference || null, normalizeProjectStyleLibrary(project.styleLibrary));
     writeLocal('active-project-id', project.id);
     history.reset({ nodes: restoredNodes, edges: project.edges });
     window.setTimeout(() => reactFlow.setViewport(project.viewport, { duration: 0 }), 0);
@@ -575,11 +609,12 @@ function Studio() {
       const current = await getProject(projectId);
       const saved = await saveProject(projectId, { ...current, name: cleanName });
       projectRevisionsRef.current.set(projectId, saved.revision);
+        savedProjectStylesRef.current.set(projectId, JSON.stringify(normalizeProjectStyleLibrary(saved.styleLibrary)));
       writeLocal(`project-backup:${projectId}`, JSON.stringify(saved));
       if (projectId === 'default') writeLocal('project-backup', JSON.stringify(saved));
       if (projectId === activeProjectIdRef.current) {
         setProjectName(saved.name); revisionRef.current = saved.revision;
-        lastSavedHashRef.current = projectHash(saved.name, nodes, edges, saved.designReference || null);
+        lastSavedHashRef.current = projectHash(saved.name, nodes, edges, saved.designReference || null, normalizeProjectStyleLibrary(saved.styleLibrary));
         setSaveState('saved');
       }
       setProjects(await getProjects());
@@ -646,15 +681,16 @@ function Studio() {
     setNodes((current) => {
       let changed = false;
       const next = current.map((node) => {
-        if (node.type === 'generator') {
+        if (node.type === 'generator' || node.type === 'characterFront') {
           const data = node.data as GeneratorNodeData;
           const job = data.jobId ? jobsById.get(data.jobId) : undefined;
           if (!job) return node;
           const outputUrl = job.status === 'completed' && job.outputUrl ? job.outputUrl : data.outputUrl;
+          const outputPose = node.type === 'characterFront' && job.status === 'completed' ? (data as CharacterFrontNodeData).jobPose ?? (data as CharacterFrontNodeData).pose : data.outputPose;
           const error = job.error || undefined;
-          if (data.status === job.status && data.progress === job.progress && data.error === error && data.outputUrl === outputUrl) return node;
+          if (data.status === job.status && data.progress === job.progress && data.error === error && data.outputUrl === outputUrl && data.outputPose === outputPose) return node;
           changed = true;
-          return { ...node, data: { ...data, status: job.status, progress: job.progress, error, outputUrl } };
+          return { ...node, data: { ...data, status: job.status, progress: job.progress, error, outputUrl, outputPose } };
         }
         if (node.type === 'multiGenerate') {
           const data = node.data as MultiGenerateNodeData;
@@ -708,6 +744,10 @@ function Studio() {
       return changed ? next : current;
     });
   }, [jobs, projectReady, setNodes]);
+
+  useEffect(() => {
+    if (projectReady) setNodes((current) => syncCharacterFrontInputs(current, edges));
+  }, [nodes, edges, projectReady, setNodes]);
 
   useEffect(() => {
     if (!projectReady) return;
@@ -1051,6 +1091,16 @@ function Studio() {
         enhancePromptAvailable: codex.connected,
         onProviderChange: updateProvider,
         onApplyPreset: applyPreset,
+        ...(node.type === 'characterFront' ? {
+          onPoseChange: updateTurnaroundPose,
+          onCreateViews: (nodeId: string) => {
+            const source = reactFlow.getNode(nodeId);
+            if (source) {
+              addCharacterViews({ x: source.position.x + 400, y: source.position.y }, nodeId);
+              window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(280) }), 30);
+            }
+          },
+        } : {}),
         onRun: runGenerator,
         onCancel: cancelGenerator,
         onBranch: branchFromNode,
@@ -1067,7 +1117,7 @@ function Studio() {
           onRestoreRevision: (revisionId) => restoreGeneratorRevision(node.id, revisionId),
         } : undefined),
       } as GeneratorNodeData,
-    };
+    } as StudioNode;
   }
 
   const displayedNodes = nodes.map((node) => attachCallbacks(node as StudioNode));
@@ -1119,7 +1169,8 @@ function Studio() {
     enhanceControllersRef.current.set(nodeId, controller);
     setPromptEnhancements((current) => ({ ...current, [nodeId]: { busy: true } }));
     try {
-      const result = await enhanceImagePrompt(prompt, context, controller.signal);
+      await prepareProjectStyle();
+      const result = await enhanceImagePrompt(prompt, context, controller.signal, activeProjectIdRef.current);
       if (controller.signal.aborted) return;
       if (isCharacterViews) updateTurnaroundPrompt(nodeId, result.prompt);
       else updatePrompt(nodeId, result.prompt);
@@ -1401,6 +1452,15 @@ function Studio() {
     };
   }
 
+  function addCharacterFront(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
+    const id = `character-front-${randomUUID()}`;
+    const center = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 });
+    setNodes((current) => [...current, { id, type: 'characterFront', position: position || center, data: createCharacterFrontData() }]);
+    if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...edgeDefaults }, current));
+    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(280) }), 30);
+    return id;
+  }
+
   function addCharacterViews(position?: { x: number; y: number }, sourceId?: string, sourceHandle?: string | null) {
     const id = `character-views-${randomUUID()}`;
     const viewportCenter = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.56, y: window.innerHeight * 0.48 });
@@ -1569,7 +1629,7 @@ function Studio() {
       }
       return [];
     }
-    if (node.type === 'generator') return [String(node.data.outputUrl || '')].filter(Boolean);
+    if (node.type === 'generator' || node.type === 'characterFront') return [String(node.data.outputUrl || '')].filter(Boolean);
     if (node.type === 'characterViews' && sourceHandle === 'all') {
       const urls = viewKeys.map((key) => (node.data as CharacterViewsNodeData).views[key]?.outputUrl).filter((url): url is string => Boolean(url));
       return urls.length === 4 ? urls : [];
@@ -1606,8 +1666,9 @@ function Studio() {
     return sourceUrlsFor(node, sourceHandle)[0] || '';
   }
 
-  function findInput(nodeId: string) {
+  function findInput(nodeId: string, allowNoInput = false) {
     const incoming = reactFlow.getEdges().filter((edge) => edge.target === nodeId);
+    if (!incoming.length && allowNoInput) return { sourceUrl: '', sourceUrls: [] as string[], error: '' };
     if (incoming.length !== 1) return { sourceUrl: '', sourceUrls: [] as string[], error: incoming.length > 1 ? 'This node has multiple inputs. Keep one connection; collection outputs already carry every image.' : 'Connect an image output to the left input first.' };
     const edge = incoming[0];
     const sourceUrls = sourceUrlsFor(reactFlow.getNode(edge.source), edge.sourceHandle);
@@ -1619,17 +1680,20 @@ function Studio() {
 
   async function runGenerator(nodeId: string) {
     const graphNode = reactFlow.getNode(nodeId);
-    if (!graphNode || graphNode.type !== 'generator') return;
-    const input = findInput(nodeId);
-    const prompt = String(graphNode.data.prompt || '').trim();
+    if (!graphNode || (graphNode.type !== 'generator' && graphNode.type !== 'characterFront')) return;
+    const input = findInput(nodeId, graphNode.type === 'characterFront');
+    const description = String(graphNode.data.prompt || '').trim();
+    const prompt = graphNode.type === 'characterFront' ? buildCharacterFrontPrompt(description, graphNode.data.pose) : description;
+    if (graphNode.type === 'characterFront' && !description && !input.sourceUrls.length) return patchGenerator(nodeId, { status: 'failed', error: 'Describe the character or connect a reference image.' });
     const provider = resolveProvider(graphNode.data.provider);
     if (input.error) return patchGenerator(nodeId, { status: 'failed', error: input.error });
     if (input.sourceUrls.length > maxReferenceImages) return patchGenerator(nodeId, { status: 'failed', error: `This collection contains ${input.sourceUrls.length} images. Generator accepts up to ${maxReferenceImages}; connect one group with fewer sprites or an atlas output.` });
     if (!prompt) return patchGenerator(nodeId, { status: 'failed', error: 'Write a prompt before running this node.' });
     if (providerError(provider)) return patchGenerator(nodeId, { status: 'failed', error: providerError(provider) });
-    patchGenerator(nodeId, { status: 'queued', sourceUrl: input.sourceUrl, sourceUrls: input.sourceUrls, resolvedProvider: provider, progress: input.sourceUrls.length > 1 ? `${input.sourceUrls.length} references added to local queue` : 'Added to local queue', error: undefined });
+    patchGenerator(nodeId, { status: 'queued', ...(graphNode.type === 'characterFront' ? { jobPose: graphNode.data.pose } : {}), sourceUrl: input.sourceUrl, sourceUrls: input.sourceUrls, resolvedProvider: provider, progress: input.sourceUrls.length > 1 ? `${input.sourceUrls.length} references added to local queue` : 'Added to local queue', error: undefined });
     try {
-      const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: String(graphNode.data.title || 'generated'), projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: 'output' });
+      await prepareProjectStyle();
+      const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, ...(graphNode.type === 'characterFront' ? { kind: 'character-front' as const } : {}), outputName: String(graphNode.data.title || 'generated'), projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: 'output' });
       patchGenerator(nodeId, { jobId });
       void pollGenerator(nodeId, jobId);
       void refreshJobs();
@@ -1679,7 +1743,7 @@ function Studio() {
 
   function completeGeneratorJob(nodeId: string, job: GenerationJob) {
     setNodes((current) => current.map((node) => {
-      if (node.id !== nodeId || node.type !== 'generator') return node;
+      if (node.id !== nodeId || (node.type !== 'generator' && node.type !== 'characterFront')) return node;
       const data = node.data as GeneratorNodeData;
       const history = appendRevision(historyFromGenerator(data), {
         outputUrl: job.outputUrl || undefined,
@@ -1688,16 +1752,18 @@ function Studio() {
         prompt: data.prompt,
         createdAt: job.updatedAt || job.createdAt,
       });
-      return { ...node, data: { ...data, status: 'completed', progress: 'Ready', error: undefined, jobId: job.id, ...historyToGeneratorPatch(history) } };
+      const pose = (data as CharacterFrontNodeData).jobPose ?? (data as CharacterFrontNodeData).pose;
+      return { ...node, data: { ...data, ...(node.type === 'characterFront' ? { outputPose: pose, outputPoses: { ...((data as CharacterFrontNodeData).outputPoses || {}), [job.outputUrl!]: pose } } : {}), status: 'completed', progress: 'Ready', error: undefined, jobId: job.id, ...historyToGeneratorPatch(history) } };
     }));
   }
 
   function restoreGeneratorRevision(nodeId: string, revisionId: string) {
     setNodes((current) => current.map((node) => {
-      if (node.id !== nodeId || node.type !== 'generator') return node;
+      if (node.id !== nodeId || (node.type !== 'generator' && node.type !== 'characterFront')) return node;
       const data = node.data as GeneratorNodeData;
       const history = restoreRevision(historyFromGenerator(data), revisionId);
-      return { ...node, data: { ...data, ...historyToGeneratorPatch(history), status: history.outputUrl ? 'completed' : data.status } };
+      const outputPose = history.outputUrl ? (data as CharacterFrontNodeData).outputPoses?.[history.outputUrl] : undefined;
+      return { ...node, data: { ...data, ...(node.type === 'characterFront' ? { outputPose: outputPose ?? data.outputPose, jobPose: outputPose ?? data.outputPose, jobId: history.revisions.find((revision) => revision.id === history.activeRevisionId)?.jobId } : {}), ...historyToGeneratorPatch(history), status: history.outputUrl ? 'completed' : data.status } };
     }));
     syncPreviewToRevision(revisionId);
   }
@@ -1754,7 +1820,7 @@ function Studio() {
   }
 
   function cycleSelectedRevision(node: Node, delta: number) {
-    if (node.type === 'generator') {
+    if (node.type === 'generator' || node.type === 'characterFront') {
       const data = node.data as GeneratorNodeData;
       const nextId = stepRevisionId(historyFromGenerator(data), delta);
       if (!nextId || nextId === data.activeRevisionId) return false;
@@ -1791,6 +1857,7 @@ function Studio() {
     const prompt = `${description}\n\nCreate exactly one square, perfectly tileable seamless BASE COLOR texture for a game material. Use flat neutral albedo with no directional lighting, no cast shadows, no highlights, no perspective, no objects, no borders, no text and no baked ambient occlusion. Preserve consistent texel density. Opposite left/right and top/bottom edges must wrap continuously. Fill the entire image.`;
     patchSeamless(nodeId, { status: 'queued', progress: 'Added seamless texture to local queue', sourceUrl: input.sourceUrl, jobId: undefined, rawOutputUrl: undefined, rawAssetId: undefined, outputUrl: undefined, outputAssetId: undefined, seamScore: undefined, processingSeams: false, error: undefined });
     try {
+      await prepareProjectStyle();
       const { jobId } = await startGeneration(input.sourceUrl, prompt, { provider, outputName: 'seamless-base-color', projectId: activeProjectIdRef.current });
       patchSeamless(nodeId, { jobId });
       void pollSeamlessTexture(nodeId, jobId);
@@ -1901,6 +1968,7 @@ function Studio() {
     });
     patchView(nodeId, viewKey, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined });
     try {
+      await prepareProjectStyle();
       const { jobId } = await startGeneration(input.sourceUrls, prompt, { provider, outputName: `${data.title}-${viewKey}`, view: viewKey, projectId: activeProjectIdRef.current });
       patchView(nodeId, viewKey, { jobId });
       const polling = pollTurnaroundView(nodeId, viewKey, jobId);
@@ -1938,7 +2006,7 @@ function Studio() {
     const node = reactFlow.getNode(nodeId);
     if (!node || node.type !== 'characterViews') return;
     const data = node.data as CharacterViewsNodeData;
-    const keys = viewKeys.filter((key) => !onlyMissing || !data.views[key].outputUrl);
+    const keys = characterViewRunKeys(data, onlyMissing);
     if (!keys.length) return;
     const input = findInput(nodeId);
     const provider = resolveProvider(data.provider);
@@ -1953,6 +2021,7 @@ function Studio() {
     const batchConcurrency = keys.length;
     keys.forEach((key) => patchView(nodeId, key, { status: 'queued', progress: 'Starting a dedicated image worker', sourceUrl: input.sourceUrl, error: undefined }));
     try {
+      await prepareProjectStyle();
       const batch = await startGenerationBatch(input.sourceUrls, keys.map((key) => ({
         key,
         prompt: buildCharacterViewPrompt({
@@ -2100,6 +2169,7 @@ function Studio() {
 
     patchVariant(nodeId, key, { status: 'queued', progress: 'Added to local queue', sourceUrl: input.sourceUrl, error: undefined });
     try {
+      await prepareProjectStyle();
       const { jobId } = await startGeneration(input.sourceUrls, multiVariantPrompt(data, variant.index), { provider, outputName: `${data.title}-variant-${variant.index + 1}`, projectId: activeProjectIdRef.current, graphNodeId: nodeId, slotKey: key });
       patchVariant(nodeId, key, { jobId });
       const polling = pollMultiVariant(nodeId, key, jobId);
@@ -2154,6 +2224,7 @@ function Studio() {
     const multiConcurrency = variants.length;
     variants.forEach((variant) => patchVariant(nodeId, variant.key, { status: 'queued', progress: 'Starting a dedicated image worker', sourceUrl: input.sourceUrl, error: undefined }));
     try {
+      await prepareProjectStyle();
       const batch = await startSlotBatch(input.sourceUrls, variants.map((variant) => ({ key: variant.key, prompt: multiVariantPrompt(data, variant.index), outputName: `${data.title}-variant-${variant.index + 1}` })), { provider, kind: 'variants', concurrency: multiConcurrency, projectId: activeProjectIdRef.current, graphNodeId: nodeId });
       patchMulti(nodeId, { batchId: batch.batchId });
       const polling: Array<{ key: string; promise: Promise<GenerationJob | undefined> }> = [];
@@ -2294,6 +2365,7 @@ function Studio() {
       analysisProgress: { requestId: '', stage: 'queued', message: input.sourceUrls.length === 1 ? 'Preparing source image…' : 'Preparing character views…', startedAt, updatedAt: startedAt },
     });
     try {
+      await prepareProjectStyle();
       const result = await analyzeCharacterParts(input.sourceUrls, {
         projectId,
         userHint: data.notes,
@@ -2509,6 +2581,7 @@ function Studio() {
       },
     });
     try {
+      await prepareProjectStyle();
       const result = await analyzeSmartSeparation(input.sourceUrls, {
         projectId,
         userHint: data.userHint,
@@ -2572,6 +2645,7 @@ function Studio() {
       }
       sourceItems.forEach((item) => patchWorkingItem(item.id, { generationStatus: 'queued', generationProgress: 'Waiting for an ImageGen worker', generationError: undefined, jobId: undefined, rawOutputUrl: undefined, rawOutputAssetId: undefined, outputUrl: undefined, outputAssetId: undefined }));
       try {
+        await prepareProjectStyle();
         const batch = await startSlotBatch([source.sourceUrl], sourceItems.map((item, index) => ({
           key: `sprite-${index + 1}`,
           prompt: smartSeparationRegenerationPrompt(item, source.name),
@@ -2892,13 +2966,19 @@ function Studio() {
   }
 
   async function deleteResult(nodeId: string) {
-    const data = reactFlow.getNode(nodeId)?.data as GeneratorNodeData | undefined;
+    const node = reactFlow.getNode(nodeId);
+    const data = node?.data as GeneratorNodeData | undefined;
     if (!data?.outputUrl || !window.confirm(hasRevisionHistory(historyFromGenerator(data)) ? 'Move this version to Consept trash? Earlier versions stay on the node.' : 'Move this generated PNG to Consept trash?')) return;
     try {
       await deleteGeneratedImage(data.outputUrl);
       const removed = removeActiveRevision(historyFromGenerator(data));
       patchGenerator(nodeId, {
         ...historyToGeneratorPatch(removed),
+        ...(node?.type === 'characterFront' ? {
+          jobId: removed.revisions.find((revision) => revision.id === removed.activeRevisionId)?.jobId,
+          outputPose: removed.outputUrl ? (data as CharacterFrontNodeData).outputPoses?.[removed.outputUrl] : undefined,
+          jobPose: removed.outputUrl ? (data as CharacterFrontNodeData).outputPoses?.[removed.outputUrl] : undefined,
+        } : {}),
         status: removed.outputUrl ? 'completed' : 'idle',
         progress: removed.outputUrl ? 'Ready' : undefined,
         error: undefined,
@@ -2930,6 +3010,45 @@ function Studio() {
       return asset;
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
     finally { if (uploadRef.current) uploadRef.current.value = ''; }
+  }
+
+  async function handleProjectStyleImages(files: File[]) {
+    if (!files.length || styleUploadBusyRef.current) return;
+    if (projectStyleLibraryRef.current.images.length + files.length > PROJECT_STYLE_IMAGE_LIMIT) {
+      showToast(`A project style can contain up to ${PROJECT_STYLE_IMAGE_LIMIT} images.`);
+      return;
+    }
+    const projectId = activeProjectIdRef.current;
+    styleUploadBusyRef.current = true;
+    setStyleLibraryBusy(true);
+    const failures: string[] = [];
+    try {
+      for (const file of files) {
+        try {
+          const asset = await uploadImage(file, projectId);
+          if (activeProjectIdRef.current !== projectId) break;
+          updateProjectStyleLibrary({
+            ...projectStyleLibraryRef.current,
+            images: [...projectStyleLibraryRef.current.images, { assetId: asset.id, url: asset.url, name: asset.name }],
+          }, true);
+        } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
+      }
+      if (activeProjectIdRef.current === projectId) {
+        await persistProject(true, false);
+        await refreshAssets();
+        if (failures.length) showToast(failures.join(' '));
+      }
+    } finally {
+      styleUploadBusyRef.current = false;
+      setStyleLibraryBusy(false);
+    }
+  }
+
+  function removeProjectStyleImage(assetId: string) {
+    updateProjectStyleLibrary({
+      ...projectStyleLibraryRef.current,
+      images: projectStyleLibraryRef.current.images.filter((image) => image.assetId !== assetId),
+    }, true);
   }
 
   async function handleProjectDesignReference(file: File) {
@@ -3031,6 +3150,7 @@ function Studio() {
     if (kind === 'upload') { uploadPositionRef.current = connectionMenu.flow; uploadRef.current?.click(); }
     else if (kind === 'references') groupSelectionAsReferences();
     else if (kind === 'generator') addGenerator(connectionMenu.flow, connectionMenu.sourceId, connectionMenu.sourceHandle);
+    else if (kind === 'characterFront') addCharacterFront(connectionMenu.flow, connectionMenu.sourceId, connectionMenu.sourceHandle);
     else if (kind === 'turnaround') addCharacterViews(connectionMenu.flow, connectionMenu.sourceId, connectionMenu.sourceHandle);
     else if (kind === 'parts') addCharacterParts(connectionMenu.flow, connectionMenu.sourceId, connectionMenu.sourceHandle);
     else if (kind === 'multi') addMultiGenerate(connectionMenu.flow, connectionMenu.sourceId, connectionMenu.sourceHandle);
@@ -3147,10 +3267,11 @@ function Studio() {
 
   async function retryQueueJob(job: GenerationJob) {
     try {
+      await prepareProjectStyle();
       const retried = await retryJob(job.id);
       const jobId = retried.id;
       setJobs((current) => current.map((item) => item.id === retried.id ? retried : item));
-      const generator = nodes.find((node) => node.type === 'generator' && node.data.jobId === job.id);
+      const generator = nodes.find((node) => (node.type === 'generator' || node.type === 'characterFront') && node.data.jobId === job.id);
       if (generator) { patchGenerator(generator.id, { status: 'queued', progress: 'Retry queued' }); void pollGenerator(generator.id, jobId); }
       const turnaround = nodes.find((node) => node.type === 'characterViews' && viewKeys.some((key) => (node.data as CharacterViewsNodeData).views[key].jobId === job.id));
       if (turnaround) {
@@ -3170,15 +3291,32 @@ function Studio() {
     if (!file) return;
     try {
       const project = await importProject(file);
+      const projectId = activeProjectIdRef.current;
+      const styleLibrary = normalizeProjectStyleLibrary(project.styleLibrary);
+      const localAssets = await getAssets({ projectId });
+      const importedImages: ProjectDesignReference[] = [];
+      for (const reference of styleLibrary.images) {
+        const existing = localAssets.find((asset) => asset.id === reference.assetId);
+        if (existing) importedImages.push({ assetId: existing.id, url: existing.url, name: reference.name });
+        else {
+          const response = await fetch(reference.url);
+          if (!response.ok) throw new Error(`Could not import style image ${reference.name}.`);
+          const blob = await response.blob();
+          const asset = await uploadImage(new File([blob], reference.name, { type: blob.type }), projectId);
+          importedImages.push({ assetId: asset.id, url: asset.url, name: reference.name });
+        }
+      }
+      if (activeProjectIdRef.current !== projectId) return;
+      project.styleLibrary = { ...styleLibrary, images: importedImages };
       const restoredNodes = hydrateProjectNodes(project.nodes as Node[]);
-      setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null); reactFlow.setViewport(project.viewport);
+      setNodes(restoredNodes); setEdges(project.edges); setProjectName(project.name); setProjectDesignReference(project.designReference || null); updateProjectStyleLibrary(project.styleLibrary); reactFlow.setViewport(project.viewport);
       history.reset({ nodes: restoredNodes, edges: project.edges }); showToast('Project imported. Autosave will update the local workspace.');
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
     finally { if (importRef.current) importRef.current.value = ''; }
   }
 
   function exportCurrentProject() {
-    exportProject({ ...projectPayload(activeProjectIdRef.current, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), projectDesignReference), updatedAt: new Date().toISOString() });
+    exportProject({ ...projectPayload(activeProjectIdRef.current, projectName, revisionRef.current, nodes, edges, reactFlow.getViewport(), projectDesignReference, projectStyleLibraryRef.current), updatedAt: new Date().toISOString() });
     showToast('Portable project JSON exported.');
   }
 
@@ -3189,6 +3327,7 @@ function Studio() {
   const codexProvider = providers.find((provider) => provider.id === 'codex');
 
   return (
+    <ProjectStyleContext.Provider value={{ projectId: activeProjectId, styleLibrary: projectStyleLibrary }}>
     <div className="app-shell">
       <input ref={uploadRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden onChange={(event) => {
         void handleUpload(event.target.files?.[0], uploadPositionRef.current);
@@ -3202,8 +3341,11 @@ function Studio() {
         modelTargetRef.current = null; event.target.value = '';
       }} />
       <div className={`editor-screen ${screen === 'home' ? 'is-hidden' : ''}`} inert={screen !== 'workspace' || projectBusy} aria-hidden={screen !== 'workspace'}>
-        <WorkspaceChrome key={screen} projectName={projectName} saveState={saveState} busy={projectBusy}
+        <WorkspaceChrome key={`${screen}:${activeProjectId}`} projectName={projectName} saveState={saveState} busy={projectBusy || !projectReady}
           designReference={projectDesignReference} designReferenceBusy={designReferenceBusy}
+          projectStyleLibrary={projectStyleLibrary} styleLibraryBusy={styleLibraryBusy}
+          onProjectStyleTextChange={(text) => updateProjectStyleLibrary({ ...projectStyleLibraryRef.current, text }, true)}
+          onUploadProjectStyleImages={handleProjectStyleImages} onRemoveProjectStyleImage={removeProjectStyleImage}
           activePanel={galleryOpen ? 'gallery' : jobsOpen ? 'jobs' : appearanceOpen ? 'appearance' : null}
           activeJobs={activeJobs} codex={codex} authBusy={authBusy}
           providers={providers} globalProvider={globalProvider} onProviderChange={setGlobalProvider}
@@ -3290,13 +3432,15 @@ function Studio() {
       <PreviewModal preview={preview} onClose={() => setPreview(null)} />
       {toast && <div className="toast" role="status" aria-live="polite"><Sparkles size={14} /> {toast}</div>}
     </div>
+    </ProjectStyleContext.Provider>
   );
 }
 
-function projectHash(name: string, nodes: Node[], edges: Edge[], designReference: ProjectDesignReference | null) {
+function projectHash(name: string, nodes: Node[], edges: Edge[], designReference: ProjectDesignReference | null, styleLibrary: ProjectStyleLibrary) {
   return JSON.stringify({
     name,
     designReference,
+    styleLibrary,
     nodes: nodes.map((node) => ({ id: node.id, type: node.type, position: node.position, data: node.data })),
     edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle })),
   }, (_key, value) => typeof value === 'function' ? undefined : value);

@@ -18,10 +18,12 @@ import { preserveProjectDesignTrigger, promptUsesProjectDesign, withProjectDesig
 import { detectRasterImage, hasPngTransparency } from './image-validation.mjs';
 import { saveUploadedModel } from './model-upload.mjs';
 import { serveFrontend } from './frontend.mjs';
+import { generationInputError } from './generation-input.mjs';
 import { JobQueue } from './job-queue.mjs';
 import { JobStore } from './job-store.mjs';
 import { safeDownloadName, slugify } from './path-safety.mjs';
 import { ProjectStore } from './project-store.mjs';
+import { assetBelongsToProject, normalizeProjectStyleLibrary, projectStyleModelContext, resolveProjectStyle, withProjectStyle } from './project-style.mjs';
 import { characterPropsDetectionSchema, MAX_CHARACTER_PARTS, normalizeCharacterProps } from './character-parts.mjs';
 import { fallbackGroup, groupingSchema, MAX_SMART_SEPARATION_ITEMS, normalizeDetectedItems, normalizeGroups, uiSheetDetectionSchema } from './smart-separation.mjs';
 import { TripoBrowserBridge } from './tripo-browser-bridge.mjs';
@@ -138,11 +140,14 @@ app.post('/api/prompts/enhance', async (request, response) => {
   const context = allowedContexts.has(request.body?.context) ? request.body.context : 'image-generation';
   if (!prompt) return response.status(400).json({ message: 'Write a draft prompt before enhancing it.' });
   try {
-    const enhancedPrompt = await codexWorkerPool.run((worker) => worker.enhancePrompt({ cwd: rootDir, prompt, context }));
+    const projectId = typeof request.body?.projectId === 'string' ? request.body.projectId : 'default';
+    const project = await projectStore.get(projectId);
+    const projectStyle = projectStyleModelContext(resolveProjectStyle(project, assetStore, projectId));
+    const enhancedPrompt = await codexWorkerPool.run((worker) => worker.enhancePrompt({ cwd: rootDir, prompt, context, projectStyle }));
     response.json({ prompt: preserveProjectDesignTrigger(prompt, enhancedPrompt) });
   } catch (error) {
     console.error('Prompt enhancement failed:', error);
-    response.status(502).json({ message: error instanceof Error ? error.message : 'Codex could not enhance the prompt.' });
+    response.status(projectContextErrorStatus(error) || 502).json({ message: error instanceof Error ? error.message : 'Codex could not enhance the prompt.' });
   }
 });
 
@@ -174,7 +179,8 @@ app.post('/api/smart-separation/analyze', async (request, response) => {
   });
 
   try {
-    await projectStore.get(projectId);
+    const project = await projectStore.get(projectId);
+    const style = resolveProjectStyle(project, assetStore, projectId);
     const sources = [];
     for (let sourceIndex = 0; sourceIndex < sourceUrls.length; sourceIndex += 1) {
       const sourceUrl = sourceUrls[sourceIndex];
@@ -194,6 +200,7 @@ app.post('/api/smart-separation/analyze', async (request, response) => {
       imagePath: source.path,
       sourceIndex: source.sourceIndex,
       userHint,
+      projectStyle: projectStyleModelContext(style, [{ path: source.path, assetId: source.sourceAssetId, url: source.sourceUrl }]),
       outputSchema: uiSheetDetectionSchema,
     })).then((payload) => {
       completedSources += 1;
@@ -218,7 +225,7 @@ app.post('/api/smart-separation/analyze', async (request, response) => {
     const warnings = [];
     setSmartSeparationProgress(requestId, { stage: 'grouping', completedSources: sources.length, message: `Organizing ${items.length} detected elements into semantic groups…` });
     try {
-      const grouped = await codexWorkerPool.run((worker) => worker.groupUiItems({ cwd: rootDir, items, userHint, outputSchema: groupingSchema(items.map((item) => item.id)) }));
+      const grouped = await codexWorkerPool.run((worker) => worker.groupUiItems({ cwd: rootDir, items, userHint, projectStyle: projectStyleModelContext(style), outputSchema: groupingSchema(items.map((item) => item.id)) }));
       groups = normalizeGroups(grouped, items);
     } catch (error) {
       console.warn('Smart Separation grouping fell back to Unsorted:', error instanceof Error ? error.message : error);
@@ -238,7 +245,7 @@ app.post('/api/smart-separation/analyze', async (request, response) => {
     console.error('Smart Separation analysis failed:', error);
     const message = error instanceof Error ? error.message : 'Smart Separation analysis failed.';
     finishSmartSeparationProgress(requestId, 'failed', message);
-    response.status(/timed out/i.test(message) ? 504 : 502).json({ message });
+    response.status(projectContextErrorStatus(error) || (/timed out/i.test(message) ? 504 : 502)).json({ message });
   }
 });
 
@@ -271,7 +278,8 @@ app.post('/api/character-parts/analyze', async (request, response) => {
   });
 
   try {
-    await projectStore.get(projectId);
+    const project = await projectStore.get(projectId);
+    const style = resolveProjectStyle(project, assetStore, projectId);
     const sources = [];
     for (const sourceUrl of sourceUrls) {
       const resolved = await assetStore.resolveDataUrl(sourceUrl);
@@ -288,6 +296,7 @@ app.post('/api/character-parts/analyze', async (request, response) => {
       cwd: rootDir,
       imagePaths: sources.map((source) => source.path),
       userHint,
+      projectStyle: projectStyleModelContext(style, sources.map((source) => ({ path: source.path, assetId: source.sourceAssetId, url: source.sourceUrl }))),
       outputSchema: characterPropsDetectionSchema,
     }));
     const normalized = normalizeCharacterProps(payload);
@@ -307,7 +316,7 @@ app.post('/api/character-parts/analyze', async (request, response) => {
     console.error('Character Parts analysis failed:', error);
     const message = error instanceof Error ? error.message : 'Character Parts analysis failed.';
     finishCharacterPartsProgress(requestId, 'failed', message);
-    response.status(/timed out/i.test(message) ? 504 : 502).json({ message });
+    response.status(projectContextErrorStatus(error) || (/timed out/i.test(message) ? 504 : 502)).json({ message });
   }
 });
 
@@ -315,7 +324,11 @@ app.get('/api/projects', async (_request, response, next) => {
   try { response.json(await projectStore.list()); } catch (error) { next(error); }
 });
 app.post('/api/projects', async (request, response, next) => {
-  try { response.status(201).json(await projectStore.create(request.body || {})); } catch (error) { next(error); }
+  try {
+    const styleLibrary = normalizeProjectStyleLibrary(request.body?.styleLibrary);
+    if (styleLibrary.images.length) return response.status(400).json({ message: 'Create the project before uploading its style reference images.' });
+    response.status(201).json(await projectStore.create({ ...(request.body || {}), styleLibrary }));
+  } catch (error) { next(error); }
 });
 app.get('/api/projects/:projectId', async (request, response, next) => {
   try { response.json(await projectStore.get(request.params.projectId)); }
@@ -326,7 +339,10 @@ app.get('/api/projects/:projectId', async (request, response, next) => {
   }
 });
 app.put('/api/projects/:projectId', async (request, response, next) => {
-  try { response.json(await projectStore.save(request.params.projectId, request.body)); }
+  try {
+    if (Object.prototype.hasOwnProperty.call(request.body || {}, 'styleLibrary')) resolveProjectStyle({ styleLibrary: request.body.styleLibrary }, assetStore, request.params.projectId);
+    response.json(await projectStore.save(request.params.projectId, request.body));
+  }
   catch (error) {
     if (error?.code === 'REVISION_CONFLICT') return response.status(409).json({ message: error.message, project: error.current });
     if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
@@ -335,7 +351,17 @@ app.put('/api/projects/:projectId', async (request, response, next) => {
   }
 });
 app.post('/api/projects/:projectId/duplicate', async (request, response, next) => {
-  try { response.status(201).json(await projectStore.duplicate(request.params.projectId, request.body?.name)); }
+  try {
+    const source = await projectStore.get(request.params.projectId);
+    const style = resolveProjectStyle(source, assetStore, source.id);
+    const referenceIds = [...style.sources.map((image) => image.assetId), source.designReference?.assetId].filter((id) => {
+      const asset = assetStore.get(id);
+      return asset && assetBelongsToProject(asset, source.id) && existsSync(assetStore.filePath(asset));
+    });
+    const duplicate = await projectStore.duplicate(source.id, request.body?.name);
+    await assetStore.shareAssetsWithProject(referenceIds, source.id, duplicate.id);
+    response.status(201).json(duplicate);
+  }
   catch (error) {
     if (error?.code === 'INVALID_PROJECT_ID') return response.status(400).json({ message: error.message });
     if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
@@ -369,7 +395,10 @@ app.get('/api/projects/:projectId/export/manifest', async (request, response, ne
 // Legacy backward-compatibility routes for the default project
 app.get('/api/project', async (_request, response, next) => { try { response.json(await projectStore.getDefault()); } catch (error) { next(error); } });
 app.put('/api/project', async (request, response, next) => {
-  try { response.json(await projectStore.saveDefault(request.body)); }
+  try {
+    if (Object.prototype.hasOwnProperty.call(request.body || {}, 'styleLibrary')) resolveProjectStyle({ styleLibrary: request.body.styleLibrary }, assetStore, 'default');
+    response.json(await projectStore.saveDefault(request.body));
+  }
   catch (error) {
     if (error?.code === 'REVISION_CONFLICT') return response.status(409).json({ message: error.message, project: error.current });
     next(error);
@@ -643,7 +672,8 @@ app.post('/api/generate', async (request, response, next) => {
     const viewKey = typeof request.body?.view === 'string' ? request.body.view.trim().slice(0, 32) : '';
     const project = await projectStore.get(projectId);
     if (requestedUrls.length > MAX_REFERENCE_IMAGES) return response.status(400).json({ message: `A generation can use up to ${MAX_REFERENCE_IMAGES} reference images.` });
-    if (!prompt || !requestedUrls.length) return response.status(400).json({ message: 'At least one input image and a prompt are required.' });
+    const inputError = generationInputError(prompt, requestedUrls.length, request.body?.kind);
+    if (inputError) return response.status(400).json({ message: inputError });
     const providerError = await imageProviderError(provider);
     if (providerError) return response.status(409).json({ message: providerError });
     const sources = [];
@@ -654,7 +684,8 @@ app.post('/api/generate', async (request, response, next) => {
     }
     const projectDesignSource = promptUsesProjectDesign(prompt) ? resolveProjectDesignSource(project, projectId) : null;
     const generationSources = withProjectDesignReference(sources, projectDesignSource, prompt, MAX_REFERENCE_IMAGES);
-    const job = createJob({ prompt, sourceUrls: generationSources.sources.map((source) => source.url), sourceAssetIds: generationSources.sources.map((source) => source.assetId).filter(Boolean), usesProjectDesignReference: generationSources.usesProjectDesignReference, provider, outputName, projectId, graphNodeId: graphNodeId || null, slotKey: slotKey || null, viewKey: viewKey || null });
+    withProjectStyle(generationSources.sources, resolveProjectStyle(project, assetStore, projectId), MAX_REFERENCE_IMAGES);
+    const job = createJob({ prompt, batchKind: request.body?.kind === 'character-front' ? 'character-front' : null, sourceUrls: generationSources.sources.map((source) => source.url), sourceAssetIds: generationSources.sources.map((source) => source.assetId).filter(Boolean), usesProjectDesignReference: generationSources.usesProjectDesignReference, provider, outputName, projectId, graphNodeId: graphNodeId || null, slotKey: slotKey || null, viewKey: viewKey || null });
     await jobStore.create(job);
     jobQueue.enqueue(job.id);
     response.status(202).json({ jobId: job.id });
@@ -683,6 +714,7 @@ app.post('/api/batches', async (request, response, next) => {
     const jobs = [];
     for (const slot of batch.slots) {
       const generationSources = withProjectDesignReference(sources, projectDesignSource, slot.prompt, MAX_REFERENCE_IMAGES);
+      withProjectStyle(generationSources.sources, resolveProjectStyle(project, assetStore, projectId), MAX_REFERENCE_IMAGES);
       jobs.push(createJob({ ...slot, sourceUrls: generationSources.sources.map((source) => source.url), sourceAssetIds: generationSources.sources.map((source) => source.assetId).filter(Boolean), usesProjectDesignReference: generationSources.usesProjectDesignReference, provider, batchId, batchConcurrency: batch.concurrency, projectId, graphNodeId: graphNodeId || null }));
     }
     for (const job of jobs) await jobStore.create(job);
@@ -741,6 +773,7 @@ app.use((error, _request, response, _next) => {
   if (error?.code === 'PROJECT_NOT_FOUND') return response.status(404).json({ message: error.message });
   if (error?.code === 'PROJECT_DESIGN_REFERENCE_REQUIRED' || error?.code === 'PROJECT_DESIGN_REFERENCE_UNAVAILABLE') return response.status(409).json({ message: error.message });
   if (error?.code === 'PROJECT_DESIGN_REFERENCE_LIMIT') return response.status(400).json({ message: error.message });
+  if (projectContextErrorStatus(error)) return response.status(projectContextErrorStatus(error)).json({ message: error.message });
   console.error(error);
   response.status(500).json({ message: 'Unexpected local server error.' });
 });
@@ -770,6 +803,13 @@ async function executeImageJob(job) {
     if (!source?.path || !existsSync(source.path) || !assetBelongsToProject(source.asset, job.projectId || 'default')) throw new Error('A selected source asset is no longer available in this project.');
     sources.push(source);
   }
+  const project = await projectStore.get(job.projectId || 'default');
+  const style = resolveProjectStyle(project, assetStore, job.projectId || 'default');
+  const styled = withProjectStyle(sources.map((source) => ({ ...source, url: assetStore.urlFor(source.asset), assetId: source.asset.id })), style, MAX_REFERENCE_IMAGES);
+  const primarySourceCount = new Set(sources.map((source) => source.asset.id)).size;
+  const projectDesignIndex = job.usesProjectDesignReference
+    ? styled.sources.findIndex((source) => source.assetId === sources.at(-1)?.asset.id) + 1
+    : 0;
   const temporaryPath = path.join(generatedDir, `.${job.id}.pending.png`);
   await unlink(temporaryPath).catch(() => {});
   const layerConstraint = job.batchKind === 'character-parts'
@@ -779,19 +819,20 @@ async function executeImageJob(job) {
     : '';
   const taskIntro = job.batchKind === 'smart-separation'
     ? 'Use the attached source sheet only as visual reference. Recreate the requested target as a new isolated asset.'
-    : sources.length > 1 ? `Generate one image using all ${sources.length} attached reference images.` : 'Generate one edited image from the attached source image.';
+    : primarySourceCount > 1 ? `Generate one image using all ${primarySourceCount} primary source images.` : primarySourceCount ? 'Generate one edited image from the first attached source image.' : 'Generate one new image from the user description.';
   const preservationConstraint = job.batchKind === 'smart-separation'
     ? 'Preserve the requested target, not the source-sheet canvas. Use nearby sheet content only to understand the design language.'
     : 'Preserve the main subject identity, silhouette, material language, and palette unless the instruction explicitly changes them.';
   const projectDesignConstraint = job.usesProjectDesignReference
-    ? 'The final attached image is this project\'s design reference. Use it as the primary visual direction for style, shape language, palette, typography, spacing, and finish. Preserve that design approximately while following the requested content; do not copy unrelated subject matter or composition unless explicitly asked.'
+    ? `Attached image ${projectDesignIndex} is this project's legacy design reference. Use it as visual direction for style, shape language, palette, typography, spacing, and finish alongside the project style library. Preserve that design approximately while following the requested content; do not copy unrelated subject matter or composition unless explicitly asked.`
     : '';
-  const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, projectDesignConstraint, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
+  const workerPrompt = [taskIntro, `User instruction: ${job.prompt}`, projectDesignConstraint, styled.instructions, layerConstraint, preservationConstraint, 'Return an image result, not a text-only description.'].filter(Boolean).join('\n');
   const generationOptions = {
-    sourcePaths: sources.map((source) => source.path),
+    sourcePaths: styled.sources.map((source) => source.path),
     outputPath: temporaryPath,
     prompt: workerPrompt,
     requireTransparentBackground: job.batchKind === 'smart-separation',
+    allowNoReferences: job.batchKind === 'character-front',
   };
   const generation = job.provider === 'cursor'
     ? await cursorCli.generate({ ...generationOptions, onProgress: (progress) => { void jobStore.update(job.id, { progress }); } })
@@ -803,7 +844,7 @@ async function executeImageJob(job) {
   const transparentBackground = job.batchKind === 'smart-separation'
     ? hasPngTransparency(await readFile(temporaryPath))
     : generation.transparentBackground;
-  const sourceAssetIds = Array.isArray(job.sourceAssetIds) && job.sourceAssetIds.length ? job.sourceAssetIds : [job.sourceAssetId].filter(Boolean);
+  const sourceAssetIds = styled.sources.map((source) => source.assetId).filter(Boolean);
   const asset = await assetStore.createGeneratedFromFile({ temporaryPath, name: job.outputName, prompt: job.prompt, sourceAssetIds, provider: job.provider, jobId: job.id, projectId: job.projectId || 'default', graphNodeId: job.graphNodeId, slotKey: job.slotKey, view: job.viewKey });
   const progress = job.batchKind === 'smart-separation' && !transparentBackground ? 'Ready · opaque background kept' : 'Ready';
   await jobStore.update(job.id, { status: 'completed', progress, outputUrl: asset.url, outputAssetId: asset.id, transparentBackground, error: null });
@@ -828,9 +869,11 @@ function resolveProjectDesignSource(project, projectId) {
   return { url: assetStore.urlFor(asset), assetId: asset.id };
 }
 
-function assetBelongsToProject(asset, projectId) {
-  if (!asset) return false;
-  return asset.projectId === projectId || (Array.isArray(asset.projectIds) && asset.projectIds.includes(projectId));
+function projectContextErrorStatus(error) {
+  if (error?.code === 'PROJECT_STYLE_REFERENCE_LIMIT' || error?.code === 'INVALID_PROJECT_ID') return 400;
+  if (error?.code === 'PROJECT_STYLE_REFERENCE_UNAVAILABLE') return 409;
+  if (error?.code === 'PROJECT_NOT_FOUND') return 404;
+  return null;
 }
 
 async function getCodexProviderStatus() {

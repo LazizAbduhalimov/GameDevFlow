@@ -144,6 +144,29 @@ test('project store preserves default while creating, listing, duplicating, and 
   assert.equal((await store.getDefault()).id, 'default');
 });
 
+test('project style library persists independently of the legacy reference and normalizes older projects', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'consept-project-style-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = new ProjectStore(path.join(root, 'projects'));
+  const created = await store.create({ name: 'Styled project', styleLibrary: { text: '  Paint by hand\n', images: [{ assetId: 'style-image', url: '/data/assets/style-image', name: 'Paint' }] } });
+  assert.equal(created.styleLibrary.text, '  Paint by hand\n');
+  const legacyReference = { assetId: 'legacy-image', url: '/data/assets/legacy-image', name: 'Legacy' };
+  const saved = await store.save(created.id, { revision: 0, nodes: [], edges: [], designReference: legacyReference });
+  assert.deepEqual(saved.styleLibrary, created.styleLibrary);
+  assert.deepEqual(saved.designReference, legacyReference);
+  const copy = await store.duplicate(created.id);
+  assert.deepEqual(copy.styleLibrary, created.styleLibrary);
+  assert.deepEqual(copy.designReference, legacyReference);
+  const reloaded = new ProjectStore(path.join(root, 'projects'));
+  assert.deepEqual((await reloaded.get(copy.id)).styleLibrary, created.styleLibrary);
+  const old = { ...saved };
+  delete old.styleLibrary;
+  await writeFile(store.filePath(created.id), JSON.stringify(old));
+  assert.deepEqual((await reloaded.get(created.id)).styleLibrary, { text: '', images: [] });
+  const updated = await reloaded.save(created.id, { revision: saved.revision, nodes: [], edges: [], styleLibrary: { text: 'New', images: [] } });
+  assert.deepEqual(updated.styleLibrary, { text: 'New', images: [] });
+});
+
 test('asset store migrates legacy assets to default and scopes new uploads by project', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'consept-assets-projects-'));
   t.after(() => rm(root, { recursive: true, force: true }));
