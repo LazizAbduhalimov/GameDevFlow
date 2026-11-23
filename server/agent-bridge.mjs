@@ -84,7 +84,6 @@ export class AgentBridge {
         this.pending.delete(id);
         reject(bridgeError('BOARD_TIMEOUT', `The board did not finish "${op}" within ${Math.round(limit / 1000)} s.`));
       }, limit);
-      timer.unref?.();
       this.pending.set(id, { resolve, reject, timer, clientId: client.id });
       try { send(client.response, 'command', payload); }
       catch {
