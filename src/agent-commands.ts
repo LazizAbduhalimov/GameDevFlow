@@ -33,6 +33,11 @@ class AgentError extends Error {
 }
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+/** Viewport promises from React Flow wait for an animation frame, which never fires in a background tab; never block a command on them. */
+function settle(viewport: Promise<unknown>, ms: number) {
+  return Promise.race([viewport.catch(() => undefined), wait(ms)]);
+}
 const frames = (count = 2) => new Promise<void>((resolve) => {
   if (document.hidden) { window.setTimeout(resolve, 30); return; }
   let left = count;
@@ -74,7 +79,7 @@ class CursorDriver {
     if (inside) return;
     const zoom = Math.max(view.zoom, 0.5);
     const duration = motionAllowed() ? 420 : 0;
-    await this.ctx.reactFlow.setCenter(point.x + size.width / 2, point.y + Math.min(size.height, 420) / 2, { zoom, duration });
+    await settle(this.ctx.reactFlow.setCenter(point.x + size.width / 2, point.y + Math.min(size.height, 420) / 2, { zoom, duration }), duration + 60);
     await wait(duration + 20);
   }
 
@@ -219,7 +224,7 @@ export async function executeAgentCommand(command: AgentCommand, ctx: AgentBoard
     case 'focus': {
       const ids = Array.isArray(args.node_ids) ? args.node_ids.map(String) : [];
       const nodes = ids.length ? ids.map((id) => requireNode(ctx, id)) : undefined;
-      await ctx.reactFlow.fitView({ nodes, padding: 0.2, maxZoom: 1, duration: motionAllowed() ? 450 : 0 });
+      await settle(ctx.reactFlow.fitView({ nodes, padding: 0.2, maxZoom: 1, duration: motionAllowed() ? 450 : 0 }), 600);
       await wait(motionAllowed() ? 470 : 0);
       if (nodes?.[0]) await driver.goTo(driver.nodePoint(nodes[0].id));
       return { ok: true };
