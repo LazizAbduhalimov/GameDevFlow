@@ -28,6 +28,20 @@ npm run dev
 
 Open `http://127.0.0.1:8080`.
 
+## Live agent board (MCP)
+
+AI agents (Claude Code, Cursor, Codex, any MCP client) can build pipelines on your
+board in real time: a named Figma-style cursor places nodes, types prompts, drags
+connections and runs generation while you watch. Start Consept, open a board, then:
+
+```powershell
+claude mcp add consept -- node "<path to this repo>\server\mcp-stdio.mjs"
+```
+
+or connect over HTTP at `http://127.0.0.1:4317/mcp`. Claude Code started in this
+repository picks the server up from `.mcp.json`. Tools, settings and the HTTP API are
+in [docs/agent-mcp.md](docs/agent-mcp.md).
+
 ## Project style library
 
 Open **Project style** above the canvas to write shared style instructions and

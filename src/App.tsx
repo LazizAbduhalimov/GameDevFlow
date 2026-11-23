@@ -62,6 +62,9 @@ import {
   uploadModel,
 } from './api';
 import { parseAppPath, readAppRoute, writeAppRoute, type AppRouteWriteMode } from './app-route';
+import { agentActivity, useAgentBridge, type AgentBoardContext } from './agent-commands';
+import { AGENT_DATA_KEYS, type AgentNodeType } from './agent-board';
+import { AgentCursorLayer } from './components/AgentCursorLayer';
 import { WorkspaceChrome, CanvasDock } from './components/WorkspaceChrome';
 import { ProjectHome } from './components/ProjectHome';
 import { NodeCatalog, type NodeCatalogAction } from './components/NodeCatalog';
@@ -319,6 +322,13 @@ function Studio() {
   const enhanceControllersRef = useRef(new Map<string, AbortController>());
   const seamlessFinalizersRef = useRef(new Set<string>());
   const reactFlow = useReactFlow();
+  const agentContextRef = useRef<AgentBoardContext | null>(null);
+
+  /** Auto-framing after UI actions; skipped while an agent drives the board so its cursor keeps control of the view. */
+  function autoFitView(options: Parameters<typeof reactFlow.fitView>[0], delay: number) {
+    if (agentActivity.active > 0) return;
+    window.setTimeout(() => { if (agentActivity.active === 0) void reactFlow.fitView(options); }, delay);
+  }
 
   const applyGraph = useCallback((snapshot: { nodes: Node[]; edges: Edge[] }) => {
     setNodes(snapshot.nodes);
@@ -1097,7 +1107,7 @@ function Studio() {
             const source = reactFlow.getNode(nodeId);
             if (source) {
               addCharacterViews({ x: source.position.x + 400, y: source.position.y }, nodeId);
-              window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(280) }), 30);
+              autoFitView({ padding: 0.18, duration: canvasDuration(280) }, 30);
             }
           },
         } : {}),
@@ -1215,7 +1225,7 @@ function Studio() {
     };
     setNodes((current) => existing ? current.map((item) => item.id === id ? node : item) : [...current, node]);
     setEdges((current) => current.some((edge) => edge.target === id) ? current : addEdge({ id: `edge-${sourceNodeId}-tripo-${id}`, source: sourceNodeId, sourceHandle, target: id, ...edgeDefaults }, current));
-    window.setTimeout(() => reactFlow.fitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }), 80);
+    autoFitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }, 80);
     showToast('Tripo opened in your browser. Download the reference images from the model card, then import the exported GLB.');
   }
 
@@ -1249,7 +1259,7 @@ function Studio() {
         if (targetId) return current.map((node) => node.id === id ? { ...node, data } : node);
         return [...current, { id, type: 'model3d', position: position || pastePosition(), data }];
       });
-      window.setTimeout(() => reactFlow.fitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }), 80);
+      autoFitView({ nodes: [{ id }], padding: 0.3, duration: canvasDuration(320) }, 80);
       showToast('GLB imported into this project.');
       return saved;
     } catch (error) { showToast(error instanceof Error ? error.message : String(error)); }
@@ -1437,7 +1447,7 @@ function Studio() {
     const node: StudioNode = { id, type: 'generator', position: position || viewportCenter, data: { title: 'Generate image', prompt, provider: 'global', status: 'idle' } };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(280) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.18, duration: canvasDuration(280) }, 30);
     return id;
   }
 
@@ -1457,7 +1467,7 @@ function Studio() {
     const center = reactFlow.screenToFlowPosition({ x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 });
     setNodes((current) => [...current, { id, type: 'characterFront', position: position || center, data: createCharacterFrontData() }]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...edgeDefaults }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(280) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.18, duration: canvasDuration(280) }, 30);
     return id;
   }
 
@@ -1467,7 +1477,7 @@ function Studio() {
     const node: StudioNode = { id, type: 'characterViews', position: position || viewportCenter, data: createTurnaroundData() };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.15, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.15, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1481,7 +1491,7 @@ function Studio() {
     const node: StudioNode = { id, type: 'characterParts', position: position || viewportCenter, data: createCharacterPartsDataNode() };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.14, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.14, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1504,7 +1514,7 @@ function Studio() {
     };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.16, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.16, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1529,7 +1539,7 @@ function Studio() {
     };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...referenceEdgeDefaults }, current));
-    window.setTimeout(() => reactFlow.fitView({ nodes: [node], padding: 0.12, duration: canvasDuration(320) }), 30);
+    autoFitView({ nodes: [node], padding: 0.12, duration: canvasDuration(320) }, 30);
     return id;
   }
 
@@ -1548,7 +1558,7 @@ function Studio() {
     };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.16, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.16, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1558,7 +1568,7 @@ function Studio() {
     const node: StudioNode = { id, type: 'relativeAtlas', position: position || viewportCenter, data: { title: 'Relative Atlas', status: 'idle', settings: { canvasSize: 1024, padding: 8, outerMargin: 12, pixelArt: false } } };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...(sourceHandle === 'all' ? allViewsEdgeDefaults : edgeDefaults) }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.16, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.16, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1579,7 +1589,7 @@ function Studio() {
     };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...edgeDefaults }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.16, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.16, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1599,7 +1609,7 @@ function Studio() {
     };
     setNodes((current) => [...current, node]);
     if (sourceId) setEdges((current) => addEdge({ id: `edge-${sourceId}-${sourceHandle || 'output'}-${id}`, source: sourceId, sourceHandle, target: id, ...edgeDefaults }, current));
-    if (!sourceId || window.innerWidth <= 850) window.setTimeout(() => reactFlow.fitView({ padding: 0.14, duration: canvasDuration(300) }), 30);
+    if (!sourceId || window.innerWidth <= 850) autoFitView({ padding: 0.14, duration: canvasDuration(300) }, 30);
     return id;
   }
 
@@ -1607,7 +1617,7 @@ function Studio() {
     const source = reactFlow.getNode(nodeId);
     if (!source) return;
     addGenerator({ x: source.position.x + (source.type === 'characterParts' || source.type === 'materialMaps' ? 540 : source.type === 'characterViews' ? 360 : 390), y: source.position.y + 32 }, nodeId, sourceHandle);
-    window.setTimeout(() => reactFlow.fitView({ padding: 0.18, duration: canvasDuration(320) }), 30);
+    autoFitView({ padding: 0.18, duration: canvasDuration(320) }, 30);
   }
 
   function sourceUrlsFor(node: Node | undefined, sourceHandle?: string | null): string[] {
@@ -2123,7 +2133,7 @@ function Studio() {
     setNodes(result.nodes);
     setEdges(result.edges);
     const arranged = result.nodes.filter((entry) => entry.id === nodeId || result.edges.some((edge) => edge.source === nodeId && edge.target === entry.id));
-    window.setTimeout(() => void reactFlow.fitView({ nodes: arranged, padding: 0.16, duration: canvasDuration(280) }), 30);
+    autoFitView({ nodes: arranged, padding: 0.16, duration: canvasDuration(280) }, 30);
     if (result.added) showToast(`${result.added} asset card${result.added === 1 ? '' : 's'} unpacked into even columns.`);
     else showToast('Asset cards rearranged into even columns.');
   }
@@ -2139,7 +2149,7 @@ function Studio() {
     setNodes(result.nodes);
     setEdges(result.edges);
     const focus = result.nodes.filter((node) => (selectedIds.length ? selectedIds.includes(node.id) : node.type === 'smartSeparation') || result.edges.some((edge) => edge.target === node.id && (selectedIds.length ? selectedIds.includes(edge.source) : true)));
-    window.setTimeout(() => void reactFlow.fitView({ nodes: focus.length ? focus : undefined, padding: 0.16, duration: canvasDuration(280) }), 30);
+    autoFitView({ nodes: focus.length ? focus : undefined, padding: 0.16, duration: canvasDuration(280) }, 30);
     showToast('Cards arranged in even group columns.');
   }
 
@@ -3089,7 +3099,7 @@ function Studio() {
       if (placed) added += 1;
     }
     if (added) {
-      window.setTimeout(() => reactFlow.fitView({ padding: 0.26, duration: canvasDuration(320) }), 30);
+      autoFitView({ padding: 0.26, duration: canvasDuration(320) }, 30);
       showToast(source === 'paste' ? `${added} pasted image${added === 1 ? '' : 's'} added.` : `${added} dropped image${added === 1 ? '' : 's'} added.`);
     }
   }
@@ -3113,7 +3123,7 @@ function Studio() {
       data: { title: options.title || (asset.kind === 'generated' ? 'Gallery result' : 'Source image'), imageUrl: asset.url, fileName: asset.name, assetId: asset.id, hasInput: options.hasInput },
     };
     setNodes((current) => [...current, node]);
-    if (options.fit !== false) window.setTimeout(() => reactFlow.fitView({ padding: 0.26, duration: canvasDuration(320) }), 30);
+    if (options.fit !== false) autoFitView({ padding: 0.26, duration: canvasDuration(320) }, 30);
     return id;
   }
 
@@ -3134,7 +3144,7 @@ function Studio() {
     const source = nodes.find((node) => node.selected && Boolean(sourceUrlFor(node)));
     if (!source) return showToast('Select an image result first, then add Character Views.');
     addCharacterViews({ x: source.position.x + 390, y: source.position.y - 80 }, source.id);
-    window.setTimeout(() => reactFlow.fitView({ padding: 0.14, duration: canvasDuration(380) }), 40);
+    autoFitView({ padding: 0.14, duration: canvasDuration(380) }, 40);
   }
 
   function addSeamlessMaterialTemplate() {
@@ -3142,7 +3152,7 @@ function Studio() {
     if (!source) return showToast('Select one image or generated result first, then add the material recipe.');
     const seamlessId = addSeamlessTexture({ x: source.position.x + 390, y: source.position.y - 20 }, source.id);
     addMaterialMaps({ x: source.position.x + 800, y: source.position.y - 70 }, seamlessId, 'baseColor');
-    window.setTimeout(() => reactFlow.fitView({ padding: 0.12, duration: canvasDuration(420) }), 50);
+    autoFitView({ padding: 0.12, duration: canvasDuration(420) }, 50);
   }
 
   function createFromMenu(kind: NodeCatalogAction) {
@@ -3192,8 +3202,9 @@ function Studio() {
     };
     setNodes((current) => [...current.map((node) => ({ ...node, selected: false })), referenceNode]);
     setEdges((current) => sourceNodes.reduce((next, source) => addEdge({ id: `edge-${source.id}-references-${id}`, source: source.id, sourceHandle: referenceSourceHandle(source), target: id, ...referenceEdgeDefaults }, next), current));
-    window.setTimeout(() => reactFlow.fitView({ nodes: [referenceNode], padding: 0.42, duration: canvasDuration(320) }), 30);
+    autoFitView({ nodes: [referenceNode], padding: 0.42, duration: canvasDuration(320) }, 30);
     showToast(`${items.length} images packed into one Reference Set. Original nodes were kept.`);
+    return id;
   }
 
   function clearCanvas() {
@@ -3320,6 +3331,88 @@ function Studio() {
     showToast('Portable project JSON exported.');
   }
 
+  agentContextRef.current = {
+    reactFlow,
+    canvas: () => canvasShellRef.current,
+    projectId: () => activeProjectIdRef.current,
+    projectName: () => projectName,
+    isWorkspace: () => screen === 'workspace' && projectReady,
+    openProject: async (projectId: string) => {
+      await activateProject(projectId, 'push');
+      await new Promise((resolve) => window.setTimeout(resolve, 160));
+      if (activeProjectIdRef.current !== projectId) throw new Error('The board is busy switching projects. Try again.');
+    },
+    setNodes,
+    setEdges,
+    createNode: (type: AgentNodeType, position, sourceId, sourceHandle) => {
+      const add = {
+        generator: addGenerator, characterFront: addCharacterFront, characterViews: addCharacterViews, characterParts: addCharacterParts,
+        multiGenerate: addMultiGenerate, smartSeparation: addSmartSeparation, spriteAtlas: addSpriteAtlas, relativeAtlas: addRelativeAtlas,
+        seamlessTexture: addSeamlessTexture, materialMaps: addMaterialMaps,
+      }[type];
+      return add(position, sourceId, sourceHandle);
+    },
+    addImageNode: (image, position, title) => {
+      const id = addAssetNode({ id: image.assetId || '', url: image.url, name: image.fileName || title || 'Agent image', kind: image.url.startsWith('/data/generated/') ? 'generated' : 'source', projectId: activeProjectIdRef.current, size: 0, createdAt: new Date().toISOString() }, position, { title, fit: false });
+      void refreshAssets();
+      return id;
+    },
+    createReferenceSet: async (nodeIds, title) => {
+      const wanted = new Set(nodeIds);
+      setNodes((current) => current.map((node) => ({ ...node, selected: wanted.has(node.id) })));
+      await new Promise((resolve) => window.setTimeout(resolve, 60));
+      const id = groupSelectionAsReferences() || undefined;
+      if (id && title?.trim()) setNodes((current) => current.map((node) => node.id === id ? { ...node, data: { ...node.data, title: title.trim().slice(0, 80) } } : node));
+      return id;
+    },
+    connect: (source, target, sourceHandle) => onConnect({ source, target, sourceHandle: sourceHandle ?? null, targetHandle: null }),
+    applyNodeData: (nodeId, data) => {
+      const node = reactFlow.getNode(nodeId);
+      if (!node) return;
+      const { variantCount, settings, ...rest } = data;
+      const allowed = Object.fromEntries(Object.entries(rest).filter(([key]) => AGENT_DATA_KEYS.has(key)));
+      if (Object.keys(allowed).length) setNodes((current) => current.map((item) => item.id === nodeId ? { ...item, data: { ...item.data, ...allowed } } : item));
+      if (variantCount !== undefined && node.type === 'multiGenerate') updateVariantCount(nodeId, Number(variantCount));
+      if (settings && typeof settings === 'object') {
+        const patch = settings as Record<string, never>;
+        if (node.type === 'spriteAtlas') updateAtlasSettings(nodeId, patch);
+        else if (node.type === 'relativeAtlas') updateRelativeAtlasSettings(nodeId, patch);
+        else if (node.type === 'seamlessTexture') updateSeamlessSettings(nodeId, patch);
+        else if (node.type === 'materialMaps') updateMaterialMapSettings(nodeId, patch);
+        else if (node.type === 'smartSeparation') updateSmartSettings(nodeId, patch);
+      }
+    },
+    runNode: (nodeId) => {
+      const node = reactFlow.getNode(nodeId);
+      if (!node) throw new Error('Node not found.');
+      switch (node.type) {
+        case 'generator': case 'characterFront': return runGenerator(nodeId);
+        case 'multiGenerate': return runMultiAll(nodeId);
+        case 'characterViews': return runTurnaroundAll(nodeId);
+        case 'seamlessTexture': return runSeamlessTexture(nodeId);
+        case 'spriteAtlas': return buildAtlas(nodeId);
+        case 'relativeAtlas': return buildRelativeAtlasNode(nodeId);
+        case 'materialMaps': return buildMaterialMapSet(nodeId);
+        case 'smartSeparation': return (node.data as SmartSeparationNodeData).items?.length ? buildSmartNode(nodeId) : analyzeSmartNode(nodeId);
+        case 'characterParts': return (node.data as CharacterPartsNodeData).parts?.length ? generateSelectedProps(nodeId) : analyzeCharacterPartsNode(nodeId);
+        default: throw new Error(`${node.type} nodes have nothing to run.`);
+      }
+    },
+    cancelNode: (nodeId) => {
+      const node = reactFlow.getNode(nodeId);
+      if (!node) throw new Error('Node not found.');
+      if (node.type === 'generator' || node.type === 'characterFront') return cancelGenerator(nodeId);
+      if (node.type === 'characterViews') return cancelTurnaroundAll(nodeId);
+      if (node.type === 'seamlessTexture') return cancelSeamlessTexture(nodeId);
+      if (node.type === 'multiGenerate') {
+        const data = node.data as MultiGenerateNodeData;
+        return Promise.all(data.variants.filter((variant) => variant.status === 'queued' || variant.status === 'running').map((variant) => cancelMultiVariant(nodeId, variant.key)));
+      }
+      throw new Error(`${node.type} work cannot be cancelled.`);
+    },
+  };
+  useAgentBridge(agentContextRef, { ready: projectReady, projectId: activeProjectId, projectName, screen });
+
   const activeJobs = jobs.filter((job) => job.status === 'queued' || job.status === 'running').length;
   const selectedReferenceNodes = nodes.filter((node) => node.selected && referenceItemsForNode(node).length > 0);
   const selectedReferenceCount = uniqueReferenceItems(selectedReferenceNodes).length;
@@ -3399,6 +3492,7 @@ function Studio() {
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={0.8} color={theme.palette.canvasDot} />
             {minimapOpen && <MiniMap position="bottom-right" pannable zoomable nodeColor={theme.palette.canvasEdge} maskColor={theme.palette.canvasMask} />}
+            <AgentCursorLayer />
             {canCreateReferenceSet && <Panel position="top-center" className="selection-toolbar"><span>{selectedReferenceCount} images selected</span><button type="button" onClick={groupSelectionAsReferences}><Layers3 size={14} /> Create Reference Set <kbd>Ctrl G</kbd></button></Panel>}
           </ReactFlow>
 

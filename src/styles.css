@@ -1493,3 +1493,28 @@ to { border-color: var(--border); }
   .sprite-controls { padding: 12px; gap: 10px; }
   .sprite-actions { padding: 10px 12px; }
 }
+
+/* Live agent cursors (agent board API / MCP) */
+.agent-cursor-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
+.agent-cursor { position: absolute; left: 0; top: 0; will-change: transform; transition: opacity .3s; }
+.agent-cursor-arrow { position: absolute; left: -2px; top: -2px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); transition: transform .12s ease-out; transform-origin: 3px 3px; }
+.agent-cursor.is-pressed .agent-cursor-arrow { transform: scale(.82); }
+.agent-cursor-ripple { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--agent-color); animation: agent-cursor-ripple .45s ease-out forwards; }
+.agent-cursor-label { position: absolute; left: 16px; top: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 280px; }
+.agent-cursor-label > span { padding: 3px 8px; border-radius: 6px 10px 10px 10px; background: var(--agent-color); color: #fff; font: 700 11px/1.35 'Manrope', sans-serif; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.agent-cursor-label > p { margin: 0; width: max-content; max-width: 260px; padding: 7px 10px; border-radius: 4px 12px 12px 12px; background: var(--surface, #1b1b1d); color: var(--text, #ededee); border: 1px solid color-mix(in srgb, var(--agent-color) 55%, transparent); font: 500 12px/1.4 'Manrope', sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.28); animation: agent-bubble-in .22s ease-out both; }
+.agent-drag-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.agent-presence-bar { position: absolute; z-index: 31; left: 50%; top: 72px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 999px; background: color-mix(in srgb, var(--surface, #1b1b1d) 92%, transparent); border: 1px solid var(--border, #2a2a2e); box-shadow: 0 10px 30px rgba(0,0,0,.25); backdrop-filter: blur(8px); max-width: calc(100% - 32px); pointer-events: auto; }
+.agent-presence-chip { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 4px 10px 4px 8px; font: 500 12px/1.3 'Manrope', sans-serif; color: var(--muted, #a1a1aa); }
+.agent-presence-chip i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--agent-color); box-shadow: 0 0 0 0 var(--agent-color); animation: agent-live 1.8s ease-out infinite; }
+.agent-presence-chip strong { color: var(--text, #ededee); font-weight: 700; }
+.agent-presence-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+.agent-presence-bar button { border: 1px solid var(--border, #2a2a2e); background: transparent; color: var(--muted, #a1a1aa); border-radius: 999px; padding: 4px 11px; font: 600 11px 'Manrope', sans-serif; cursor: pointer; }
+.agent-presence-bar button.is-on { color: var(--text, #ededee); background: color-mix(in srgb, var(--accent, #8b5cf6) 18%, transparent); border-color: color-mix(in srgb, var(--accent, #8b5cf6) 45%, transparent); }
+@keyframes agent-cursor-ripple { from { transform: scale(.4); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes agent-bubble-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes agent-live { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--agent-color) 60%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+@keyframes agent-node-spawn { from { opacity: 0; transform: scale(.86) translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes agent-node-working { 0%, 100% { outline-offset: 3px; outline-color: color-mix(in srgb, var(--agent-color) 75%, transparent); } 50% { outline-offset: 10px; outline-color: transparent; } }
+@media (max-width: 640px) { .agent-presence-chip > span { max-width: 140px; } .agent-presence-bar { top: 64px; } }
+@media (prefers-reduced-motion: reduce) { .agent-presence-chip i, .agent-cursor-ripple { animation: none; } }

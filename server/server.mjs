@@ -10,6 +10,8 @@ import { CodexWorkerPool } from './codex-worker-pool.mjs';
 import { CodexImageWorkers } from './codex-image-workers.mjs';
 import { codexSpawnEnv, resolveCodexCommand } from './codex-command.mjs';
 import { CursorCli } from './cursor-cli.mjs';
+import { AgentBridge, bridgeErrorStatus } from './agent-bridge.mjs';
+import { createMcpSession, imageMimeType } from './agent-mcp.mjs';
 import { AssetStore } from './asset-store.mjs';
 import { resolveExportAssets, streamAssetArchive } from './archive-export.mjs';
 import { batchRequestErrorMessage, MAX_REFERENCE_IMAGES, normalizeBatchRequest } from './batch-normalization.mjs';
@@ -65,6 +67,8 @@ const tripoBrowserBridge = new TripoBrowserBridge({
   onEvent: publishTripoEvent,
 });
 const unityBridge = new UnityBridge({ settingsPath: path.join(settingsDir, 'unity.json') });
+const agentBridge = new AgentBridge();
+const mcpSessions = new Map();
 
 function setSmartSeparationProgress(requestId, patch) {
   const previous = smartSeparationRuns.get(requestId) || {};
@@ -91,7 +95,9 @@ function finishCharacterPartsProgress(requestId, stage, message) {
 await Promise.all([mkdir(assetsDir, { recursive: true }), mkdir(generatedDir, { recursive: true }), mkdir(modelsDir, { recursive: true }), mkdir(settingsDir, { recursive: true }), assetStore.initialize(), jobStore.initialize()]);
 const jobQueue = new JobQueue({ store: jobStore, worker: executeImageJob, concurrency: Infinity });
 app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
+const jsonBody = express.json({ limit: '1mb' });
+const agentResultBody = express.json({ limit: '8mb' });
+app.use((request, response, next) => (request.path.startsWith('/api/agent/results/') ? agentResultBody : jsonBody)(request, response, next));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 1 } });
 const modelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 128 * 1024 * 1024, files: 1 } });
 
@@ -765,6 +771,98 @@ app.delete('/api/files', async (request, response, next) => {
   }
 });
 
+// Live agent board: agents (MCP or HTTP) send commands, the open browser board executes them with a visible cursor.
+const agentBackend = {
+  command: (op, args, { projectId, agent, timeoutMs } = {}) => agentBridge.command({ op, args, projectId, agent, timeoutMs }),
+  boards: async () => agentBridge.boards(),
+  projects: () => projectStore.list(),
+  createProject: (name) => projectStore.create({ name }),
+  uploadImage: async ({ buffer, name, projectId }) => {
+    const image = detectRasterImage(buffer);
+    if (!image) throw Object.assign(new Error('Only PNG, JPEG, WEBP, GIF, and BMP raster files are accepted.'), { code: 'UNSUPPORTED_IMAGE' });
+    await projectStore.get(projectId);
+    return assetStore.createUpload({ buffer, name, image, projectId });
+  },
+  readImage: async (url) => {
+    const resolved = await assetStore.resolveDataUrl(String(url || ''));
+    if (!resolved?.path || !existsSync(resolved.path)) throw Object.assign(new Error('Image not found. Use an output URL such as /data/generated/<id>.'), { code: 'IMAGE_NOT_FOUND' });
+    const buffer = await readFile(resolved.path);
+    return { buffer, mimeType: imageMimeType(buffer) };
+  },
+};
+app.get('/api/agent/stream', (request, response) => {
+  response.setHeader('Content-Type', 'text/event-stream');
+  response.setHeader('Cache-Control', 'no-cache, no-transform');
+  response.setHeader('Connection', 'keep-alive');
+  response.flushHeaders();
+  const query = request.query;
+  const clientId = agentBridge.attachClient({
+    clientId: query.clientId,
+    response,
+    state: { projectId: query.projectId, projectName: query.projectName, screen: query.screen, visible: query.visible !== 'false' },
+  });
+  request.on('close', () => agentBridge.detachClient(clientId, response));
+});
+app.post('/api/agent/clients/:clientId', (request, response) => {
+  const ok = agentBridge.updateClient(request.params.clientId, request.body || {});
+  response.status(ok ? 200 : 404).json({ ok });
+});
+app.post('/api/agent/results/:commandId', (request, response) => {
+  const body = request.body || {};
+  const ok = agentBridge.complete(request.params.commandId, String(body.clientId || ''), body);
+  response.status(ok ? 200 : 404).json({ ok });
+});
+app.get('/api/agent/boards', (_request, response) => response.json({ boards: agentBridge.boards() }));
+app.post('/api/agent/command', async (request, response) => {
+  const body = request.body || {};
+  try {
+    const result = await agentBridge.command({ op: body.op, args: body.args, projectId: body.projectId, agent: body.agent, timeoutMs: body.timeoutMs });
+    response.json({ ok: true, result });
+  } catch (error) {
+    response.status(bridgeErrorStatus(error)).json({ ok: false, code: error?.code || 'AGENT_COMMAND_FAILED', message: error instanceof Error ? error.message : String(error) });
+  }
+});
+app.post('/mcp', async (request, response) => {
+  if (!trustedMcpOrigin(request)) return response.status(403).json({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Origin not allowed.' } });
+  const body = request.body;
+  const messages = Array.isArray(body) ? body : [body];
+  const initializing = messages.some((message) => message?.method === 'initialize');
+  let sessionId = request.get('mcp-session-id');
+  let entry = sessionId ? mcpSessions.get(sessionId) : null;
+  if (!entry && sessionId && !initializing) return response.status(404).json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Session not found. Initialize again.' } });
+  if (!entry) {
+    pruneMcpSessions();
+    sessionId = randomUUID();
+    entry = { session: createMcpSession({ backend: agentBackend, allowLocalFiles: false }), lastUsed: Date.now() };
+    mcpSessions.set(sessionId, entry);
+  }
+  entry.lastUsed = Date.now();
+  response.setHeader('Mcp-Session-Id', sessionId);
+  const replies = (await Promise.all(messages.map((message) => entry.session.handle(message)))).filter(Boolean);
+  if (!replies.length) return response.status(202).end();
+  response.json(Array.isArray(body) ? replies : replies[0]);
+});
+app.get('/mcp', (_request, response) => response.status(405).set('Allow', 'POST, DELETE').end());
+app.delete('/mcp', (request, response) => {
+  mcpSessions.delete(String(request.get('mcp-session-id') || ''));
+  response.status(204).end();
+});
+
+function trustedMcpOrigin(request) {
+  const origin = request.get('origin');
+  if (!origin) return true;
+  try {
+    const { hostname, host: originHost } = new URL(origin);
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(hostname) || originHost === request.get('host');
+  } catch { return false; }
+}
+
+function pruneMcpSessions() {
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+  for (const [id, entry] of mcpSessions) if (entry.lastUsed < cutoff) mcpSessions.delete(id);
+  while (mcpSessions.size >= 100) mcpSessions.delete(mcpSessions.keys().next().value);
+}
+
 serveFrontend(app, path.join(rootDir, 'dist'));
 
 app.use((error, _request, response, _next) => {
@@ -786,6 +884,7 @@ const httpServer = app.listen(port, host, () => {
   });
 });
 function shutdown() {
+  agentBridge.stop();
   codexWorkerPool.stop();
   codexImageWorkers.stop();
   cursorCli.stop();
